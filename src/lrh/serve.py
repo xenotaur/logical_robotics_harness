@@ -22,6 +22,8 @@ from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
+from lrh.dependency_maps import layout as dependency_map_layout
+from lrh.dependency_maps import render as dependency_map_render
 from lrh.dependency_maps import snapshot as dependency_map_snapshot
 from lrh.dependency_maps import view as dependency_map_view
 from lrh.meta import workspace as meta_workspace
@@ -57,6 +59,8 @@ _STATUS_ROUTES = (
     "/project/<project_id>/designs/<design_id>",
     "/project/<project_id>/workstreams/<workstream_id>",
     "/project/<project_id>/work-items/<work_item_id>",
+    "/project/<project_id>/dependency-maps",
+    "/project/<project_id>/dependency-maps/<view>",
     "/project/<project_id>/work-items/<work_item_id>/prompt",
     "/health",
     "/api/status",
@@ -162,10 +166,111 @@ def dependency_map_payload(
     return 200, snapshot.to_dict()
 
 
-def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
-    """Return the dependency-map route's status from the view declaration alone.
+def render_dependency_map_page(
+    config: ServeConfig,
+    project_selector: str,
+    view_id: str | None,
+    query: dict[str, str],
+) -> tuple[int, str]:
+    """Render a dependency-map view, or the project's list of views.
 
-    HEAD answers without loading the project or building the snapshot.
+    Returns 404 for an unknown view, 422 for an invalid declaration, and 500
+    if the sources cannot be read; the last two render an explanatory page.
+    """
+
+    repo_root = _config_for_project_selector(
+        config, project_selector
+    ).resolved_project_root()
+    base = f"/project/{_url_quote(project_selector)}/dependency-maps"
+    if view_id is None:
+        return 200, _dependency_map_document(
+            "Dependency maps", _dependency_map_index(repo_root, base)
+        )
+    try:
+        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    except FileNotFoundError:
+        return 404, ""
+    except dependency_map_view.ViewDeclarationError as err:
+        problems = "".join(
+            f"<li>{html.escape(problem)}</li>" for problem in err.problems
+        )
+        body = (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency map</p>'
+            f"<h1>{html.escape(view_id)}: invalid view</h1>"
+            f"<p>Fix <code>{html.escape(err.path)}</code>; "
+            "<code>lrh validate</code> reports the same problems.</p></header>"
+            f'<section class="lrh-console-region"><ul>{problems}</ul></section>'
+        )
+        return 422, _dependency_map_document(f"{view_id}: invalid view", body)
+    except dependency_map_snapshot.SnapshotError as err:
+        body = (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency map</p>'
+            f"<h1>{html.escape(view_id)}: unavailable</h1>"
+            f"<p>{html.escape(str(err))}</p></header>"
+        )
+        return 500, _dependency_map_document(f"{view_id}: unavailable", body)
+    selector = _url_quote(project_selector)
+    body = dependency_map_render.render_view(
+        snapshot,
+        dependency_map_layout.DEFAULT_LAYOUT,
+        tab=query.get("tab", "map"),
+        item=query.get("item"),
+        since=query.get("since"),
+        full_page_href=lambda item_id: (
+            f"/project/{selector}/work-items/{_url_quote(item_id)}"
+        ),
+    )
+    return 200, _dependency_map_document(snapshot.view_title, body)
+
+
+def _dependency_map_index(repo_root: Path, base: str) -> str:
+    paths = dependency_map_view.discover_views(repo_root)
+    if not paths:
+        return (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency maps</p>'
+            "<h1>No dependency-map views</h1>"
+            "<p>This project declares none yet. Add one at "
+            "<code>project/views/dependency_maps/&lt;name&gt;.md</code>; see the "
+            "<code>lrh dependency-map</code> reference.</p></header>"
+        )
+    items = []
+    for path in paths:
+        try:
+            view = dependency_map_view.parse_view(path, repo_root)
+            label = html.escape(view.title)
+        except (dependency_map_view.ViewDeclarationError, OSError):
+            label = "Invalid declaration"
+        href = html.escape(base + "/" + _url_quote(path.stem), quote=True)
+        items.append(
+            f'<li><a href="{href}">'
+            f"{label}</a> <code>{html.escape(path.stem)}</code></li>"
+        )
+    return (
+        '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency maps</p>'
+        "<h1>Dependency maps</h1></header>"
+        f'<section class="lrh-console-region"><ul>{"".join(items)}</ul></section>'
+    )
+
+
+def _dependency_map_document(title: str, body: str) -> str:
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{html.escape(title)}</title>{_base_styles()}
+<style>{dependency_map_render.MAP_STYLES}</style></head>
+<body>
+  <div class="lrh-app-shell lrh-map-shell" data-lrh-own-drawer>
+{body}
+  </div>
+</body>
+</html>
+"""
+
+
+def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
+    """Return the status GET would give for a dependency-map path.
+
+    HEAD builds the snapshot exactly as GET does, so the two always agree,
+    including a 500 when another control file cannot be read.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
@@ -173,12 +278,12 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
         return 404
     repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
     try:
-        dependency_map_view.load_view(repo_root, parts[2])
+        dependency_map_snapshot.build_snapshot(repo_root, parts[2])
     except FileNotFoundError:
         return 404
     except dependency_map_view.ViewDeclarationError:
         return 422
-    except OSError:
+    except dependency_map_snapshot.SnapshotError:
         return 500
     return 200
 
@@ -3061,6 +3166,18 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 parts = [
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
+                if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    status_code, body = render_dependency_map_page(
+                        config,
+                        parts[0],
+                        parts[2] if len(parts) == 3 else None,
+                        self._query_values(),
+                    )
+                    if status_code == 404:
+                        self._write_json(404, {"error": "not_found"})
+                    else:
+                        self._write_text(status_code, "text/html; charset=utf-8", body)
+                    return
                 if len(parts) == 3 and parts[1] == "designs":
                     status_code, body = render_design_detail_page(
                         config, parts[0], parts[2]
@@ -3176,6 +3293,21 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 parts = [
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
+                if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    status_code = (
+                        dependency_map_head_status(config, remainder)
+                        if len(parts) == 3
+                        else 200
+                    )
+                    self._write_head(
+                        status_code,
+                        (
+                            "application/json; charset=utf-8"
+                            if status_code == 404
+                            else "text/html; charset=utf-8"
+                        ),
+                    )
+                    return
                 if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
                     if parts[1] == "designs":
                         status_code, _body = render_design_detail_page(

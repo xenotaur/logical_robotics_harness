@@ -22,7 +22,19 @@ and workstreams, then prints the snapshot as JSON on stdout.
 `--project-root` may be the repository root or its `project/` directory.
 
 `lrh serve` serves the same JSON at
-`GET /api/project/<project_id>/dependency-maps/<view>`.
+`GET /api/project/<project_id>/dependency-maps/<view>`, and draws it as a map
+at `/project/<project_id>/dependency-maps/<view>`; see the
+[`serve` reference](serve.md#dependency-map-routes).
+
+## Layout
+
+The map is drawn through a named, swappable layout interface,
+`lrh.dependency_maps.layout.Layout`: a snapshot in, positioned cards and routed
+lines out. The default, `layered-grid`, keeps each card in its lane and phase
+cell, orders cards within a cell by the position of the cards they link to
+(barycenter sweeps), and routes lines at right angles through the gaps between
+lanes and phases. Items outside the view are not placed; their cards count
+them.
 
 ## View declarations
 

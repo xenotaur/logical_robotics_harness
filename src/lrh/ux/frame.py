@@ -22,6 +22,7 @@ import re
 import urllib.parse
 
 HOME_PATH = "/meta"
+OWN_DRAWER_MARKER = "data-lrh-own-drawer"
 SETTINGS_PATH = "/settings"
 STATIC_PREFIX = "/static/"
 
@@ -133,9 +134,11 @@ def apply_frame(page: str, context: FrameContext) -> str:
     )
     # One main landmark per page: keep the page's own <main> if it has one.
     tag = "div" if "<main" in body else "main"
+    # A page that manages its own detail drawer opts out of the frame's.
+    own_drawer = OWN_DRAWER_MARKER in body
     return (
         before
-        + _frame_open(title or "LRH Console", context, tag)
+        + _frame_open(title or "LRH Console", context, tag, own_drawer)
         + body
         + f"\n  </{tag}>\n</div>\n"
         + after
@@ -167,6 +170,7 @@ def _views(selector: str | None) -> list[tuple[str, str, str]]:
         ]
     return [
         ("Overview", f"/project/{_quote(selector)}", "house"),
+        ("Dependency maps", f"/project/{_quote(selector)}/dependency-maps", "network"),
         ("Statusboard", HOME_PATH, "layout-dashboard"),
     ]
 
@@ -178,7 +182,9 @@ def _current_url(context: FrameContext, **overrides: str | None) -> str:
     return context.path + (f"?{encoded}" if encoded else "")
 
 
-def _frame_open(title: str, context: FrameContext, tag: str) -> str:
+def _frame_open(
+    title: str, context: FrameContext, tag: str, own_drawer: bool = False
+) -> str:
     selector, scope_label = _labels(context)
     rendered_at = context.rendered_at or datetime.datetime.now(datetime.UTC)
     stamp = rendered_at.astimezone(datetime.UTC).strftime("%H:%M:%S UTC")
@@ -230,7 +236,7 @@ def _frame_open(title: str, context: FrameContext, tag: str) -> str:
     </details>
     <ul class="lrh-views">{views}</ul>
   </nav>
-{_drawer(context)}  <{tag} class="lrh-main" id="lrh-content">"""
+{"" if own_drawer else _drawer(context)}  <{tag} class="lrh-main" id="lrh-content">"""
 
 
 def _scope_link(label: str, href: str, current: bool) -> str:
@@ -273,7 +279,7 @@ def _drawer(context: FrameContext) -> str:
       <a class="lrh-iconbtn lrh-tip-end" href="{close}">{icon("x")}
         <span class="lrh-tip">Close details</span></a>
     </header>
-    <p class="lrh-muted">Item details arrive with the dependency map.</p>
+    <p class="lrh-muted">This page does not show item details here.</p>
     {full_page}
   </aside>
 """

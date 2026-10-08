@@ -74,7 +74,27 @@ lrh serve --desktop-protocol
   HTML detail route renders transcript bodies as escaped inert text after an
   explicit export selection.
 
-## Dependency-map route
+## Dependency-map routes
+
+- `/project/<project_id>/dependency-maps`: the project's declared views, or an
+  explanation of how to declare one.
+- `/project/<project_id>/dependency-maps/<view>`: the view as a script-free map
+  in the frame. Lanes are columns and phases are rows. Each card shows the
+  item's ID, title, structural state (icon, text, and color), a "Not
+  prompt-ready" flag when relevant, and why it is waiting or blocked. Solid
+  lines are "depends on" and dashed lines are "blocked by"; they run from the
+  prerequisite to the item that needs it.
+  - `?item=<id>` selects a card: its upstream and downstream cards and lines
+    are highlighted, and the detail drawer shows the three state layers,
+    placement, reasons, needs, needed-by, the source path, and effort (not
+    modeled yet).
+  - `?tab=table` shows every item as a table, and `?tab=blockers` lists each
+    waiting or blocked item with what it needs.
+  - **Check for changes** reloads with `?since=<fingerprint>` and says whether
+    the control files changed since the snapshot you were viewing.
+  - Narrow screens show the map as a list grouped by phase.
+  - It returns 404 for an unknown view, and an explanatory page with 422 for an
+    invalid declaration or 500 if the sources cannot be read.
 
 - `/api/project/<project_id>/dependency-maps/<view>`: the versioned
   `DependencyMapSnapshot` JSON for a view declared in
@@ -82,9 +102,9 @@ lrh serve --desktop-protocol
   view, 422 for an invalid declaration, and 500 if the view or the project's
   control files cannot be read. As with the other `/project/<project_id>/`
   routes, a `project_id` that the Meta registry cannot resolve to a local
-  checkout falls back to the served project. HEAD checks only the view
-  declaration. `lrh dependency-map snapshot <view>` prints the same JSON; see
-  the [dependency-map reference](dependency-map.md).
+  checkout falls back to the served project. HEAD builds the snapshot as GET
+  does, so the two always agree. `lrh dependency-map snapshot <view>` prints
+  the same JSON; see the [dependency-map reference](dependency-map.md).
 
 ## Conversation archive routes
 

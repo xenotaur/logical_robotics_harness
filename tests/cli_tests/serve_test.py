@@ -586,6 +586,81 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(get_ctx.exception.code, 500)
         self.assertEqual(head_ctx.exception.code, 500)
 
+    def test_dependency_map_page_renders_in_the_frame(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        status, content_type, body = self._read(url)
+        _s, _t, selected = self._read(url + "?item=WI-A")
+        _s, _t, table = self._read(url + "?tab=table")
+        _s, _t, blockers = self._read(url + "?tab=blockers")
+        head_status, _head_type = self._head(url)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+        self.assertIn('class="lrh-map"', body)
+        self.assertIn("Layout: layered-grid.", body)
+        self.assertIn("Dependency maps</span>", body)
+        self.assertNotIn("<script", body.lower())
+        self.assertEqual(selected.count('<aside class="lrh-drawer"'), 1)
+        _s, _t, unknown = self._read(url + "?item=WI-NOPE")
+        self.assertNotIn('<aside class="lrh-drawer"', unknown)
+        self.assertIn("WI-NOPE is not in this view.", unknown)
+        self.assertIn("Not modeled yet", selected)
+        self.assertIn('class="lrh-map-table"', table)
+        self.assertIn("Nothing in this view is waiting or blocked.", blockers)
+
+    def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+
+        with unittest.mock.patch.object(
+            dependency_map_snapshot.loader,
+            "load_project",
+            side_effect=ValueError("bad control file"),
+        ):
+            for path in (
+                "/project/main/dependency-maps/main",
+                "/api/project/main/dependency-maps/main",
+            ):
+                with self.subTest(path=path):
+                    with self.assertRaises(urllib.error.HTTPError) as get_ctx:
+                        self._read(base_url + path)
+                    with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                        self._head(base_url + path)
+                    self.assertEqual(get_ctx.exception.code, 500)
+                    self.assertEqual(head_ctx.exception.code, 500)
+
+    def test_dependency_map_index_and_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        base = base_url + "/project/main/dependency-maps"
+
+        _status, _type, index = self._read(base)
+        self.assertIn('href="/project/main/dependency-maps/main"', index)
+        self.assertIn("Invalid declaration", index)
+        for path, code in (("/missing", 404), ("/broken", 422)):
+            with self.subTest(path=path):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(base + path)
+                self.assertEqual(err_ctx.exception.code, code)
+                with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                    self._head(base + path)
+                self.assertEqual(head_ctx.exception.code, code)
+        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+            self._read(base + "/broken")
+        page = err_ctx.exception.read().decode("utf-8")
+        self.assertIn("invalid view", page)
+        self.assertIn("lanes must be a non-empty list", page)
+
+    def test_dependency_map_index_without_views_explains_how_to_add_one(self) -> None:
+        base_url = self._isolated_server()
+
+        _status, _type, body = self._read(base_url + "/project/main/dependency-maps")
+
+        self.assertIn("No dependency-map views", body)
+        self.assertIn("project/views/dependency_maps/&lt;name&gt;.md", body)
+
     def test_dependency_map_route_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
 
@@ -657,6 +732,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/project/<project_id>/designs/<design_id>",
                 "/project/<project_id>/workstreams/<workstream_id>",
                 "/project/<project_id>/work-items/<work_item_id>",
+                "/project/<project_id>/dependency-maps",
+                "/project/<project_id>/dependency-maps/<view>",
                 "/project/<project_id>/work-items/<work_item_id>/prompt",
                 "/health",
                 "/api/status",

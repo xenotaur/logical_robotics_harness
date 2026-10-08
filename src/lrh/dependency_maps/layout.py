@@ -91,8 +91,17 @@ class LayeredGridLayout:
     name = "layered-grid"
 
     def layout(self, snapshot: DependencyMapSnapshot) -> LayoutResult:
-        placed = [node for node in snapshot.nodes if not node.offscreen]
         lane_ids = [row.id for row in snapshot.lanes]
+        known_phases = {row.id for row in snapshot.phases}
+        # Only nodes whose lane and phase rows exist can be placed; the
+        # snapshot builder guarantees this, so others are skipped, not fatal.
+        placed = [
+            node
+            for node in snapshot.nodes
+            if not node.offscreen
+            and (node.lane or UNPLACED) in lane_ids
+            and (node.phase or UNPLACED) in known_phases
+        ]
         phase_ids = [
             row.id
             for row in snapshot.phases
@@ -172,7 +181,18 @@ class LayeredGridLayout:
             height=height,
             lanes=lanes,
             phases=phases,
-            cards=tuple(sorted(cards.values(), key=lambda card: card.id)),
+            # Reading order: phase, then lane, then top to bottom, so keyboard
+            # focus follows the grid.
+            cards=tuple(
+                sorted(
+                    cards.values(),
+                    key=lambda card: (
+                        phase_ids.index(card.phase),
+                        lane_ids.index(card.lane),
+                        card.y,
+                    ),
+                )
+            ),
             lines=lines,
         )
 

@@ -258,7 +258,7 @@ def _dependency_map_document(title: str, body: str) -> str:
 <head><meta charset="utf-8"><title>{html.escape(title)}</title>{_base_styles()}
 <style>{dependency_map_render.MAP_STYLES}</style></head>
 <body>
-  <div class="lrh-app-shell lrh-map-shell">
+  <div class="lrh-app-shell lrh-map-shell" data-lrh-own-drawer>
 {body}
   </div>
 </body>

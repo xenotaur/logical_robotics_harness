@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import re
 import unittest
@@ -184,6 +185,50 @@ class LayeredGridLayoutTest(unittest.TestCase):
             cards["WI-1"].y < cards["WI-2"].y, cards["WI-Y"].y < cards["WI-X"].y
         )
 
+    def test_left_and_same_lane_routes_meet_card_sides(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-A", "two"),
+                _node("WI-C", "WS-C", "one"),
+                _node("WI-D", "WS-B", "two"),
+            ),
+            (
+                _edge("WI-B", "WI-A"),
+                _edge("WI-A", "WI-C"),
+                _edge("WI-A", "WI-D"),
+            ),
+            lanes=("WS-A", "WS-B", "WS-C"),
+        )
+        result = layout.DEFAULT_LAYOUT.layout(snapshot)
+        cards = {card.id: card for card in result.cards}
+
+        for line in result.lines:
+            with self.subTest(line=(line.source, line.item)):
+                source, item = cards[line.source], cards[line.item]
+                for (x1, y1), (x2, y2) in zip(line.points, line.points[1:]):
+                    self.assertTrue(x1 == x2 or y1 == y2)
+                self.assertIn(line.points[0][0], (source.x, source.x + source.width))
+                self.assertIn(line.points[-1][0], (item.x, item.x + item.width))
+
+    def test_cards_come_in_reading_order(self) -> None:
+        result = layout.DEFAULT_LAYOUT.layout(_example())
+        phases = [box.id for box in result.phases]
+        lanes = [box.id for box in result.lanes]
+
+        keys = [
+            (phases.index(card.phase), lanes.index(card.lane), card.y)
+            for card in result.cards
+        ]
+        self.assertEqual(keys, sorted(keys))
+
+    def test_nodes_without_rows_are_skipped_not_fatal(self) -> None:
+        snapshot = _snapshot((_node("WI-A", None, "one"), _node("WI-B", "WS-A", "one")))
+
+        result = layout.DEFAULT_LAYOUT.layout(snapshot)
+
+        self.assertEqual([card.id for card in result.cards], ["WI-B"])
+
     def test_layout_is_deterministic_and_named(self) -> None:
         first = layout.DEFAULT_LAYOUT.layout(_example())
         self.assertEqual(first, layout.DEFAULT_LAYOUT.layout(_example()))
@@ -282,16 +327,22 @@ class RenderTest(unittest.TestCase):
         ):
             self.assertIn(text, drawer)
 
-    def test_an_unknown_item_selects_nothing(self) -> None:
+    def test_an_unknown_item_selects_nothing_and_says_so(self) -> None:
         page = _view(_example(), item="WI-NOPE")
 
         self.assertNotIn("lrh-drawer", page)
         self.assertNotIn("lrh-card--selected", page)
+        self.assertIn("WI-NOPE is not in this view.", page)
+
+    def test_blocked_cards_keep_their_dashed_border_when_highlighted(self) -> None:
+        for rule in (".lrh-card--related {", ".lrh-card--selected {"):
+            block = render.MAP_STYLES.split(rule, 1)[1].split("}", 1)[0]
+            self.assertNotRegex(block, r"\bborder:")
 
     def test_table_lists_every_node_with_id_links(self) -> None:
         page = _view(_example(), tab="table")
 
-        rows = re.findall(r"<tr><td>", page)
+        rows = re.findall(r'<tr><th scope="row">', page)
         self.assertEqual(len(rows), 5)
         self.assertIn('href="?tab=table&amp;item=WI-A"', page)
         self.assertIn("Outside this view", page)
@@ -343,11 +394,27 @@ class RenderTest(unittest.TestCase):
         )
 
     def test_untrusted_text_is_escaped_and_there_are_no_scripts(self) -> None:
+        hostile = '<script>alert("x")</script>'
+        node = _node(
+            "WI-A",
+            "WS-A",
+            "one",
+            "blocked",
+            title=hostile,
+            reasons=(StateReason(kind="blocked_flag", detail=hostile),),
+        )
         snapshot = _snapshot(
-            (_node("WI-A", "WS-A", "one", title='<script>alert("x")</script>'),)
+            (node,),
+            diagnostics=(Diagnostic(code="cycle", severity="error", message=hostile),),
+        )
+        snapshot = dataclasses.replace(
+            snapshot,
+            view_title=hostile,
+            view_source=hostile,
+            lanes=(Row(id="WS-A", title=hostile), Row(id="WS-B", title="B")),
         )
 
-        page = _view(snapshot, item="WI-A")
+        page = _view(snapshot, item="WI-A") + _view(snapshot, tab="blockers")
 
         self.assertNotIn("<script", page)
         self.assertIn("&lt;script&gt;", page)

@@ -20,6 +20,7 @@ from lrh.dependency_maps.snapshot import (
     Diagnostic,
     Node,
 )
+from lrh.ux import frame
 
 TABS = (("map", "Map"), ("table", "Table"), ("blockers", "Blockers"))
 
@@ -59,6 +60,11 @@ def render_view(
         _header(snapshot, tab, selected, since),
         _diagnostics(snapshot.diagnostics),
     ]
+    if item and selected is None:
+        parts.append(
+            f'<p class="lrh-stale" role="status">{html.escape(item)} is not in this '
+            "view.</p>"
+        )
     if tab == "table":
         parts.append(_table(snapshot, nodes))
     elif tab == "blockers":
@@ -136,9 +142,10 @@ def _why(node: Node) -> str:
     reasons = node.state_reasons
     if node.state == "blocked":
         reason = reasons[0]
+        more = f" and {len(reasons) - 1} more" if len(reasons) > 1 else ""
         if reason.kind == "blocked_flag":
-            return f"Blocked: {reason.detail or 'no reason given'}"
-        return f"Blocked by {reason.target} ({reason.target_lifecycle})"
+            return f"Blocked: {reason.detail or 'no reason given'}{more}"
+        return f"Blocked by {reason.target} ({reason.target_lifecycle}){more}"
     if node.state == "waiting":
         first = reasons[0]
         more = f" and {len(reasons) - 1} more" if len(reasons) > 1 else ""
@@ -247,6 +254,8 @@ def _map(
     upstream: set[str],
     downstream: set[str],
 ) -> str:
+    # A line is emphasized when both ends lie on a path to or from the
+    # selection; that also covers a bypass from an upstream to a downstream item.
     related = upstream | downstream | ({selected} if selected else set())
     lanes = "".join(
         f'<div class="lrh-lane" style="left:{box.x}px;width:{box.width}px;'
@@ -270,13 +279,9 @@ def _map(
         if emphasis:
             classes += " lrh-line--selected"
         marker = "lrh-arrow-selected" if emphasis else "lrh-arrow"
-        label = (
-            f"{line.item} {LINE_LABELS.get(line.kind, line.kind).lower()} {line.source}"
-        )
         paths.append(
             f'<polyline class="{classes}" points="{points}" '
-            f'marker-end="url(#{marker})"><title>{html.escape(label)}</title>'
-            "</polyline>"
+            f'marker-end="url(#{marker})"/>'
         )
     cards = []
     for card in result.cards:
@@ -320,7 +325,7 @@ def _map(
     )
     return f"""<section class="lrh-map-scroll" aria-label="Dependency map">
 {empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px">
-  {phases}{lanes}
+  {lanes}{phases}
   <svg class="lrh-lines" width="{result.width}" height="{result.height}"
        aria-hidden="true">
     <defs>
@@ -389,9 +394,9 @@ def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         dependents = sorted(set(needed_by.get(node.id, [])))
         rows.append(
             "<tr>"
-            f'<td><a class="lrh-id-link lrh-mono" '
+            f'<th scope="row"><a class="lrh-id-link lrh-mono" '
             f'href="{html.escape(_href("table", node.id), quote=True)}">'
-            f"{html.escape(node.id)}</a></td>"
+            f"{html.escape(node.id)}</a></th>"
             f"<td>{html.escape(node.title)}</td>"
             f"<td>{html.escape(_lane_label(snapshot, node))}</td>"
             f"<td>{html.escape(_phase_label(snapshot, node))}</td>"
@@ -506,7 +511,7 @@ def _drawer(
     return f"""<aside class="lrh-drawer" aria-labelledby="lrh-drawer-title">
   <header>
     <h2 id="lrh-drawer-title" class="lrh-mono">{html.escape(node.id)}</h2>
-    <a class="lrh-iconbtn lrh-tip-end" href="{close}">✕
+    <a class="lrh-iconbtn lrh-tip-end" href="{close}">{frame.icon("x")}
       <span class="lrh-tip">Close details</span></a>
   </header>
   <p>{html.escape(node.title)}</p>
@@ -675,9 +680,14 @@ MAP_STYLES = """
   .lrh-card:hover { border-color: var(--lrh-color-action-accent); }
   .lrh-card:focus-visible { box-shadow: var(--lrh-focus-ring); outline: none; }
   .lrh-card--blocked { border-style: dashed; }
-  .lrh-card--related { border: 2px solid var(--lrh-color-edge-strong); }
+  /* Width and color only, so a blocked card keeps its dashed border. */
+  .lrh-card--related {
+    border-color: var(--lrh-color-edge-strong);
+    border-width: 2px;
+  }
   .lrh-card--selected {
-    border: 2px solid var(--lrh-color-action-accent);
+    border-color: var(--lrh-color-action-accent);
+    border-width: 2px;
     box-shadow: 0 0 0 3px var(--lrh-color-action-accent-bg);
   }
   .lrh-card-top {

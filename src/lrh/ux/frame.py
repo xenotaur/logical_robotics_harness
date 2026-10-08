@@ -22,6 +22,7 @@ import re
 import urllib.parse
 
 HOME_PATH = "/meta"
+OWN_DRAWER_MARKER = "data-lrh-own-drawer"
 SETTINGS_PATH = "/settings"
 STATIC_PREFIX = "/static/"
 
@@ -133,8 +134,8 @@ def apply_frame(page: str, context: FrameContext) -> str:
     )
     # One main landmark per page: keep the page's own <main> if it has one.
     tag = "div" if "<main" in body else "main"
-    # A page that renders its own detail drawer replaces the frame's default.
-    own_drawer = 'class="lrh-drawer"' in body
+    # A page that manages its own detail drawer opts out of the frame's.
+    own_drawer = OWN_DRAWER_MARKER in body
     return (
         before
         + _frame_open(title or "LRH Console", context, tag, own_drawer)
@@ -278,7 +279,7 @@ def _drawer(context: FrameContext) -> str:
       <a class="lrh-iconbtn lrh-tip-end" href="{close}">{icon("x")}
         <span class="lrh-tip">Close details</span></a>
     </header>
-    <p class="lrh-muted">Item details arrive with the dependency map.</p>
+    <p class="lrh-muted">This page does not show item details here.</p>
     {full_page}
   </aside>
 """

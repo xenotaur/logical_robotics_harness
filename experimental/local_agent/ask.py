@@ -135,7 +135,8 @@ def _assemble(
     listing = ""
     if files:
         mode = MODE_FILES
-        candidates = [_repo_relative(root, path) for path in files]
+        # Keep order, drop repeats: each file is sent (and counted) once.
+        candidates = list(dict.fromkeys(_repo_relative(root, path) for path in files))
     else:
         mode = MODE_OVERVIEW
         tracked = sources.list_tracked_files(root, commit)
@@ -177,6 +178,11 @@ def _assemble(
         except sources.SourceError as error:
             excluded.append({"path": path, "reason": str(error)})
             continue
+        if ref.included_bytes == 0:
+            # A first line longer than the remaining budget leaves nothing to
+            # send; an empty section would only invite invented citations.
+            excluded.append({"path": path, "reason": "budget"})
+            continue
         used += ref.included_bytes
         refs.append(ref.as_dict())
         sections.append(context.render_source(ref, text))
@@ -198,9 +204,34 @@ def _assemble(
     )
 
 
+def unsendable_reason(ctx: AskContext) -> str | None:
+    """Why ``ctx`` must not be sent to the model, or ``None`` if it may be.
+
+    File questions need at least one included source, and work-item
+    questions need the work item itself; otherwise the model would answer
+    from little or nothing and invent citations. Overview questions always
+    carry the tracked-file listing.
+    """
+    if ctx.mode == MODE_OVERVIEW:
+        return None
+    if not ctx.source_refs:
+        return "all requested sources were excluded; nothing to answer from"
+    if ctx.mode == MODE_WORK_ITEM and not any(
+        ref.get("relation") == "WorkItem" for ref in ctx.source_refs
+    ):
+        return "the work item itself was excluded; its text would not be sent"
+    return None
+
+
 def source_summary(ctx: AskContext) -> str:
     """One short block describing what will be sent to the model."""
-    lines = [f"sources ({ctx.mode}, commit {ctx.source_commit[:12]}):"]
+    sent = len(ctx.source_refs)
+    requested = sent + len(ctx.excluded)
+    listing = " + tracked-file listing" if ctx.mode == MODE_OVERVIEW else ""
+    lines = [
+        f"sources ({ctx.mode}, commit {ctx.source_commit[:12]}): "
+        f"sending {sent} of {requested}{listing}"
+    ]
     for ref in ctx.source_refs:
         truncated = " TRUNCATED" if ref.get("truncated") else ""
         warnings = ref.get("sensitivity_warnings") or ()
@@ -210,8 +241,6 @@ def source_summary(ctx: AskContext) -> str:
             f"L{ref['line_start']}-{ref['line_end']}/{ref['total_lines']}"
             f"{truncated}{warned}"
         )
-    if ctx.mode == MODE_OVERVIEW:
-        lines.append("  + tracked-file listing")
     for entry in ctx.excluded:
         lines.append(f"  excluded {entry['path']}: {entry['reason']}")
     if ctx.context_warnings:
@@ -219,6 +248,9 @@ def source_summary(ctx: AskContext) -> str:
             f"  context WARN: {', '.join(ctx.context_warnings)} "
             "(medium findings anywhere in what will be sent)"
         )
+    reason = unsendable_reason(ctx)
+    if reason:
+        lines.append(f"  NOT SENDING: {reason}")
     return "\n".join(lines)
 
 
@@ -297,6 +329,9 @@ def run_ask(
             )
 
     try:
+        reason = unsendable_reason(ctx)
+        if reason:
+            return finish("missing_prerequisite", reason)
         try:
             preflight = adapter.preflight()
         except model.BackendError as error:

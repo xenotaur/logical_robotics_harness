@@ -263,6 +263,15 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
     print(ask.source_summary(ctx), file=sys.stderr)
+    reason = ask.unsendable_reason(ctx)
+    if reason:
+        excluded = "; ".join(f"{e['path']} ({e['reason']})" for e in ctx.excluded)
+        detail = f"{reason}: {excluded}" if excluded else reason
+        run_id = ask.record_failure(
+            store, args.question, "missing_prerequisite", detail
+        )
+        print(f"not sent (run {run_id})", file=sys.stderr)
+        return 2
     interactive = sys.stdin.isatty()
     if interactive and not args.yes:
         try:

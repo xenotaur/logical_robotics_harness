@@ -159,6 +159,67 @@ class BuildContextTest(AskTestBase):
         ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
         self.assertNotIn("DIRTY", ctx.text)
 
+    def test_all_excluded_files_are_not_sendable(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=[".env", "leaky.md"])
+        self.assertEqual(ctx.source_refs, [])
+        self.assertIn("all requested sources were excluded", ask.unsendable_reason(ctx))
+        summary = ask.source_summary(ctx)
+        self.assertIn("sending 0 of 2", summary)
+        self.assertIn("NOT SENDING", summary)
+
+    def test_run_ask_refuses_without_sources_and_makes_no_call(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=[".env"])
+        adapter = model.FakeModel([_response(ANSWER)])
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=ctx,
+            adapter=adapter,
+            budgets=settings.Budgets(),
+        )
+        run = self.store.load_run(run_id)
+        self.assertEqual(run["outcome"], "missing_prerequisite")
+        self.assertEqual(adapter.requests, [])
+
+    def test_file_with_nothing_within_budget_is_excluded(self) -> None:
+        (self.repo / "big.txt").write_text("x" * 200 + "\n", encoding="utf-8")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "big")
+        ctx = ask.build_context(
+            repo=self.repo,
+            files=["big.txt"],
+            budgets=settings.Budgets(max_packet_bytes=50),
+        )
+        self.assertEqual(ctx.source_refs, [])
+        self.assertEqual(ctx.excluded, [{"path": "big.txt", "reason": "budget"}])
+        self.assertIsNotNone(ask.unsendable_reason(ctx))
+
+    def test_duplicate_files_are_sent_once(self) -> None:
+        ctx = ask.build_context(
+            repo=self.repo,
+            files=["project/design/demo.md", "project/design/demo.md"],
+        )
+        self.assertEqual(len(ctx.source_refs), 1)
+        self.assertIn("sending 1 of 1", ask.source_summary(ctx))
+
+    def test_work_item_mode_needs_the_work_item_itself(self) -> None:
+        ctx = ask.AskContext(
+            mode=ask.MODE_WORK_ITEM,
+            repo=str(self.repo),
+            source_commit="0" * 40,
+            text="",
+            source_refs=[{"source_id": "S1", "relation": "Design"}],
+            excluded=[{"path": "project/work_items/x.md", "reason": "secret"}],
+        )
+        self.assertIn("work item itself", ask.unsendable_reason(ctx))
+        ok = ask.build_context(repo=self.repo, work_item="WI-T-1")
+        self.assertIsNone(ask.unsendable_reason(ok))
+
+    def test_overview_is_sendable_and_counts_sources(self) -> None:
+        ctx = ask.build_context(repo=self.repo)
+        self.assertIsNone(ask.unsendable_reason(ctx))
+        self.assertIn("sending 1 of 1 + tracked-file listing", ask.source_summary(ctx))
+
     def test_source_summary_lists_sources_and_exclusions(self) -> None:
         ctx = ask.build_context(
             repo=self.repo, files=["project/design/demo.md", ".env"]

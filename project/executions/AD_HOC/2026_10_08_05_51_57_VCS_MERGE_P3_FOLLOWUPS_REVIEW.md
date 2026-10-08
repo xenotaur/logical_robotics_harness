@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_05_51_57_VCS_MERGE_P3_FOLLOWUPS_REVIEW
 prompt_id: PROMPT(AD_HOC:VCS_MERGE_P3_FOLLOWUPS_REVIEW)[2026-10-08T02:02:50+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/784
-commit:
+commit: d00c2c4420e434031447c9e4a72fc561e45ff722
 created_at: 2026-10-08T05:51:57+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/784

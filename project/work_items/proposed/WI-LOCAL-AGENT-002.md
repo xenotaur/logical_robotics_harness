@@ -98,8 +98,13 @@ experimental one.
    - Admit medium-only sources (email, IP address, phone), and attach a
      warning that names the categories but never the matched values, as T0
      and T1 do.
-   - Search is bounded literal text search with capped results and clear
-     truncation markers.
+   - Search is bounded literal text search over admissible sources only:
+     high-severity sources never appear in results, and medium-only results
+     carry category-only warnings. Results are capped, with clear truncation
+     markers. Model-initiated reads and searches can never use the owner's
+     `--allow-flagged` override, even for a file the owner allowed into the
+     initial context of the same run; such a file stays readable only
+     through that initial context.
    - Treat retrieved instructions as data.
 4. Bound total calls, steps, input/output size, model tokens, and wall time.
    Preserve explicit errors, denials, timeout, cancellation, and budget
@@ -117,7 +122,9 @@ experimental one.
    - backend timeout, cancellation, truncated logs, and interrupted attempts;
    - both sides of the severity boundary for reads and search results:
      high-severity sources are rejected, and medium-only sources are returned
-     with category-only warnings.
+     with category-only warnings;
+   - model requests cannot invoke or widen the owner's `--allow-flagged`
+     override.
 
    Include malicious source text that asks for shell, network, or write tools,
    and verify that no handler outside the three-tool surface is reachable.

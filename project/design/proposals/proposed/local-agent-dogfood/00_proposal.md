@@ -4,7 +4,7 @@ type: design_proposal
 title: "Local Agent Dogfood and a Durable Session Boundary"
 status: proposed
 created_on: "2026-09-24"
-updated_on: "2026-09-30"
+updated_on: "2026-10-08"
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -174,7 +174,7 @@ A `--commit` option pins another revision. Before calling the model, the tool
 prints a short summary of the sources it will send (paths, line ranges, sizes);
 no hash approval step is required.
 
-Excluded always:
+Excluded by default:
 
 - private transcripts and session, execution, and memory records;
 - untracked content and binary files;
@@ -185,7 +185,7 @@ Excluded always:
   (`lrh.conversations.sensitivity`): secrets, tokens, private keys, credentials
   in URLs, and payment-card or government-ID numbers. Every source is scanned
   before sending, and such a source is dropped and listed as excluded in the
-  source summary.
+  source summary, unless the owner overrides it for that file (below).
 
 Medium-severity findings (email addresses, IP addresses, phone numbers) do not
 exclude a source; the source summary lists them as warnings, by category and
@@ -193,8 +193,41 @@ never by value, so the owner sees them before the model is called. Excluding on
 them dropped common documentation such as the repository README, which
 mentions `127.0.0.1`. Such text does reach the model, which is acceptable only
 because the adapter's local-only checks keep it on this machine. Anything
-leaving the private store stays stricter: exports and the `report` summary
-withhold text on any finding.
+leaving the private store stays stricter: exports and, if implemented, the
+`report` summary withhold text on any finding.
+
+**Explicit owner override for scanner findings.** The scanner's rules were
+written for transcripts and configuration text, and they misfire on code: the
+Python annotation `token: Callable[[], str]` reads as a secret assignment,
+which excluded `experimental/local_agent/recorder.py`. The owner may send such
+a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
+`--files` question:
+
+- **scope:** only files named in the same command's `--files`, matched after
+  the same path normalization; never `--wi`, `brief`, or overview questions,
+  and never model-initiated T2 reads or searches;
+- **what it lifts:** only the exclusion for a high-severity scanner finding,
+  and only for the categories the owner names. If the file has any other
+  high-severity category, or none, the run is refused. The owner therefore
+  names categories already reported for that file, and a changed file cannot
+  slip a new kind of finding through;
+- **what it never lifts:** private paths, untracked or binary files, and
+  credential-like file and directory names (so `src/lrh/secrets/` stays
+  excluded by path, whatever the scanner says);
+- **refusals:** an override for a file that was not requested, is excluded by
+  path, or lacks a high-severity finding is refused with its reason, not
+  silently ignored;
+- **visibility:** the source summary marks the file
+  `ALLOWED DESPITE: <categories>`, and the run record notes the override by
+  path and category, never by value;
+- **what is stored:** the allowed file's text reaches the model and may
+  appear in the private store (for example, echoed in an answer); exports
+  are unchanged and withhold any text with a finding.
+
+Recorded 2026-10-08 by the owner: this trades a little of the guard for
+usability, by the owner's explicit, per-run decision, while inference stays
+local. Fixing the scanner's false positives on code is a separate work item
+(`WI-SENSITIVITY-SECRET-ASSIGNMENT-CODE-FP`).
 
 This is a best-effort guard, not a guarantee; the source summary is shown on
 every run, and budgets cap what is sent. The same exclusions apply to T2 tool

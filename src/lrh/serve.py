@@ -898,7 +898,8 @@ def render_design_detail_page(
     )
     return (
         200,
-        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+        """<!doctype html><html lang="en" data-theme="light">
+<head><meta charset="utf-8">
 <title>Design detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Design: {design_id}</h1>
 <p><a href="/project/{project}">Back to project dashboard</a></p></header>
@@ -962,7 +963,8 @@ def render_workstream_detail_page(
     work_item_html = _html_list(list(workstream.work_items))
     return (
         200,
-        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+        """<!doctype html><html lang="en" data-theme="light">
+<head><meta charset="utf-8">
 <title>Workstream detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Workstream: {workstream_id}</h1>
 <p><a href="/project/{project}">Back to project dashboard</a></p></header>
@@ -1745,7 +1747,7 @@ def render_project_work_item_page(
         "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
     )
     page = f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>{html.escape(item.id)}</title>{_base_styles()}</head>
 <body><div class="lrh-app-shell">
 <h1>{html.escape(item.id)} — {html.escape(item.title)}</h1>
@@ -2051,7 +2053,7 @@ def render_codex_archive_index(config: ServeConfig) -> str:
     safety = _html_list(payload["safety"])
     styles = _base_styles()
     return f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>Codex conversation archives</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">
@@ -2109,7 +2111,7 @@ def render_codex_archive_detail(config: ServeConfig, export_id: str) -> tuple[in
     status_badge = f'<span class="lrh-status-badge {badge_class}">{validity}</span>'
     styles = _base_styles()
     body = f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>{heading}</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">

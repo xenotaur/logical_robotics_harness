@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import inspect
 import pathlib
 import re
 import unittest
 
+from lrh import serve
 from lrh.ux import tokens
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -13,6 +15,14 @@ SOURCE = REPO_ROOT / "src" / "lrh" / "ux" / "static" / "lrh-tokens.css"
 DESKTOP_COPY = REPO_ROOT / "apps" / "desktop" / "ui" / "lrh-tokens.css"
 
 _STATES = ("done", "progress", "unblocked", "waiting", "blocked", "review", "unknown")
+_BANDS = (
+    "needs-attention",
+    "blocked",
+    "active-work",
+    "awaiting-review",
+    "stable",
+    "unknown",
+)
 _SURFACES = ("page", "panel", "sunken", "overlay")
 
 # Text against its background: WCAG 2.2 SC 1.4.3.
@@ -25,19 +35,30 @@ _TEXT_PAIRS = (
     + [
         (f"status-{state}-fg", background)
         for state in _STATES
-        for background in (f"status-{state}-bg", "surface-panel", "surface-page")
+        for background in (f"status-{state}-bg",)
+        + tuple(f"surface-{s}" for s in _SURFACES)
+    ]
+    + [
+        (text, f"status-{state}-bg")
+        for text in ("text-primary", "text-muted")
+        for state in _STATES
     ]
     + [("action-on-accent", "action-accent"), ("text-primary", "action-accent-bg")]
 )
 
 # Lines, icons, and focus against the surfaces they sit on: SC 1.4.11.
-_LINE_PAIRS = [
-    (line, f"surface-{surface}")
-    for line in (
-        ["edge", "edge-strong", "focus"] + [f"status-{state}-line" for state in _STATES]
-    )
-    for surface in _SURFACES
-] + [(f"status-{state}-line", f"status-{state}-bg") for state in _STATES]
+_LINE_PAIRS = (
+    [
+        (line, f"surface-{surface}")
+        for line in (
+            ["edge", "edge-strong", "focus"]
+            + [f"status-{state}-line" for state in _STATES]
+        )
+        for surface in _SURFACES
+    ]
+    + [(f"status-{state}-line", f"status-{state}-bg") for state in _STATES]
+    + [("focus", "action-accent-bg")]
+)
 
 
 def _blocks(css: str) -> dict[str, dict[str, str]]:
@@ -55,7 +76,8 @@ def _blocks(css: str) -> dict[str, dict[str, str]]:
     forced = re.search(
         r'^:root\[data-theme="dark"\] \{(.*?)^\}', css, flags=re.S | re.M
     )
-    assert light and media and forced, "token file layout changed"
+    if not (light and media and forced):
+        raise AssertionError("token file layout changed")
     return {
         "light": _declarations(light.group(1)),
         "media": _declarations(media.group(1)),
@@ -138,6 +160,25 @@ class TokenFileTest(unittest.TestCase):
     def test_line_icon_and_focus_pairs_meet_three_to_one(self) -> None:
         self._check(_LINE_PAIRS, 3.0)
 
+    def test_checked_states_and_bands_are_every_declared_one(self) -> None:
+        names = self.blocks["light"]
+        states = {
+            match.group(1)
+            for name in names
+            if (match := re.fullmatch(r"--lrh-color-status-([a-z-]+)-line", name))
+        }
+        bands = {
+            match.group(1)
+            for name in names
+            if (match := re.fullmatch(r"--lrh-color-band-([a-z-]+)-line", name))
+        }
+        self.assertEqual(states, set(_STATES))
+        self.assertEqual(bands, set(_BANDS))
+        self.assertEqual(
+            [key for key, _label, _icon in serve._SPECIMEN_STATES], list(_STATES)
+        )
+        self.assertEqual([key for key, _label in serve._SPECIMEN_BANDS], list(_BANDS))
+
     def test_bands_resolve_to_status_hues(self) -> None:
         light = self.themes["light"]
         self.assertEqual(
@@ -158,6 +199,19 @@ class TokenFileTest(unittest.TestCase):
                         _resolve(theme, f"--lrh-color-{background}"),
                     )
                     self.assertGreaterEqual(ratio, minimum, f"{ratio:.2f}:1")
+
+
+class ServePagesTest(unittest.TestCase):
+    def test_only_the_specimen_follows_the_system_theme_for_now(self) -> None:
+        # WI-LRH-CONSOLE-THEME removes these; until then Serve pages stay light.
+        source = (REPO_ROOT / "src" / "lrh" / "serve.py").read_text(encoding="utf-8")
+        tags = re.findall(r'<html lang=\\?"en\\?"[^>]*>', source)
+        unthemed = [tag for tag in tags if "data-theme" not in tag]
+        self.assertGreater(len(tags), 1)
+        self.assertEqual(unthemed, ['<html lang="en">'])
+        self.assertIn(
+            '<html lang="en">', inspect.getsource(serve.render_style_specimen)
+        )
 
 
 class DesktopStylesTest(unittest.TestCase):

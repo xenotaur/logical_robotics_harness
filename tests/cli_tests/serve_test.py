@@ -227,12 +227,15 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
         self.assertIn("Style specimen", body)
-        self.assertIn("--lrh-color-status-blocked-line", body)
         self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
-        for label in ("Done", "In progress", "Unblocked", "Waiting", "Blocked"):
+        for key, label, _icon in serve._SPECIMEN_STATES:
             self.assertIn(f"</span> {label}</span>", body)
-        for band in ("needs-attention", "active-work", "awaiting-review", "stable"):
-            self.assertIn(f"var(--lrh-color-band-{band}-bg)", body)
+            for part in ("fg", "bg", "line"):
+                self.assertIn(f"var(--lrh-color-status-{key}-{part})", body)
+        for key, label in serve._SPECIMEN_BANDS:
+            self.assertIn(f"<h3>{label} ", body)
+            for part in ("fg", "bg", "line"):
+                self.assertIn(f"var(--lrh-color-band-{key}-{part})", body)
 
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()

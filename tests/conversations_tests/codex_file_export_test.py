@@ -332,6 +332,47 @@ class TestCodexFileExportDescriptorLevelCollision(unittest.TestCase):
 
             self.assertEqual(output_path.read_text(encoding="utf-8"), result.markdown)
 
+    def _assert_source_survives_path_change(self, *, replace: bool) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            moved = Path(temp_dir) / "moved.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+            real_render = codex_file_export.render_codex_markdown
+
+            # Runs between the source read and the write: the output is
+            # hardlinked to the original file, then the original leaves the
+            # source pathname (renamed away, optionally replaced by a new file).
+            def racing_render(*args: object, **kwargs: object) -> str:
+                os.link(source_path, output_path)
+                os.rename(source_path, moved)
+                if replace:
+                    source_path.write_text("replacement", encoding="utf-8")
+                return real_render(*args, **kwargs)
+
+            with patch.object(
+                codex_file_export,
+                "render_codex_markdown",
+                side_effect=racing_render,
+            ):
+                with self.assertRaisesRegex(
+                    codex_file_export.CodexFileExportError, "different files"
+                ):
+                    codex_file_export.convert_codex_file(
+                        source_path,
+                        output_path=output_path,
+                        force=True,
+                    )
+
+            self.assertEqual(moved.read_text(encoding="utf-8"), "hello")
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "hello")
+
+    def test_source_renamed_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=False)
+
+    def test_source_replaced_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=True)
+
 
 if __name__ == "__main__":
     unittest.main()

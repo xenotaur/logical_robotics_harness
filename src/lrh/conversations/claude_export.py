@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from lrh import prompt_workflow_sessions
-from lrh.conversations import claude_session, export_manifest, sensitivity
+from lrh.conversations import (
+    claude_session,
+    export_manifest,
+    sensitivity,
+    source_identity,
+)
 
 DEFAULT_ADAPTER_NAME = "claude_transcript_jsonl"
 ADAPTER_VERSION = 1
@@ -56,7 +61,7 @@ def convert_claude_session(
         raise ClaudeExportError(f"transcript path is not a file: {path}")
 
     try:
-        raw_bytes = path.read_bytes()
+        raw_bytes, source_stat = source_identity.read_bytes_with_identity(path)
     except OSError as err:
         raise ClaudeExportError(f"could not read transcript file: {path}") from err
 
@@ -138,7 +143,7 @@ def convert_claude_session(
             raise FileExistsError(f"output path already exists: {out}")
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
-            _write_private_text(out, full_markdown, source=path)
+            _write_private_text(out, full_markdown, source_stat=source_stat)
         except OSError as err:
             raise ClaudeExportError(
                 f"could not write output export file: {out}"
@@ -151,7 +156,9 @@ def convert_claude_session(
     )
 
 
-def _write_private_text(path: Path, content: str, *, source: Path) -> None:
+def _write_private_text(
+    path: Path, content: str, *, source_stat: os.stat_result
+) -> None:
     """Write text to path with user-only (0600) permissions from creation.
 
     Writing via ``Path.write_text`` and chmod-ing afterward leaves a window,
@@ -165,12 +172,14 @@ def _write_private_text(path: Path, content: str, *, source: Path) -> None:
 
     The path-based collision check is not atomic with this write, so identity
     is re-checked on the opened descriptor before anything is truncated or
-    chmod-ed: opening without ``O_TRUNC`` leaves ``source`` intact if a link to
-    it was created after the path check.
+    chmod-ed: opening without ``O_TRUNC`` leaves the source intact if a link to
+    it was created after the path check. ``source_stat`` is the identity of the
+    file the transcript was read from, so renaming or replacing the source
+    pathname after the read cannot defeat the comparison.
     """
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT, 0o600)
     try:
-        if _is_same_file(os.fstat(fd), source):
+        if os.path.samestat(os.fstat(fd), source_stat):
             raise ClaudeExportError(_COLLISION_MESSAGE)
         os.ftruncate(fd, 0)
         fchmod = getattr(os, "fchmod", None)
@@ -183,13 +192,6 @@ def _write_private_text(path: Path, content: str, *, source: Path) -> None:
             handle.write(content)
     finally:
         os.close(fd)
-
-
-def _is_same_file(fd_stat: os.stat_result, source: Path) -> bool:
-    try:
-        return os.path.samestat(fd_stat, source.stat())
-    except OSError:
-        return False
 
 
 def _reject_source_output_collision(source: Path, destination: Path) -> None:

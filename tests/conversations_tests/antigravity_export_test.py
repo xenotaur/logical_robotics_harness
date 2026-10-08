@@ -215,6 +215,50 @@ class TestAntigravityExport(unittest.TestCase):
                     )
             self.assertEqual(source_file.read_text(encoding="utf-8"), original)
 
+    def _assert_source_survives_path_change(self, *, replace: bool) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = _write_transcript(
+                tmp_path,
+                [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
+            )
+            source_file.chmod(0o644)
+            original = source_file.read_bytes()
+            moved = tmp_path / "moved.jsonl"
+            out_file = tmp_path / "export.md"
+
+            # Simulate the race after the source was read: the output is
+            # hardlinked to the original file, then the original leaves the
+            # source pathname (renamed away, optionally replaced by a new file).
+            def racing_check(source: Path, destination: Path) -> None:
+                os.link(source, destination)
+                os.rename(source, moved)
+                if replace:
+                    source.write_text("replacement\n", encoding="utf-8")
+
+            with mock.patch.object(
+                antigravity_export,
+                "_reject_source_output_collision",
+                side_effect=racing_check,
+            ):
+                with self.assertRaisesRegex(
+                    antigravity_export.AntigravityExportError,
+                    "must refer to different files",
+                ):
+                    antigravity_export.convert_antigravity_session(
+                        source_file, output_path=out_file, force=True
+                    )
+
+            self.assertEqual(moved.read_bytes(), original)
+            self.assertEqual(out_file.read_bytes(), original)
+            self.assertEqual(moved.stat().st_mode & 0o777, 0o644)
+
+    def test_source_renamed_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=False)
+
+    def test_source_replaced_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=True)
+
     def test_cli_rejects_source_as_out_with_clean_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source_file = _write_transcript(

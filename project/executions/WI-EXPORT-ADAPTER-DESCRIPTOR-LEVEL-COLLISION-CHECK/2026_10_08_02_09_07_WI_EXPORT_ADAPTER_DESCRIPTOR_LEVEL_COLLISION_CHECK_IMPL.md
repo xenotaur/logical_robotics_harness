@@ -32,6 +32,14 @@ identity check disabled both race tests fail. Docs updated in
 `docs/reference/cli/conversation.md`. Diff-mode self-review: 0 defects, 3 nits
 (see the `_IMPL_SELFREVIEW` record).
 
+Update after review round 1 (see the `_IMPL_REVIEW` record): the original
+version compared against `source.stat()` by pathname at write time, which review
+showed can be defeated by renaming or replacing the source after the read. The
+shipped design instead captures the source's identity from the descriptor it is
+read through (`source_identity.read_bytes_with_identity`) and compares the
+output descriptor against it. At the user's direction the antigravity adapter
+was brought into scope and fixed the same way, and the work item was revised.
+
 # Validation
 
 `scripts/format --check --diff`, `scripts/lint`, `scripts/test` (1957 tests OK)
@@ -41,6 +49,6 @@ origin/main.
 
 # Follow-up
 
-Shared descriptor-level write helper across the three export adapters; audit
-`codex_app_server_export.py` and `codex_archive.py` for the same pattern;
-`O_EXCL` for the no-`--force` create race.
+Audit `codex_app_server_export.py` and `codex_archive.py` for the same pattern;
+`O_EXCL` for the no-`--force` create race. (The shared-helper follow-up listed
+earlier was done in review round 1.)

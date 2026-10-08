@@ -131,10 +131,11 @@ network tools and cannot modify repository files or project state.
    built or the model is called; only a typed `yes` sends, a bare Enter or
    anything else declines, and a decline is logged as `cancelled`.
    `--allow-flagged` is refused with `--yes` or without an interactive
-   terminal. The final assembled-context scan exempts exactly the confirmed
-   findings and still refuses any other high-severity finding. The run
-   record notes the override and the confirmed findings by path, category,
-   rule, and line, never by value.
+   terminal. The final assembled-context scan skips only the allowed file's
+   own rendered section (scanned once, on raw text, for the confirmation)
+   and still refuses any high-severity finding elsewhere. The run record
+   notes the override and the confirmed findings as structured fields (path,
+   category, rule ID, start and end line), never by value.
 
    Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
@@ -177,10 +178,12 @@ network tools and cannot modify repository files or project state.
      declines and is logged as `cancelled`; it is refused with `--yes` or
      without an interactive terminal; and a second finding of an allowed
      category appears as its own line;
-   - the final assembled-context scan exempts only the confirmed findings:
-     an allowed file is sent, while any other high-severity finding, in
-     another file, the diagnostics, or the listing, still refuses the
-     request.
+   - the final assembled-context scan skips only the allowed file's own
+     section: an allowed file is sent, including one with a multi-line
+     finding, while any high-severity finding in another file, the
+     diagnostics, or the listing still refuses the request;
+   - an override run exports cleanly: its structured override record does
+     not itself trip the export scan.
 
    Update `experimental/local_agent/README.md` to describe the toys; the pilot
    runbook material is retired. Do not add live model or network calls to

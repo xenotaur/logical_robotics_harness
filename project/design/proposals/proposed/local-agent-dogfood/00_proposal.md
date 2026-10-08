@@ -231,11 +231,16 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
   sent. `--allow-flagged` is refused with `--yes` and without an interactive
   terminal;
 - **the final context scan:** the prototype also scans the whole assembled
-  context before sending. That scan exempts exactly the confirmed findings
-  (same file, rule, and position) and still refuses the request on any other
-  high-severity finding, including one in diagnostics or the file listing;
+  context before sending. That scan skips only the allowed file's own
+  rendered section, which was already scanned once, on its raw text, for the
+  confirmation; it still scans everything else (other files, diagnostics,
+  and the file listing) and refuses the request on any high-severity finding
+  there. Positions are never compared across the two scans, because the
+  rendered context adds headers and line prefixes;
 - **visibility:** the run record notes the override and the confirmed
-  findings by path, category, rule, and line, never by value;
+  findings as structured fields (path, category, rule ID, start and end
+  line), never by value and never as `category: rule` text, which the
+  secret rule itself would match at export;
 - **what is stored:** the allowed file's text reaches the model and may
   appear in the private store (for example, echoed in an answer); exports
   are unchanged and withhold any text with a finding.

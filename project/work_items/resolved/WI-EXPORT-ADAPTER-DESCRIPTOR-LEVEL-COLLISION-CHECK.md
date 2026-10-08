@@ -2,7 +2,7 @@
 id: WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK
 title: Add descriptor-level, stable-source-identity collision check to Claude, Codex, and antigravity file exporters
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -17,7 +17,7 @@ depends_on: []
 blocked_by: []
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Landed descriptor-level, stable-source-identity collision checks in the Claude, Codex, and antigravity file exporters in PR #787 (2b8c61f9585f7d97e6a490fa5087768bffdbda5d)'
 expected_actions:
   - edit_file
   - add_tests

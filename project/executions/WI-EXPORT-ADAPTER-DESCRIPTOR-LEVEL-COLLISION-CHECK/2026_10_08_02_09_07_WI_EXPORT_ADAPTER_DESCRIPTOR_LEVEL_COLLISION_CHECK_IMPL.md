@@ -2,13 +2,13 @@
 execution_id: 2026_10_08_02_09_07_WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL
 prompt_id: PROMPT(WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK:WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL)[2026-10-07T23:05:34+00:00]
 work_item: WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/787
-commit:
+commit: 2b8c61f9585f7d97e6a490fa5087768bffdbda5d
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK.md
-session_transcript: pending
+session_transcript: claude-app:78db4193-892e-4bf8-be13-f7e614cc2c2f
 created_at: 2026-10-08T02:09:07+00:00
 ---
 

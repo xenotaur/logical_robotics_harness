@@ -2,13 +2,13 @@
 execution_id: 2026_10_08_05_52_02_WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL_CONFIRM)[2026-10-08T05:51:53+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_08_02_09_07_WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/787
-commit:
+commit: 2b8c61f9585f7d97e6a490fa5087768bffdbda5d
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/787
-session_transcript: pending
+session_transcript: claude-app:78db4193-892e-4bf8-be13-f7e614cc2c2f
 created_at: 2026-10-08T05:52:02+00:00
 ---
 

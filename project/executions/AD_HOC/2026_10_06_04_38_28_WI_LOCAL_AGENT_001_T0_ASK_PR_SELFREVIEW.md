@@ -2,10 +2,10 @@
 execution_id: 2026_10_06_04_38_28_WI_LOCAL_AGENT_001_T0_ASK_PR_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LOCAL_AGENT_001_T0_ASK_PR_SELFREVIEW)[2026-10-06T04:38:28+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_06_03_57_55_WI_LOCAL_AGENT_001_T0_ASK
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/777
-commit: 
+commit: 3b9c194d80ae4197c6f399a9e93e603e02d39140
 created_at: 2026-10-06T04:38:28+00:00
 agent: claude_app
 instruction_source: lrh-confirm-fixes Step 8 substitute review signal (PR-mode /lrh-self-review) for PR 777 at HEAD 67e2a70e7e4e121d01814449ba4a30c58f2594f3

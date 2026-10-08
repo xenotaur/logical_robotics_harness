@@ -560,6 +560,44 @@ class RestampTest(unittest.TestCase):
                     chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
             self.assertIn("cannot read installed target", str(ctx.exception))
 
+    def test_unreadable_target_with_existing_store_fails_closed(self) -> None:
+        """With a store already recorded, the staleness check itself reads
+        each installed file. An unreadable file must read stale in status
+        and make restamp refuse -- never escape as a raw OSError."""
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            real_read = pathlib.Path.read_bytes
+
+            def flaky_read(path: pathlib.Path) -> bytes:
+                if path.is_relative_to(home):
+                    raise PermissionError("unreadable")
+                return real_read(path)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                _run(["git", "add", "-A"], root)
+                _run(["git", "commit", "-q", "-m", "restamp"], root)
+                self.assertFalse(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+                with mock.patch.object(pathlib.Path, "read_bytes", flaky_read):
+                    status = chain_defaults_status.compute_status(root)
+                    later = datetime.datetime(
+                        2026, 3, 4, 5, 7, 0, tzinfo=datetime.timezone.utc
+                    )
+                    with self.assertRaises(
+                        chain_defaults_status.ChainDefaultsStatusError
+                    ) as ctx:
+                        chain_defaults_status.plan_restamp(root, now=later)
+            self.assertTrue(status.staleness.stale)
+            for stale_file in status.staleness.stale_files:
+                self.assertIn("unreadable", stale_file.reason)
+            self.assertIn("cannot read installed target", str(ctx.exception))
+
     def test_identical_stamp_refuses(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
             root = pathlib.Path(tmp)

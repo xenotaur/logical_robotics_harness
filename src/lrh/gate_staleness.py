@@ -811,7 +811,15 @@ def check_target_staleness(
             stale=True,
             reason="installed target file missing -- failing closed",
         )
-    current = compute_fingerprint(target.absolute_path.read_bytes())
+    try:
+        content = target.absolute_path.read_bytes()
+    except OSError:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target file unreadable -- failing closed",
+        )
+    current = compute_fingerprint(content)
     stored = fingerprints[target.canonical_name]
     if current != stored:
         return FileStaleness(

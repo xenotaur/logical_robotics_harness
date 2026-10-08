@@ -125,13 +125,21 @@ def apply_frame(page: str, context: FrameContext) -> str:
     if opening is None or closing < opening.end():
         return page
     title_match = _TITLE.search(page)
-    title = title_match.group(1).strip() if title_match else "LRH Console"
+    title = html.unescape(title_match.group(1).strip()) if title_match else ""
     before, body, after = (
         page[: opening.end()],
         page[opening.end() : closing],
         page[closing:],
     )
-    return before + _frame_open(title, context) + body + _frame_close(context) + after
+    # One main landmark per page: keep the page's own <main> if it has one.
+    tag = "div" if "<main" in body else "main"
+    return (
+        before
+        + _frame_open(title or "LRH Console", context, tag)
+        + body
+        + f"\n  </{tag}>\n</div>\n"
+        + after
+    )
 
 
 def _quote(value: str) -> str:
@@ -170,7 +178,7 @@ def _current_url(context: FrameContext, **overrides: str | None) -> str:
     return context.path + (f"?{encoded}" if encoded else "")
 
 
-def _frame_open(title: str, context: FrameContext) -> str:
+def _frame_open(title: str, context: FrameContext, tag: str) -> str:
     selector, scope_label = _labels(context)
     rendered_at = context.rendered_at or datetime.datetime.now(datetime.UTC)
     stamp = rendered_at.astimezone(datetime.UTC).strftime("%H:%M:%S UTC")
@@ -191,26 +199,27 @@ def _frame_open(title: str, context: FrameContext) -> str:
     )
     refresh = html.escape(_current_url(context), quote=True)
     return f"""
+<a class="lrh-skip" href="#lrh-content">Skip to content</a>
 <input type="checkbox" id="lrh-rail" class="lrh-rail-toggle">
 <div class="lrh-frame">
   <header class="lrh-topbar">
     <a class="lrh-home" href="{HOME_PATH}">
       <img src="/static/lrh-icon-64.png" srcset="/static/lrh-icon-128.png 2x"
            width="28" height="28" alt="">
-      <span class="lrh-brand">LRH Console</span>
-      <span class="lrh-sr">, home</span>
+      <span class="lrh-brand" aria-hidden="true">LRH Console</span>
+      <span class="lrh-sr">LRH Console home</span>
     </a>
     <label for="lrh-rail" class="lrh-iconbtn lrh-rail-button">{icon("panel-left")}
       <span class="lrh-tip">Collapse or expand the sidebar</span></label>
     <div class="lrh-pagename">
-      <span class="lrh-pagetitle">{title}</span>
+      <span class="lrh-pagetitle">{html.escape(title)}</span>
       <span class="lrh-scopename">{html.escape(scope_label)}</span>
     </div>
     <div class="lrh-search-slot"></div>
     <span class="lrh-fresh">Rendered {stamp}</span>
     <a class="lrh-iconbtn" href="{refresh}">{icon("refresh-cw")}
       <span class="lrh-tip">Refresh</span></a>
-    <a class="lrh-iconbtn" href="{SETTINGS_PATH}">{icon("settings")}
+    <a class="lrh-iconbtn lrh-tip-end" href="{SETTINGS_PATH}">{icon("settings")}
       <span class="lrh-tip">Settings</span></a>
   </header>
   <nav class="lrh-sidebar" aria-label="Scope and views">
@@ -221,11 +230,7 @@ def _frame_open(title: str, context: FrameContext) -> str:
     </details>
     <ul class="lrh-views">{views}</ul>
   </nav>
-  <main class="lrh-main">"""
-
-
-def _frame_close(context: FrameContext) -> str:
-    return "\n  </main>\n" + _drawer(context) + "</div>\n"
+{_drawer(context)}  <{tag} class="lrh-main" id="lrh-content">"""
 
 
 def _scope_link(label: str, href: str, current: bool) -> str:
@@ -265,7 +270,7 @@ def _drawer(context: FrameContext) -> str:
     return f"""  <aside class="lrh-drawer" aria-labelledby="lrh-drawer-title">
     <header>
       <h2 id="lrh-drawer-title" class="lrh-mono">{html.escape(item)}</h2>
-      <a class="lrh-iconbtn" href="{close}">{icon("x")}
+      <a class="lrh-iconbtn lrh-tip-end" href="{close}">{icon("x")}
         <span class="lrh-tip">Close details</span></a>
     </header>
     <p class="lrh-muted">Item details arrive with the dependency map.</p>
@@ -286,7 +291,21 @@ FRAME_STYLES = """
     overflow: hidden; padding: 0; position: absolute; white-space: nowrap;
     width: 1px;
   }
-  .lrh-mono { font-family: var(--lrh-font-mono); }
+  .lrh-mono, .lrh-main code { font-family: var(--lrh-font-mono); }
+  .lrh-main h1, .lrh-main h2 { font-family: var(--lrh-font-display); }
+  .lrh-skip {
+    background: var(--lrh-color-surface-panel);
+    left: var(--lrh-space-2);
+    padding: var(--lrh-space-2) var(--lrh-space-3);
+    position: absolute;
+    top: -10rem;
+    z-index: 30;
+  }
+  .lrh-skip:focus {
+    box-shadow: var(--lrh-focus-ring);
+    outline: none;
+    top: var(--lrh-space-2);
+  }
   .lrh-icon { flex: none; height: 1.15rem; width: 1.15rem; }
   .lrh-rail-toggle { opacity: 0; pointer-events: none; position: absolute; }
   .lrh-frame {
@@ -329,6 +348,7 @@ FRAME_STYLES = """
   }
   .lrh-pagetitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lrh-scopename, .lrh-fresh { color: var(--lrh-color-text-muted); font-size: 0.85rem; }
+  .lrh-scopename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lrh-search-slot { flex: 1; }
   .lrh-iconbtn {
     align-items: center;
@@ -356,6 +376,8 @@ FRAME_STYLES = """
     white-space: nowrap;
     z-index: 10;
   }
+  .lrh-tip-end .lrh-tip { left: auto; right: 0; transform: none; }
+  .lrh-rail-button .lrh-tip { left: 0; transform: none; }
   .lrh-iconbtn:hover .lrh-tip, .lrh-iconbtn:focus-visible .lrh-tip,
   .lrh-rail-toggle:focus-visible ~ .lrh-frame .lrh-rail-button .lrh-tip {
     opacity: 1;
@@ -399,7 +421,11 @@ FRAME_STYLES = """
   .lrh-scope li a:hover {
     background: var(--lrh-color-action-accent-bg);
   }
-  .lrh-sidebar a[aria-current] { font-weight: 700; }
+  .lrh-sidebar a[aria-current] {
+    box-shadow: inset 3px 0 0 var(--lrh-color-action-accent);
+    font-weight: 700;
+  }
+  .lrh-scope { position: relative; }
   /* Long paths and URLs wrap, so pages never scroll sideways in the frame. */
   .lrh-main { grid-area: main; min-width: 0; overflow-wrap: anywhere; }
   .lrh-main .lrh-summary-grid > div { min-width: 0; }
@@ -431,7 +457,19 @@ FRAME_STYLES = """
   .lrh-rail-toggle:checked ~ .lrh-frame {
     grid-template-columns: 3.5rem minmax(0, 1fr);
   }
-  .lrh-rail-toggle:checked ~ .lrh-frame .lrh-scope ul { display: none; }
+  .lrh-rail-toggle:checked ~ .lrh-frame .lrh-scope ul {
+    background: var(--lrh-color-surface-overlay);
+    border: 1px solid var(--lrh-color-border-strong);
+    border-radius: var(--lrh-radius-md);
+    box-shadow: var(--lrh-shadow-overlay);
+    left: calc(100% + 6px);
+    margin: 0;
+    min-width: 14rem;
+    padding: var(--lrh-space-2);
+    position: absolute;
+    top: 0;
+    z-index: 15;
+  }
   .lrh-rail-toggle:checked ~ .lrh-frame .lrh-sidebar .lrh-label {
     background: var(--lrh-color-text-primary);
     border-radius: var(--lrh-radius-sm);
@@ -457,7 +495,19 @@ FRAME_STYLES = """
   @media (max-width: 48rem) {
     .lrh-frame { grid-template-columns: 3.5rem minmax(0, 1fr); }
     .lrh-fresh, .lrh-brand { display: none; }
-    .lrh-scope ul { display: none; }
+    .lrh-scope ul {
+      background: var(--lrh-color-surface-overlay);
+      border: 1px solid var(--lrh-color-border-strong);
+      border-radius: var(--lrh-radius-md);
+      box-shadow: var(--lrh-shadow-overlay);
+      left: calc(100% + 6px);
+      margin: 0;
+      min-width: 14rem;
+      padding: var(--lrh-space-2);
+      position: absolute;
+      top: 0;
+      z-index: 15;
+    }
     .lrh-sidebar .lrh-label {
       background: var(--lrh-color-text-primary);
       border-radius: var(--lrh-radius-sm);
@@ -478,7 +528,17 @@ FRAME_STYLES = """
     .lrh-rail-toggle:checked ~ .lrh-frame {
       grid-template-columns: 15rem minmax(0, 1fr);
     }
-    .lrh-rail-toggle:checked ~ .lrh-frame .lrh-scope ul { display: block; }
+    .lrh-rail-toggle:checked ~ .lrh-frame .lrh-scope ul {
+      background: none;
+      border: 0;
+      border-left: 2px solid var(--lrh-color-border-subtle);
+      border-radius: 0;
+      box-shadow: none;
+      margin: var(--lrh-space-1) 0 0 var(--lrh-space-4);
+      min-width: 0;
+      padding: 0;
+      position: static;
+    }
     .lrh-rail-toggle:checked ~ .lrh-frame .lrh-sidebar .lrh-label {
       background: none;
       color: inherit;

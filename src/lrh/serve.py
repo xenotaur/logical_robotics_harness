@@ -112,7 +112,10 @@ def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
     except (
         meta_workspace.MetaWorkspaceResolutionError,
         meta_workspace.MetaRegistryError,
+        OSError,
+        ValueError,
     ):
+        # The frame is best-effort: a broken registry must not break pages.
         return ()
     return tuple(
         frame.Project(
@@ -3344,7 +3347,8 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 return
             self.send_response(200)
             self.send_header("Content-Type", frame.STATIC_FILES[name])
-            self.send_header("Cache-Control", "no-cache")
+            # Assets ship with the package, so an hour of caching is safe.
+            self.send_header("Cache-Control", "max-age=3600")
             self._add_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()

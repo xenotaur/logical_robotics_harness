@@ -34,7 +34,8 @@ class FrameTest(unittest.TestCase):
     def test_frame_wraps_the_body_without_changing_it(self) -> None:
         page = _framed("/meta")
 
-        main = page.split('<main class="lrh-main">', 1)[1].split("</main>", 1)[0]
+        main = page.split('<main class="lrh-main" id="lrh-content">', 1)[1]
+        main = main.split("</main>", 1)[0]
         self.assertIn('<div class="lrh-app-shell">content</div>', main)
         self.assertTrue(page.endswith("</body>\n</html>\n"))
         self.assertEqual(page.count("<body>"), 1)
@@ -89,6 +90,29 @@ class FrameTest(unittest.TestCase):
         self.assertNotIn("<script>", page)
         self.assertNotIn("<b>x", page)
         self.assertIn("&lt;script&gt;", page)
+
+    def test_a_page_with_its_own_main_keeps_one_main_landmark(self) -> None:
+        page = frame.apply_frame(
+            _PAGE.replace("content", "<main>content</main>"),
+            frame.FrameContext(path="/", query={}, rendered_at=_AT),
+        )
+
+        self.assertEqual(page.count("<main"), 1)
+        self.assertIn('<div class="lrh-main" id="lrh-content">', page)
+
+    def test_drawer_comes_before_the_page_in_reading_order(self) -> None:
+        page = _framed("/project/lcats", {"item": "WI-ONE"})
+
+        self.assertLess(page.index("lrh-drawer"), page.index('id="lrh-content"'))
+        self.assertLess(page.index('class="lrh-skip"'), page.index("lrh-topbar"))
+
+    def test_page_title_is_escaped_in_the_top_bar(self) -> None:
+        page = frame.apply_frame(
+            _PAGE.replace("LRH Example", "A &amp; <b>B</b>"),
+            frame.FrameContext(path="/", query={}, rendered_at=_AT),
+        )
+
+        self.assertIn('<span class="lrh-pagetitle">A &amp; &lt;b&gt;B&lt;/b&gt;', page)
 
     def test_a_page_without_a_body_is_left_alone(self) -> None:
         context = frame.FrameContext(path="/", query={})

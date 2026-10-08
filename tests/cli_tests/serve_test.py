@@ -366,12 +366,22 @@ class TestLrhServeRoutes(unittest.TestCase):
     def test_every_html_page_is_framed(self) -> None:
         base_url = self._isolated_server()
 
-        for route in _HTML_ROUTES + ("/settings",):
+        detail_routes = (
+            "/settings",
+            "/project/main/work-items/WI-A",
+            "/project/main/work-items/WI-A/prompt",
+            "/workbench/prompt?work_item=WI-A",
+            "/workbench/run-packet?work_item=WI-A",
+            "/workbench/run-report?work_item=WI-A",
+        )
+        for route in _HTML_ROUTES + detail_routes:
             with self.subTest(route=route):
                 _status, _type, body = self._read(base_url + route)
                 self.assertIn('<a class="lrh-home" href="/meta">', body)
                 self.assertIn('<nav class="lrh-sidebar"', body)
-                self.assertIn('<main class="lrh-main">', body)
+                self.assertIn('class="lrh-main" id="lrh-content"', body)
+                self.assertEqual(body.count("<main"), 1, "one main landmark")
+                self.assertIn('<a class="lrh-skip" href="#lrh-content">', body)
                 self.assertIn(
                     '<meta name="viewport" content="width=device-width, '
                     'initial-scale=1">',
@@ -432,6 +442,39 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("lrh serve --theme light", body)
         self.assertIn('href="/static/fonts/OFL-montserrat.txt"', body)
         self.assertIn('href="/static/icons/LICENSE-lucide.txt"', body)
+
+    def test_a_broken_registry_still_serves_framed_pages(self) -> None:
+        base_url = self._isolated_server()
+
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                side_effect=PermissionError("denied"),
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+        ):
+            status, _type, body = self._read(base_url + "/")
+
+        self.assertEqual(status, 200)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+
+    def test_frame_and_pinned_theme_combine(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            _write_viewer_project(pathlib.Path(tmp_dir))
+            _httpd, base_url = self._start_server(pathlib.Path(tmp_dir), theme="dark")
+            _status, _type, body = self._read(base_url + "/meta")
+
+        self.assertIn('<html lang="en" data-theme="dark">', body)
+        self.assertIn('<nav class="lrh-sidebar"', body)
 
     def test_item_query_opens_the_drawer(self) -> None:
         base_url = self._isolated_server()

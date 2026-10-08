@@ -46,11 +46,16 @@ the Settings window opens. Fill in:
 - **Browser:** Google Chrome or the default browser. External links and
   **View > Open in …** use this choice.
 - **Start the server when LRH Console opens:** on by default.
+- **Appearance:** System (the default) follows the macOS appearance; Light and
+  Dark pin it. The app's own windows change at once; served pages change when
+  the server restarts. From a shell, `lrh serve --theme light|dark|system` does
+  the same for the browser.
 
 Choose **Save**. The app checks every value before saving. If a value is
 wrong, it is rejected with a message next to the field, and the previous
 settings stay in effect. The first save starts the server, unless you turned
-that off. Later changes to the program or workspace wait for a restart. The configuration is stored in
+that off. Later changes to the program, workspace, or appearance wait for a
+restart. The configuration is stored in
 `~/Library/Application Support/io.github.xenotaur.lrh-console/config.json`,
 and only you can read the file.
 

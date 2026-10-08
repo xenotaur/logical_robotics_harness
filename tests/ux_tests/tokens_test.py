@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 import pathlib
 import re
 import unittest
@@ -209,15 +208,15 @@ class TokenFileTest(unittest.TestCase):
 
 
 class ServePagesTest(unittest.TestCase):
-    def test_only_the_specimen_follows_the_system_theme_for_now(self) -> None:
-        # WI-LRH-CONSOLE-THEME removes these; until then Serve pages stay light.
+    def test_every_serve_page_renders_an_unpinned_root(self) -> None:
+        # lrh serve --theme pins a theme at response time (serve.apply_theme);
+        # the templates themselves always follow the system appearance.
         source = (REPO_ROOT / "src" / "lrh" / "serve.py").read_text(encoding="utf-8")
         tags = re.findall(r'<html lang=\\?"en\\?"[^>]*>', source)
-        unthemed = [tag for tag in tags if "data-theme" not in tag]
-        self.assertGreater(len(tags), 1)
-        self.assertEqual(unthemed, ['<html lang="en">'])
-        self.assertIn(
-            '<html lang="en">', inspect.getsource(serve.render_style_specimen)
+        self.assertGreater(len(tags), 10)
+        self.assertEqual(
+            {tag.replace("\\", "") for tag in tags if "{theme}" not in tag},
+            {'<html lang="en">'},
         )
 
 

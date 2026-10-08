@@ -194,6 +194,8 @@ pub struct LaunchConfig {
     /// Arguments before `serve --desktop-protocol`, such as
     /// `["-m", "lrh.cli.main"]` for an interpreter.
     pub program_args: Vec<OsString>,
+    /// Arguments after `serve --desktop-protocol`, such as `["--theme", "dark"]`.
+    pub serve_args: Vec<OsString>,
     /// The workspace to serve, sent as `workspace.project_root`.
     pub project_root: PathBuf,
     /// Extra environment for the child, on top of the inherited environment.
@@ -209,6 +211,7 @@ impl LaunchConfig {
         LaunchConfig {
             program: program.into(),
             program_args: Vec::new(),
+            serve_args: Vec::new(),
             project_root: project_root.into(),
             env: Vec::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
@@ -629,6 +632,7 @@ impl OwnedServer {
         command
             .args(&self.config.program_args)
             .args(["serve", "--desktop-protocol"])
+            .args(&self.config.serve_args)
             .envs(self.config.env.iter().map(|(key, value)| (key, value)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

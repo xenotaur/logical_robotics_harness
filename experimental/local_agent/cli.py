@@ -263,6 +263,15 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
     print(ask.source_summary(ctx), file=sys.stderr)
+    reason = ask.unsendable_reason(ctx)
+    if reason:
+        excluded = "; ".join(f"{e['path']} ({e['reason']})" for e in ctx.excluded)
+        detail = f"{reason}: {excluded}" if excluded else reason
+        run_id = ask.record_failure(
+            store, args.question, "missing_prerequisite", detail, ctx=ctx
+        )
+        print(f"not sent (run {run_id})", file=sys.stderr)
+        return 2
     interactive = sys.stdin.isatty()
     if interactive and not args.yes:
         try:
@@ -272,7 +281,7 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             declined = True
         if declined:
             run_id = ask.record_failure(
-                store, args.question, "cancelled", "declined before sending"
+                store, args.question, "cancelled", "declined before sending", ctx=ctx
             )
             print(f"\nnot sent (run {run_id})", file=sys.stderr)
             return 1
@@ -280,7 +289,7 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         adapter = _adapter(args)
     except (OSError, UnicodeDecodeError) as error:
         run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", f"adapter: {error}"
+            store, args.question, "missing_prerequisite", f"adapter: {error}", ctx=ctx
         )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
@@ -290,7 +299,9 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             if error.kind == model.KIND_MISSING_PREREQUISITE
             else "backend_error"
         )
-        run_id = ask.record_failure(store, args.question, outcome, f"adapter: {error}")
+        run_id = ask.record_failure(
+            store, args.question, outcome, f"adapter: {error}", ctx=ctx
+        )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
 

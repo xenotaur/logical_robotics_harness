@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from local_agent import cli, recorder, testing_support
+from local_agent import cli, export, recorder, testing_support
 
 
 class CliTest(unittest.TestCase):
@@ -211,6 +211,42 @@ class CliAskTest(unittest.TestCase):
                 (new,) = set(store.list_runs()) - before
                 outcome = store.load_run(new)["outcome"]
                 self.assertEqual(outcome == "completed", sent, outcome)
+
+    def test_ask_with_every_file_excluded_is_refused_before_prompting(self) -> None:
+        (self.repo / ".env").write_text("X=1\n", encoding="utf-8")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "env")
+        with (
+            mock.patch.object(cli.sys.stdin, "isatty", return_value=True),
+            mock.patch("builtins.input", side_effect=AssertionError("must not prompt")),
+        ):
+            code, out, err = self._main(
+                "ask",
+                "q",
+                "--repo",
+                str(self.repo),
+                "--files",
+                ".env",
+                "--backend",
+                "fake",
+                "--fake-response",
+                str(self.answer),
+            )
+        self.assertEqual(code, 2, err)
+        self.assertEqual(out, "")
+        self.assertIn("sending 0 of 1", err)
+        self.assertIn("NOT SENDING", err)
+        store = recorder.Store(self.store)
+        (run_id,) = store.list_runs()
+        run = store.load_run(run_id)
+        self.assertEqual(run["outcome"], "missing_prerequisite")
+        self.assertIn(".env (excluded credential-like path", run["outcome_detail"])
+        self.assertEqual(run["mode"], "files")
+        self.assertEqual(len(run["source_commit"]), 40)
+        self.assertEqual([e["path"] for e in run["excluded_sources"]], [".env"])
+        self.assertEqual(run["sources"], [])
+        summary = export.inspect_run(store, run_id)
+        self.assertIn(f"source commit: {run['source_commit']}", summary)
 
     def test_rate_and_prune_report_bad_input(self) -> None:
         self.assertEqual(self._main("rate", "nope", "g")[0], 2)

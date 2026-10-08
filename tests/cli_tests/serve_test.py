@@ -461,6 +461,44 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn('<nav class="lrh-sidebar"', body)
 
+    def test_scope_switcher_lists_projects_whose_records_fail_to_load(self) -> None:
+        loads = (
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="good",
+                record=serve.meta_workspace.MetaProjectRecord(
+                    registry_name="good",
+                    short_name="good",
+                    display_name="Good Project",
+                    project_id=None,
+                    repo_locator=None,
+                    project_dir=None,
+                    setup_state=None,
+                ),
+            ),
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="broken", record=None, error="bad toml"
+            ),
+        )
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                return_value=loads,
+            ),
+        ):
+            projects = serve._frame_projects(serve.ServeConfig())
+
+        self.assertEqual(
+            projects,
+            (
+                serve.frame.Project(selector="good", label="Good Project"),
+                serve.frame.Project(selector="broken", label="broken"),
+            ),
+        )
+
     def test_frame_and_pinned_theme_combine(self) -> None:
         with (
             tempfile.TemporaryDirectory() as tmp_dir,

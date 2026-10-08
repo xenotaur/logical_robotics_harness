@@ -117,13 +117,15 @@ def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
     ):
         # The frame is best-effort: a broken registry must not break pages.
         return ()
+    # A record that fails to load is still listed, by its registry name, so
+    # its unavailable card on /meta stays reachable.
     return tuple(
         frame.Project(
-            selector=result.record.registry_name,
-            label=result.record.display_name or result.record.registry_name,
+            selector=result.registry_name,
+            label=(result.record and result.record.display_name)
+            or result.registry_name,
         )
         for result in results
-        if result.record is not None
     )
 
 

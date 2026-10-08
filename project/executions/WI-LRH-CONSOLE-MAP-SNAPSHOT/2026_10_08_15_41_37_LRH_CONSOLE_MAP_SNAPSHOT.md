@@ -2,13 +2,13 @@
 execution_id: 2026_10_08_15_41_37_LRH_CONSOLE_MAP_SNAPSHOT
 prompt_id: PROMPT(WI-LRH-CONSOLE-MAP-SNAPSHOT:LRH_CONSOLE_MAP_SNAPSHOT)[2026-10-08T15:07:33+00:00]
 work_item: WI-LRH-CONSOLE-MAP-SNAPSHOT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/796
-commit:
+commit: b0f55c741369f0cc1ec42c6c30fa1ffb436bb0f2
 agent: "claude_app"
 instruction_source: "user request in session: /lrh-execute WS-LRH-CONSOLE-LOCAL-DOGFOOD (chain approved: \"Approve as stated\")"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-08T15:41:37+00:00
 ---
 

@@ -41,8 +41,8 @@ neither an argument nor `CODEX_THREAD_ID` is available, ask the user for the
 Codex thread id before proceeding.
 
 Thread-id resolution uses the same shared resolver contract as
-`lrh conversation current-codex-thread-id` and `/lrh-codex-session`. The id is a
-Codex task/thread pointer, not an export attempt id, archive directory,
+`lrh conversation current-codex-thread-id` and `/lrh-session-id-codex`. The id
+is a Codex task/thread pointer, not an export attempt id, archive directory,
 `attempt.json` path, raw JSON path, transcript Markdown path, or timestamp.
 
 ---

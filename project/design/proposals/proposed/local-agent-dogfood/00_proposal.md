@@ -222,9 +222,18 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
   `password = ...` are both `secret`). So an override run always stops at a
   confirmation that lists every finding it would let through, by rule and
   line, never by value (for example `recorder.py ALLOWED DESPITE secret:
-  secret.keyword_assignment at L99`). A newly added secret therefore shows up
-  as a new line before the owner says yes. `--allow-flagged` is refused with
-  `--yes` and without an interactive terminal;
+  secret.keyword_assignment at L99`). `L<n>` is the line where the match
+  starts, `L<a>-L<b>` when it spans lines, and `L?` when the scanner reports
+  no line. A newly added secret therefore shows up as a new line before the
+  owner decides. The confirmation comes before the model adapter is built or
+  any model call is made; only a typed `yes` sends, anything else (including
+  a bare Enter) declines, and a decline is logged as `cancelled` with nothing
+  sent. `--allow-flagged` is refused with `--yes` and without an interactive
+  terminal;
+- **the final context scan:** the prototype also scans the whole assembled
+  context before sending. That scan exempts exactly the confirmed findings
+  (same file, rule, and position) and still refuses the request on any other
+  high-severity finding, including one in diagnostics or the file listing;
 - **visibility:** the run record notes the override and the confirmed
   findings by path, category, rule, and line, never by value;
 - **what is stored:** the allowed file's text reaches the model and may

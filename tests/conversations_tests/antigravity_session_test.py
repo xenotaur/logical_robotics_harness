@@ -175,6 +175,64 @@ class TestAntigravitySessionIdentity(unittest.TestCase):
                     environ={},
                 )
 
+    def test_latest_heuristic_with_ancestor_path_named_brain(self) -> None:
+        cid = "11111111-2222-3333-4444-555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            app_dir = Path(tmp) / "brain" / "antigravity"
+            brain_dir = app_dir / "brain"
+            log_dir = brain_dir / cid / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            transcript = log_dir / "transcript.jsonl"
+            transcript.write_text("{}\n", encoding="utf-8")
+
+            identity = antigravity_session.resolve_antigravity_session_identity(
+                latest=True,
+                app_data_dir=app_dir,
+                environ={},
+            )
+            self.assertEqual(identity.conversation_id, cid)
+            self.assertEqual(identity.transcript_path, transcript)
+
+    def test_latest_prefers_environment_variable_when_present(self) -> None:
+        env_cid = "11111111-1111-1111-1111-111111111111"
+        latest_cid = "22222222-2222-2222-2222-222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            app_dir = Path(tmp)
+            brain_dir = app_dir / "brain"
+            log_dir = brain_dir / latest_cid / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript.jsonl").write_text("{}\n", encoding="utf-8")
+
+            identity = antigravity_session.resolve_antigravity_session_identity(
+                latest=True,
+                app_data_dir=app_dir,
+                environ={antigravity_session.ANTIGRAVITY_CONVERSATION_ID_ENV: env_cid},
+            )
+            self.assertEqual(identity.conversation_id, env_cid)
+            self.assertFalse(identity.is_latest)
+
+    def test_latest_with_malformed_environment_variable_raises_hard_error(
+        self,
+    ) -> None:
+        latest_cid = "22222222-2222-2222-2222-222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            app_dir = Path(tmp)
+            brain_dir = app_dir / "brain"
+            log_dir = brain_dir / latest_cid / ".system_generated" / "logs"
+            log_dir.mkdir(parents=True)
+            (log_dir / "transcript.jsonl").write_text("{}\n", encoding="utf-8")
+
+            env_key = antigravity_session.ANTIGRAVITY_CONVERSATION_ID_ENV
+            with self.assertRaisesRegex(
+                antigravity_session.AntigravitySessionIdentityError,
+                "expected 36-character UUID",
+            ):
+                antigravity_session.resolve_antigravity_session_identity(
+                    latest=True,
+                    app_data_dir=app_dir,
+                    environ={env_key: "not-a-uuid"},
+                )
+
 
 class TestAntigravitySessionCli(unittest.TestCase):
     def test_cli_resolves_text_format(self) -> None:

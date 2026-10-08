@@ -26,8 +26,11 @@ import re
 import typing
 import zipfile
 
+import yaml
+
 from lrh import prompt_workflow_records
 from lrh.atomic_write import atomic_write, atomic_write_bytes
+from lrh.conversations import export_manifest
 
 MALFORMED_SESSION_TRANSCRIPT_PREFIX = "<malformed-session-transcript"
 
@@ -500,7 +503,32 @@ def _archived_antigravity_conversation_ids(
     conversation_ids: set[str] = set()
     for md_path in antigravity_root.glob("**/*.md"):
         if not md_path.is_symlink() and md_path.is_file():
-            conversation_ids.add(md_path.stem)
+            try:
+                raw_text = md_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            match = re.match(
+                r"\A---\r?\n(?P<frontmatter>.*?)\r?\n---", raw_text, re.DOTALL
+            )
+            if not match:
+                continue
+            try:
+                loaded = yaml.safe_load(match.group("frontmatter"))
+            except yaml.YAMLError:
+                continue
+            if not isinstance(loaded, typing.Mapping):
+                continue
+            try:
+                manifest = export_manifest.ConversationExportManifest.from_mapping(
+                    loaded
+                )
+            except export_manifest.ConversationExportManifestError:
+                continue
+            if (
+                manifest.source_tool == export_manifest.SOURCE_TOOL_ANTIGRAVITY
+                and manifest.source_id
+            ):
+                conversation_ids.add(manifest.source_id)
     return conversation_ids
 
 

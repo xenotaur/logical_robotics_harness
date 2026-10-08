@@ -292,13 +292,7 @@ def run_ask(
             "prototype_version": settings.PROTOTYPE_VERSION,
             "kind": KIND_ASK,
             "question": question,
-            "mode": ctx.mode,
-            "repo": ctx.repo,
-            "source_commit": ctx.source_commit,
-            "sources": ctx.source_refs,
-            "excluded_sources": ctx.excluded,
-            "context_warnings": list(ctx.context_warnings),
-            "diagnostics": ctx.diagnostics,
+            **context_fields(ctx),
             "prompt_version": PROMPT_VERSION,
             "prompt_template_sha256": template_hash,
             "model": adapter.describe(),
@@ -401,17 +395,39 @@ def run_ask(
         raise
 
 
+def context_fields(ctx: AskContext) -> dict[str, object]:
+    """Run-record fields describing the assembled context (no source text)."""
+    return {
+        "mode": ctx.mode,
+        "repo": ctx.repo,
+        "source_commit": ctx.source_commit,
+        "sources": ctx.source_refs,
+        "excluded_sources": ctx.excluded,
+        "context_warnings": list(ctx.context_warnings),
+        "diagnostics": ctx.diagnostics,
+    }
+
+
 def record_failure(
-    store: recorder.Store, question: str, outcome: str, detail: str
+    store: recorder.Store,
+    question: str,
+    outcome: str,
+    detail: str,
+    ctx: AskContext | None = None,
 ) -> str:
     """Log an ``ask`` that stopped before a model call (context, adapter, or
-    confirmation); return the run id. Nothing was sent to the model."""
+    confirmation); return the run id. Nothing was sent to the model.
+
+    Pass ``ctx`` when the context was already assembled, so the record keeps
+    its provenance (commit, sources, exclusions) like a normal run.
+    """
     run_id = store.start_run(
         {
             "record_schema_version": settings.RECORD_SCHEMA_VERSION,
             "prototype_version": settings.PROTOTYPE_VERSION,
             "kind": KIND_ASK,
             "question": question,
+            **(context_fields(ctx) if ctx is not None else {}),
             "prompt_version": PROMPT_VERSION,
             "outcome": None,
             "rating": None,

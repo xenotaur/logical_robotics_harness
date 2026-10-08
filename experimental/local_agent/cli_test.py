@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from local_agent import cli, recorder, testing_support
+from local_agent import cli, export, recorder, testing_support
 
 
 class CliTest(unittest.TestCase):
@@ -241,6 +241,12 @@ class CliAskTest(unittest.TestCase):
         run = store.load_run(run_id)
         self.assertEqual(run["outcome"], "missing_prerequisite")
         self.assertIn(".env (excluded credential-like path", run["outcome_detail"])
+        self.assertEqual(run["mode"], "files")
+        self.assertEqual(len(run["source_commit"]), 40)
+        self.assertEqual([e["path"] for e in run["excluded_sources"]], [".env"])
+        self.assertEqual(run["sources"], [])
+        summary = export.inspect_run(store, run_id)
+        self.assertIn(f"source commit: {run['source_commit']}", summary)
 
     def test_rate_and_prune_report_bad_input(self) -> None:
         self.assertEqual(self._main("rate", "nope", "g")[0], 2)

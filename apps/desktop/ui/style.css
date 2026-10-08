@@ -1,8 +1,8 @@
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--lrh-font-body);
   margin: 0;
-  color: #1f2328;
-  background: #ffffff;
+  color: var(--lrh-color-text-primary);
+  background: var(--lrh-color-surface-page);
 }
 
 main {
@@ -12,20 +12,13 @@ main {
   line-height: 1.5;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    color: #e6edf3;
-    background: #0d1117;
-  }
-}
-
 .state {
   font-size: 1.25rem;
   font-weight: 600;
 }
 
 .code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--lrh-font-mono);
   font-size: 0.9rem;
   opacity: 0.8;
 }
@@ -136,12 +129,19 @@ button.primary {
 
 /* Briefly marks the section that Server > Server Details… brought into view. */
 .flash {
-  animation: flash 1.2s ease-out;
+  animation: flash var(--lrh-motion-highlight) ease-out;
+}
+
+/* With reduced motion the highlight shows, then clears, without fading. */
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation-timing-function: steps(1, end);
+  }
 }
 
 @keyframes flash {
   from {
-    background: rgba(9, 105, 218, 0.18);
+    background: var(--lrh-color-action-accent-bg);
   }
   to {
     background: transparent;
@@ -149,8 +149,8 @@ button.primary {
 }
 
 fieldset {
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
+  border: 1px solid var(--lrh-color-border-subtle);
+  border-radius: var(--lrh-radius-sm);
   margin: 0 0 1rem;
   padding: 0.75rem 1rem;
 }
@@ -181,7 +181,7 @@ select {
 
 .error,
 .field-error {
-  color: #cf222e;
+  color: var(--lrh-color-status-blocked-fg);
   font-size: 0.9rem;
   margin: 0.2rem 0;
 }
@@ -205,21 +205,10 @@ dd {
   max-height: 12rem;
   overflow: auto;
   padding: 0.5rem;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
+  border: 1px solid var(--lrh-color-border-subtle);
+  border-radius: var(--lrh-radius-sm);
   font-size: 0.8rem;
   white-space: pre-wrap;
   /* Long paths have no spaces to wrap at. */
   overflow-wrap: anywhere;
-}
-
-@media (prefers-color-scheme: dark) {
-  fieldset,
-  .diagnostics {
-    border-color: #30363d;
-  }
-  .error,
-  .field-error {
-    color: #ff7b72;
-  }
 }

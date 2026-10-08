@@ -1,0 +1,191 @@
+/*
+ * LRH Console design tokens: the one shared file every LRH Console surface reads.
+ *
+ * Serve inlines this file into its pages; the desktop app bundles an identical
+ * copy at apps/desktop/ui/lrh-tokens.css, and a test keeps the two in sync.
+ * Status hues derive from the Okabe-Ito palette; the accent comes from the
+ * LRH v8 icon. tests/ux_tests/tokens_test.py checks text pairs at 4.5:1 or
+ * more and line, icon, and focus pairs at 3:1 or more, in both themes.
+ *
+ * Light values sit on :root. Dark values apply when the system prefers dark
+ * and the page has not chosen light, or when the page chooses dark. The two
+ * dark blocks must stay identical; the test enforces it.
+ *
+ * Revision 2 decisions: project/design/proposals/proposed/
+ * lrh-console-visual-language/00_proposal.md. Control-plane tokens
+ * (color.plane.*: intent, execution, truth, consequences) are deferred until a
+ * view needs them.
+ */
+:root {
+  --lrh-color-surface-page: #f3f5f9;
+  --lrh-color-surface-panel: #ffffff;
+  --lrh-color-surface-sunken: #e9edf4;
+  --lrh-color-surface-overlay: #ffffff;
+  --lrh-color-text-primary: #0f1a2b;
+  --lrh-color-text-muted: #55627a;
+  --lrh-color-border-subtle: #d8dee8;
+  --lrh-color-border-strong: #b5bfcf;
+  --lrh-color-focus: #2f55d4;
+  --lrh-color-action-accent: #2f55d4;
+  --lrh-color-action-accent-bg: #e6ecfc;
+  --lrh-color-action-on-accent: #ffffff;
+  --lrh-color-edge: #78849f;
+  --lrh-color-edge-strong: #2f3d55;
+
+  --lrh-color-status-done-fg: #00664a;
+  --lrh-color-status-done-bg: #e1f2ec;
+  --lrh-color-status-done-line: #00996f;
+  --lrh-color-status-progress-fg: #00507e;
+  --lrh-color-status-progress-bg: #e1edf7;
+  --lrh-color-status-progress-line: #0072b2;
+  --lrh-color-status-unblocked-fg: #165f86;
+  --lrh-color-status-unblocked-bg: #e3f3fb;
+  --lrh-color-status-unblocked-line: #1f90ce;
+  --lrh-color-status-waiting-fg: #744900;
+  --lrh-color-status-waiting-bg: #fbefd6;
+  --lrh-color-status-waiting-line: #b47b00;
+  --lrh-color-status-blocked-fg: #9a3b00;
+  --lrh-color-status-blocked-bg: #fbe6d9;
+  --lrh-color-status-blocked-line: #d55e00;
+  --lrh-color-status-review-fg: #80356a;
+  --lrh-color-status-review-bg: #f6e5ef;
+  --lrh-color-status-review-line: #c6619b;
+  --lrh-color-status-unknown-fg: #4c576a;
+  --lrh-color-status-unknown-bg: #edf0f5;
+  --lrh-color-status-unknown-line: #7e889e;
+
+  --lrh-shadow-overlay: 0 10px 30px rgba(8, 17, 31, 0.18);
+  --lrh-shadow-drawer: -12px 0 30px rgba(8, 17, 31, 0.2);
+
+  --lrh-font-display: "Montserrat", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --lrh-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --lrh-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --lrh-radius-sm: 6px;
+  --lrh-radius-md: 10px;
+  --lrh-radius-lg: 1rem;
+  --lrh-radius-pill: 999px;
+  --lrh-space-1: 0.25rem;
+  --lrh-space-2: 0.5rem;
+  --lrh-space-3: 0.75rem;
+  --lrh-space-4: 1rem;
+  --lrh-space-6: 1.5rem;
+  --lrh-space-8: 2rem;
+  --lrh-motion-fast: 140ms;
+  --lrh-motion-highlight: 1.2s;
+
+  /* Bands map onto status hues (Revision 2, Color vision). */
+  --lrh-color-band-needs-attention-fg: var(--lrh-color-status-waiting-fg);
+  --lrh-color-band-needs-attention-bg: var(--lrh-color-status-waiting-bg);
+  --lrh-color-band-needs-attention-line: var(--lrh-color-status-waiting-line);
+  --lrh-color-band-blocked-fg: var(--lrh-color-status-blocked-fg);
+  --lrh-color-band-blocked-bg: var(--lrh-color-status-blocked-bg);
+  --lrh-color-band-blocked-line: var(--lrh-color-status-blocked-line);
+  --lrh-color-band-active-work-fg: var(--lrh-color-status-progress-fg);
+  --lrh-color-band-active-work-bg: var(--lrh-color-status-progress-bg);
+  --lrh-color-band-active-work-line: var(--lrh-color-status-progress-line);
+  --lrh-color-band-awaiting-review-fg: var(--lrh-color-status-review-fg);
+  --lrh-color-band-awaiting-review-bg: var(--lrh-color-status-review-bg);
+  --lrh-color-band-awaiting-review-line: var(--lrh-color-status-review-line);
+  --lrh-color-band-stable-fg: var(--lrh-color-status-done-fg);
+  --lrh-color-band-stable-bg: var(--lrh-color-status-done-bg);
+  --lrh-color-band-stable-line: var(--lrh-color-status-done-line);
+  --lrh-color-band-unknown-fg: var(--lrh-color-status-unknown-fg);
+  --lrh-color-band-unknown-bg: var(--lrh-color-status-unknown-bg);
+  --lrh-color-band-unknown-line: var(--lrh-color-status-unknown-line);
+
+  /* Earlier Serve names, kept as aliases while pages migrate. */
+  --lrh-color-status-needs-attention-bg: var(--lrh-color-band-needs-attention-bg);
+  --lrh-color-status-needs-attention-text: var(--lrh-color-band-needs-attention-fg);
+  --lrh-color-status-active-work-bg: var(--lrh-color-band-active-work-bg);
+  --lrh-color-status-active-work-text: var(--lrh-color-band-active-work-fg);
+  --lrh-color-status-awaiting-review-bg: var(--lrh-color-band-awaiting-review-bg);
+  --lrh-color-status-awaiting-review-text: var(--lrh-color-band-awaiting-review-fg);
+  --lrh-color-status-stable-bg: var(--lrh-color-band-stable-bg);
+  --lrh-color-status-stable-text: var(--lrh-color-band-stable-fg);
+  --lrh-color-status-unknown-text: var(--lrh-color-status-unknown-fg);
+  --lrh-focus-ring: 0 0 0 3px var(--lrh-color-focus);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lrh-color-surface-page: #08111f;
+    --lrh-color-surface-panel: #0e1a2e;
+    --lrh-color-surface-sunken: #0a1525;
+    --lrh-color-surface-overlay: #13223a;
+    --lrh-color-text-primary: #e8eef8;
+    --lrh-color-text-muted: #9aa8bf;
+    --lrh-color-border-subtle: #21314a;
+    --lrh-color-border-strong: #34496a;
+    --lrh-color-focus: #7ea0ff;
+    --lrh-color-action-accent: #7ea0ff;
+    --lrh-color-action-accent-bg: #172a4f;
+    --lrh-color-action-on-accent: #08111f;
+    --lrh-color-edge: #5c6f98;
+    --lrh-color-edge-strong: #c9d5ea;
+    --lrh-color-status-done-fg: #6fd2af;
+    --lrh-color-status-done-bg: #0e3329;
+    --lrh-color-status-done-line: #2bb088;
+    --lrh-color-status-progress-fg: #7db9ee;
+    --lrh-color-status-progress-bg: #0e2840;
+    --lrh-color-status-progress-line: #3b92d6;
+    --lrh-color-status-unblocked-fg: #8fd0f5;
+    --lrh-color-status-unblocked-bg: #0f2f42;
+    --lrh-color-status-unblocked-line: #56b4e9;
+    --lrh-color-status-waiting-fg: #f5c266;
+    --lrh-color-status-waiting-bg: #3a2a0c;
+    --lrh-color-status-waiting-line: #e69f00;
+    --lrh-color-status-blocked-fg: #ff9b66;
+    --lrh-color-status-blocked-bg: #40200e;
+    --lrh-color-status-blocked-line: #e36f1e;
+    --lrh-color-status-review-fg: #e9a4cb;
+    --lrh-color-status-review-bg: #3a1d30;
+    --lrh-color-status-review-line: #cc79a7;
+    --lrh-color-status-unknown-fg: #a9b3c3;
+    --lrh-color-status-unknown-bg: #1c2636;
+    --lrh-color-status-unknown-line: #6b7688;
+    --lrh-shadow-overlay: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --lrh-shadow-drawer: -12px 0 30px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --lrh-color-surface-page: #08111f;
+  --lrh-color-surface-panel: #0e1a2e;
+  --lrh-color-surface-sunken: #0a1525;
+  --lrh-color-surface-overlay: #13223a;
+  --lrh-color-text-primary: #e8eef8;
+  --lrh-color-text-muted: #9aa8bf;
+  --lrh-color-border-subtle: #21314a;
+  --lrh-color-border-strong: #34496a;
+  --lrh-color-focus: #7ea0ff;
+  --lrh-color-action-accent: #7ea0ff;
+  --lrh-color-action-accent-bg: #172a4f;
+  --lrh-color-action-on-accent: #08111f;
+  --lrh-color-edge: #5c6f98;
+  --lrh-color-edge-strong: #c9d5ea;
+  --lrh-color-status-done-fg: #6fd2af;
+  --lrh-color-status-done-bg: #0e3329;
+  --lrh-color-status-done-line: #2bb088;
+  --lrh-color-status-progress-fg: #7db9ee;
+  --lrh-color-status-progress-bg: #0e2840;
+  --lrh-color-status-progress-line: #3b92d6;
+  --lrh-color-status-unblocked-fg: #8fd0f5;
+  --lrh-color-status-unblocked-bg: #0f2f42;
+  --lrh-color-status-unblocked-line: #56b4e9;
+  --lrh-color-status-waiting-fg: #f5c266;
+  --lrh-color-status-waiting-bg: #3a2a0c;
+  --lrh-color-status-waiting-line: #e69f00;
+  --lrh-color-status-blocked-fg: #ff9b66;
+  --lrh-color-status-blocked-bg: #40200e;
+  --lrh-color-status-blocked-line: #e36f1e;
+  --lrh-color-status-review-fg: #e9a4cb;
+  --lrh-color-status-review-bg: #3a1d30;
+  --lrh-color-status-review-line: #cc79a7;
+  --lrh-color-status-unknown-fg: #a9b3c3;
+  --lrh-color-status-unknown-bg: #1c2636;
+  --lrh-color-status-unknown-line: #6b7688;
+  --lrh-shadow-overlay: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --lrh-shadow-drawer: -12px 0 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}

@@ -81,6 +81,51 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertFalse(payload["capabilities"]["pull_request_mutation"])
         self.assertFalse(payload["capabilities"]["arbitrary_file_serving"])
 
+    def test_theme_defaults_to_system_and_accepts_light_and_dark(self) -> None:
+        parser = serve.build_parser("lrh serve")
+
+        self.assertEqual(serve.config_from_args(parser.parse_args([])).theme, "system")
+        for theme in ("light", "dark", "system"):
+            with self.subTest(theme=theme):
+                args = parser.parse_args(["--theme", theme])
+                self.assertEqual(serve.config_from_args(args).theme, theme)
+
+    def test_show_config_reports_the_theme(self) -> None:
+        with testing_support.capture_output() as captured:
+            exit_code = serve.run_serve_cli(["--theme", "dark", "--show-config"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(captured.stdout.getvalue())["theme"], "dark")
+
+    def test_unknown_theme_is_rejected(self) -> None:
+        with testing_support.capture_output(capture_stderr=True) as captured:
+            with self.assertRaises(SystemExit) as err_ctx:
+                serve.run_serve_cli(["--theme", "sepia", "--show-config"])
+
+        self.assertEqual(err_ctx.exception.code, 2)
+        self.assertIn("invalid choice: 'sepia'", captured.stderr.getvalue())
+
+    def test_desktop_protocol_accepts_theme(self) -> None:
+        self.assertEqual(
+            serve._desktop_protocol_conflicts(
+                "lrh serve", ["--desktop-protocol", "--theme", "dark"]
+            ),
+            [],
+        )
+
+    def test_apply_theme_pins_only_explicit_themes(self) -> None:
+        page = '<!doctype html>\n<html lang="en">\n<head></head></html>'
+
+        self.assertEqual(serve.apply_theme(page, "system"), page)
+        self.assertIn(
+            '<html lang="en" data-theme="dark">', serve.apply_theme(page, "dark")
+        )
+        self.assertIn(
+            '<html lang="en" data-theme="light">', serve.apply_theme(page, "light")
+        )
+        with self.assertRaises(ValueError):
+            serve.apply_theme(page, "sepia")
+
     def test_unsafe_host_requires_explicit_opt_in(self) -> None:
         with testing_support.capture_output(capture_stderr=True) as captured:
             with self.assertRaises(SystemExit) as err_ctx:
@@ -187,17 +232,30 @@ class TestBlockedWorkItemCount(unittest.TestCase):
         self.assertEqual(serve._blocked_work_item_count(work_items), 0)
 
 
+# HTML routes that render with no project fixtures.
+_HTML_ROUTES = (
+    "/",
+    "/meta",
+    "/meta/project",
+    "/style",
+    "/workbench",
+    "/conversations/codex",
+)
+
+
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
         self,
         project_root: pathlib.Path | None = None,
         *,
         codex_archive_roots: tuple[pathlib.Path, ...] = (),
+        theme: str = serve.DEFAULT_THEME,
     ) -> tuple[serve.ThreadingHTTPServer, str]:
         config = serve.ServeConfig(
             port=0,
             project_root=project_root or pathlib.Path("."),
             codex_archive_roots=codex_archive_roots,
+            theme=theme,
         )
         httpd = serve.create_http_server(config)
         host, port = httpd.server_address[:2]
@@ -239,6 +297,56 @@ class TestLrhServeRoutes(unittest.TestCase):
             self.assertIn(f"<h3>{label} ", body)
             for part in ("fg", "bg", "line"):
                 self.assertIn(f"var(--lrh-color-band-{key}-{part})", body)
+
+    def test_pages_follow_the_system_theme_by_default(self) -> None:
+        # A minimal project and an empty Meta registry keep page builds fast
+        # and independent of this machine; the live checkout can exceed the
+        # read timeout on slow CI runners.
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            for route in _HTML_ROUTES:
+                with self.subTest(route=route):
+                    _status, _type, body = self._read(base_url + route)
+                    self.assertIn('<html lang="en">', body)
+                    self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
+
+    def test_explicit_theme_pins_every_page(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            for theme in ("light", "dark"):
+                _httpd, base_url = self._start_server(root, theme=theme)
+                for route in _HTML_ROUTES:
+                    with self.subTest(theme=theme, route=route):
+                        _status, _type, body = self._read(base_url + route)
+                        self.assertIn(f'<html lang="en" data-theme="{theme}">', body)
+
+    def test_desktop_server_factory_passes_the_theme(self) -> None:
+        httpd = serve._desktop_server_factory(pathlib.Path("."), theme="light")
+        host, port = httpd.server_address[:2]
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(httpd.server_close)
+
+        _status, _type, body = self._read(f"http://{host}:{port}/style")
+
+        self.assertIn('<html lang="en" data-theme="light">', body)
 
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()

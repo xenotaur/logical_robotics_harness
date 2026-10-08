@@ -15,7 +15,7 @@ Implementation: `src/lrh/desktop_protocol.py` (child side) and
 
 | Topic | Rule |
 | --- | --- |
-| Entry point | `<lrh-executable> serve --desktop-protocol [--desktop-start-timeout SECONDS]` |
+| Entry point | `<lrh-executable> serve --desktop-protocol [--theme THEME] [--desktop-start-timeout SECONDS]` |
 | Transport | The child's own stdin (parent → child) and stdout (child → parent) pipes, held privately by the parent. |
 | Framing | One UTF-8 JSON object per line (NDJSON), `\n`-terminated, at most 65,536 bytes including the newline. |
 | Human logs | stderr only. Machine messages never appear on stderr; human text never appears on stdout. |
@@ -29,10 +29,12 @@ Implementation: `src/lrh/desktop_protocol.py` (child side) and
 ## Launching the backend
 
 The supervisor runs one explicitly configured executable, never a name looked
-up through an interactive shell, and appends exactly these arguments:
+up through an interactive shell, and appends exactly these arguments. The
+theme comes from its **Appearance** setting; a session started with the
+`LRH_CONSOLE_*` developer variables omits `--theme`, which means `system`.
 
 ```bash
-/absolute/path/to/lrh serve --desktop-protocol
+/absolute/path/to/lrh serve --desktop-protocol --theme system
 ```
 
 `python -m lrh.cli.main serve --desktop-protocol` is equivalent when the
@@ -42,6 +44,8 @@ supervisor is configured with a Python interpreter instead of the `lrh` script.
   `--project-root`, `--codex-archive-root`, `--allow-nonlocal-host`, or
   `--show-config`, even when their values equal the defaults. The child exits
   with code 2 and a usage message on stderr, before any machine message.
+- `--theme light|dark|system` (default `system`) sets the page theme, as in
+  plain `lrh serve`. It does not change any protocol message.
 - `--desktop-start-timeout SECONDS` (0.1–120, default 10) bounds how long the
   child waits for the `start` request. It is only valid with `--desktop-protocol`.
 - Configure the real executable. A wrapper that spawns `lrh` as a grandchild

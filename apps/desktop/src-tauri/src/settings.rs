@@ -1,11 +1,12 @@
 //! Private, explicit LRH Console configuration.
 //!
 //! The configuration names the `lrh` program to supervise, the workspace to
-//! serve, the browser to hand links to, and whether to start the backend when
-//! the app opens. It lives in one JSON file in the app's private config
-//! directory (mode `0600` on Unix). Nothing is resolved through shell `PATH`
-//! or Conda activation: every path is absolute and checked before it is
-//! saved. An invalid change is rejected and the last working file is kept.
+//! serve, the browser to hand links to, whether to start the backend when the
+//! app opens, and the appearance (light, dark, or the system's). It lives in
+//! one JSON file in the app's private config directory (mode `0600` on Unix).
+//! Nothing is resolved through shell `PATH` or Conda activation: every path is
+//! absolute and checked before it is saved. An invalid change is rejected and
+//! the last working file is kept.
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -41,6 +42,27 @@ pub enum BrowserChoice {
     DefaultBrowser,
 }
 
+/// The page theme: light, dark, or following the system appearance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Appearance {
+    Light,
+    Dark,
+    #[default]
+    System,
+}
+
+impl Appearance {
+    /// The value `lrh serve --theme` takes.
+    pub fn as_theme(self) -> &'static str {
+        match self {
+            Appearance::Light => "light",
+            Appearance::Dark => "dark",
+            Appearance::System => "system",
+        }
+    }
+}
+
 /// The saved configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
@@ -50,6 +72,8 @@ pub struct Config {
     pub browser: BrowserChoice,
     #[serde(default = "default_true")]
     pub start_on_open: bool,
+    #[serde(default)]
+    pub appearance: Appearance,
 }
 
 fn default_true() -> bool {
@@ -161,7 +185,7 @@ fn is_lrh_workspace(path: &Path) -> bool {
 /// Paths are used exactly as saved. Canonicalizing would resolve a
 /// virtualenv's `python` symlink to the base interpreter and lose the venv.
 pub fn launch_config(config: &Config) -> LaunchConfig {
-    match &config.launch {
+    let mut launch = match &config.launch {
         LaunchSpec::Executable { path } => LaunchConfig::new(path, &config.workspace),
         LaunchSpec::Python {
             interpreter,
@@ -176,13 +200,19 @@ pub fn launch_config(config: &Config) -> LaunchConfig {
             }
             launch
         }
-    }
+    };
+    launch.serve_args = vec!["--theme".into(), config.appearance.as_theme().into()];
+    launch
 }
 
 /// True if switching from `before` to `after` changes what the running
 /// backend serves or runs, so it takes effect only after a restart.
 pub fn needs_restart(before: Option<&Config>, after: &Config) -> bool {
-    before.is_none_or(|before| before.launch != after.launch || before.workspace != after.workspace)
+    before.is_none_or(|before| {
+        before.launch != after.launch
+            || before.workspace != after.workspace
+            || before.appearance != after.appearance
+    })
 }
 
 /// Reads and writes the configuration file.
@@ -306,6 +336,7 @@ mod tests {
             workspace,
             browser: BrowserChoice::Chrome,
             start_on_open: true,
+            appearance: Appearance::System,
         }
     }
 
@@ -392,6 +423,7 @@ mod tests {
             workspace: PathBuf::from("/repo"),
             browser: BrowserChoice::DefaultBrowser,
             start_on_open: false,
+            appearance: Appearance::Dark,
         };
         let launch = launch_config(&config);
         assert_eq!(launch.program, PathBuf::from("/venv/bin/python"));
@@ -400,10 +432,30 @@ mod tests {
             vec![OsString::from("-m"), "lrh.cli.main".into()]
         );
         assert_eq!(launch.env, vec![("PYTHONPATH".into(), "/repo/src".into())]);
+        assert_eq!(
+            launch.serve_args,
+            vec![OsString::from("--theme"), "dark".into()]
+        );
     }
 
     #[test]
-    fn only_launch_or_workspace_changes_need_a_restart() {
+    fn a_file_without_appearance_loads_as_system() {
+        let config: Config = serde_json::from_str(
+            r#"{"launch": {"kind": "executable", "path": "/usr/local/bin/lrh"},
+                "workspace": "/repo", "browser": "chrome", "start_on_open": true}"#,
+        )
+        .unwrap();
+        assert_eq!(config.appearance, Appearance::System);
+        assert_eq!(
+            launch_config(&config).serve_args,
+            vec![OsString::from("--theme"), "system".into()]
+        );
+        let saved = serde_json::to_value(&config).unwrap();
+        assert_eq!(saved["appearance"], "system");
+    }
+
+    #[test]
+    fn only_launch_workspace_or_appearance_changes_need_a_restart() {
         let dir = TempDir::new("restart");
         let config = fixture(&dir.0);
         assert!(needs_restart(None, &config));
@@ -416,6 +468,10 @@ mod tests {
         let mut moved = config.clone();
         moved.workspace = dir.0.join("elsewhere");
         assert!(needs_restart(Some(&config), &moved));
+
+        let mut dark = config.clone();
+        dark.appearance = Appearance::Dark;
+        assert!(needs_restart(Some(&config), &dark));
     }
 
     #[test]

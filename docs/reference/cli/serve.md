@@ -11,6 +11,7 @@ lrh serve
 lrh serve --host 127.0.0.1 --port 8765
 lrh serve --project-root /path/to/repo
 lrh serve --codex-archive-root private/codex-conversations
+lrh serve --theme dark
 lrh serve --show-config
 python -m lrh.cli.main serve --show-config
 lrh serve --desktop-protocol
@@ -25,11 +26,15 @@ lrh serve --desktop-protocol
   conversation Markdown exports for read-only archive viewing. May be supplied
   more than once. Relative paths are resolved under `--project-root`.
 - `--allow-nonlocal-host`: explicitly allow binding beyond localhost.
+- `--theme {light,dark,system}`: page theme. `system` (the default) follows the
+  operating system's light or dark appearance; `light` and `dark` pin every
+  page to that theme. Also accepted with `--desktop-protocol`, where LRH Console
+  passes its **Appearance** setting.
 - `--show-config`: validate and print deterministic JSON configuration without serving.
 - `--desktop-protocol`: run under a desktop supervisor. Reads a versioned JSON
   start request on stdin, binds `127.0.0.1` on an OS-assigned port, and reports
   ready/failed and lifecycle events as JSON lines on stdout; human logs go to
-  stderr. Cannot be combined with the options above. See the
+  stderr. Cannot be combined with the options above, except `--theme`. See the
   [desktop server protocol](../desktop-server-protocol.md).
 - `--desktop-start-timeout SECONDS`: with `--desktop-protocol`, how long to wait
   for the start request (default 10, range 0.1–120).
@@ -39,7 +44,10 @@ lrh serve --desktop-protocol
 
 - This command is intentionally safe-default and read-only.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
-- `--show-config` is a non-serving diagnostics mode.
+- `--show-config` is a non-serving diagnostics mode. Its JSON includes the
+  `theme`.
+- Pages take their colors from the shared LRH Console token file. The
+  read-only `/style` page shows every token in the current theme.
 - Without `--desktop-protocol`, the command runs in the foreground, prints one
   human-readable `listening on` line to stdout, and stops on Ctrl+C. Desktop
   mode does not change that behavior or any HTTP route or header.

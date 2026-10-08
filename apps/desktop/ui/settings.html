@@ -59,6 +59,16 @@
             Start the server when LRH Console opens</label>
         </fieldset>
 
+        <fieldset>
+          <legend>Appearance</legend>
+          <label><input type="radio" name="appearance" value="system" checked>
+            System (follow the macOS appearance)</label>
+          <label><input type="radio" name="appearance" value="light"> Light</label>
+          <label><input type="radio" name="appearance" value="dark"> Dark</label>
+          <p class="note">Applies to LRH Console now. Restart the server so pages in other
+            browsers, or a server started with Light or Dark, match too.</p>
+        </fieldset>
+
         <p class="field-error" data-field="file"></p>
         <div class="actions">
           <button type="submit" class="primary">Save</button>

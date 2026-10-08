@@ -28,6 +28,9 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 UNSAFE_HOSTS = frozenset({"0.0.0.0", "::", ""})
+THEMES = ("light", "dark", "system")
+DEFAULT_THEME = "system"
+_HTML_ROOT_TAG = '<html lang="en">'
 _WORKBENCH_ARTIFACT_ROUTES = frozenset(
     {"/workbench/prompt", "/workbench/run-packet", "/workbench/run-report"}
 )
@@ -72,6 +75,7 @@ class ServeConfig:
     project_root: Path = Path(".")
     allow_nonlocal_host: bool = False
     codex_archive_roots: tuple[Path, ...] = ()
+    theme: str = DEFAULT_THEME
 
     def resolved_project_root(self) -> Path:
         """Return the deterministic absolute project root used for status labels."""
@@ -84,6 +88,20 @@ class ServeConfig:
         if project_dir.name == "project":
             return project_dir.parent
         return project_dir
+
+
+def apply_theme(page: str, theme: str) -> str:
+    """Pin an HTML page to ``theme``; ``system`` leaves it following the OS.
+
+    Every page renders a bare ``<html lang="en">`` root, so its token
+    stylesheet follows ``prefers-color-scheme`` unless a theme is pinned here.
+    """
+
+    if theme not in THEMES:
+        raise ValueError(f"unknown theme {theme!r}; expected one of {THEMES}")
+    if theme == "system":
+        return page
+    return page.replace(_HTML_ROOT_TAG, f'<html lang="en" data-theme="{theme}">', 1)
 
 
 def validate_host(config: ServeConfig) -> None:
@@ -126,6 +144,7 @@ def status_payload(
         "codex_archive_root_names": [
             _codex_archive_root_label(root) for root in codex_archive_roots
         ],
+        "theme": config.theme,
         "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
     }
@@ -163,7 +182,7 @@ def render_index(
     validation_badge_class = _status_badge_class(str(validation["status"]))
     validation_label = _status_badge_label(str(validation["status"]))
     return """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head>
   <meta charset=\"utf-8\">
   <title>LRH Serve</title>
@@ -442,7 +461,7 @@ def render_meta_dashboard(config: ServeConfig) -> str:
     else:
         empty_note = ""
     return """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head>
   <meta charset=\"utf-8\">
   <title>LRH Meta Operational Triage</title>
@@ -492,7 +511,7 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 
     selector = html.escape(project_selector or "unknown")
     return """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head><meta charset=\"utf-8\"><title>LRH Meta Project</title>{styles}</head>
 <body>
   <div class=\"lrh-app-shell\">
@@ -584,7 +603,7 @@ _SPECIMEN_STYLES = """<style>
 def render_style_specimen() -> str:
     """Render a read-only specimen of the shared tokens in the current theme.
 
-    The page sets no ``data-theme``, so it follows the system appearance.
+    Like every page, it follows the system appearance unless ``--theme`` pins one.
     """
 
     surfaces = "".join(
@@ -639,8 +658,8 @@ def render_style_specimen() -> str:
     <header class="lrh-page-header">
       <p class="lrh-eyebrow">LRH Console preview</p>
       <h1 class="lrh-specimen-display">Style specimen</h1>
-      <p class="lrh-muted">Every shared token in the current theme. This page follows
-      the system appearance.</p>
+      <p class="lrh-muted">Every shared token in the current theme: the system
+      appearance, unless <code>lrh serve --theme</code> pins light or dark.</p>
     </header>
     <main class="lrh-main-content">
       <section class="lrh-console-region"><h2>Surfaces and text</h2>
@@ -733,7 +752,7 @@ def render_project_operational_dashboard(
     return (
         200,
         """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head><meta charset=\"utf-8\"><title>LRH Project Dashboard</title>{styles}</head>
 <body>
 <div class=\"lrh-app-shell\">
@@ -898,7 +917,7 @@ def render_design_detail_page(
     )
     return (
         200,
-        """<!doctype html><html lang="en" data-theme="light">
+        """<!doctype html><html lang="en">
 <head><meta charset="utf-8">
 <title>Design detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Design: {design_id}</h1>
@@ -963,7 +982,7 @@ def render_workstream_detail_page(
     work_item_html = _html_list(list(workstream.work_items))
     return (
         200,
-        """<!doctype html><html lang="en" data-theme="light">
+        """<!doctype html><html lang="en">
 <head><meta charset="utf-8">
 <title>Workstream detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Workstream: {workstream_id}</h1>
@@ -1599,7 +1618,7 @@ def render_workbench_index(config: ServeConfig) -> str:
         _diagnostic_label(diagnostic) for diagnostic in payload["diagnostics"]
     )
     return """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head>
   <meta charset=\"utf-8\">
   <title>LRH Serve Workbench</title>
@@ -1652,7 +1671,7 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
     work_item = _url_quote(artifact.work_item_id)
     kind = _url_quote(artifact.kind)
     return """<!doctype html>
-<html lang=\"en\" data-theme=\"light\">
+<html lang=\"en\">
 <head>
   <meta charset=\"utf-8\">
   <title>{title}</title>
@@ -1747,7 +1766,7 @@ def render_project_work_item_page(
         "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
     )
     page = f"""<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head><meta charset="utf-8"><title>{html.escape(item.id)}</title>{_base_styles()}</head>
 <body><div class="lrh-app-shell">
 <h1>{html.escape(item.id)} — {html.escape(item.title)}</h1>
@@ -2053,7 +2072,7 @@ def render_codex_archive_index(config: ServeConfig) -> str:
     safety = _html_list(payload["safety"])
     styles = _base_styles()
     return f"""<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head><meta charset="utf-8"><title>Codex conversation archives</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">
@@ -2111,7 +2130,7 @@ def render_codex_archive_detail(config: ServeConfig, export_id: str) -> tuple[in
     status_badge = f'<span class="lrh-status-badge {badge_class}">{validity}</span>'
     styles = _base_styles()
     body = f"""<!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head><meta charset="utf-8"><title>{heading}</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">
@@ -3230,6 +3249,8 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             content_type: str,
             text: str,
         ) -> None:
+            if content_type.startswith("text/html"):
+                text = apply_theme(text, config.theme)
             body = text.encode("utf-8")
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
@@ -3296,6 +3317,15 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--theme",
+        choices=THEMES,
+        default=DEFAULT_THEME,
+        help=(
+            "page theme: light, dark, or system to follow the OS appearance "
+            "(default: system)"
+        ),
+    )
+    parser.add_argument(
         "--show-config",
         action="store_true",
         help="validate and print deterministic JSON configuration without serving",
@@ -3308,7 +3338,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
             "request on stdin, bind 127.0.0.1 on an OS-assigned port, and "
             "report ready/failed as JSON on stdout (see "
             "docs/reference/desktop-server-protocol.md); cannot be combined "
-            "with other serve options"
+            "with other serve options except --theme"
         ),
     )
     parser.add_argument(
@@ -3331,6 +3361,7 @@ def config_from_args(args: argparse.Namespace) -> ServeConfig:
         project_root=Path(args.project_root),
         allow_nonlocal_host=args.allow_nonlocal_host,
         codex_archive_roots=tuple(Path(root) for root in args.codex_archive_root),
+        theme=args.theme,
     )
 
 
@@ -3361,7 +3392,9 @@ def _desktop_protocol_conflicts(prog: str, argv: list[str] | None) -> list[str]:
     ]
 
 
-def _desktop_server_factory(project_root: Path) -> ThreadingHTTPServer:
+def _desktop_server_factory(
+    project_root: Path, theme: str = DEFAULT_THEME
+) -> ThreadingHTTPServer:
     """Create a loopback server on an OS-assigned port for desktop mode."""
 
     return create_http_server(
@@ -3369,6 +3402,7 @@ def _desktop_server_factory(project_root: Path) -> ThreadingHTTPServer:
             host=desktop_protocol.LOOPBACK_HOST,
             port=0,
             project_root=project_root,
+            theme=theme,
         )
     )
 
@@ -3399,7 +3433,7 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
     return desktop_protocol.run_desktop_protocol(
-        _desktop_server_factory,
+        lambda project_root: _desktop_server_factory(project_root, theme=args.theme),
         start_request_timeout=timeout,
     )
 

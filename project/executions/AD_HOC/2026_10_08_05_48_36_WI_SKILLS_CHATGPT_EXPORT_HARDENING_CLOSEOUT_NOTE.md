@@ -41,7 +41,7 @@ implementing `WI-SKILLS-CHATGPT-EXPORT-HARDENING`; details are in
    "body unchanged" behavior.
 4. Place the generated `## When to use` section after the skill's first H1.
 
-CHAIN-NOTE: cycles=2; stops=1; gates=[chain-auth (live; P3 policy), review-response-confirm×2, confirm-fixes batch (autopilot routine), confirm-fixes empty-thread (live, mid-escalation), stop-work (P2 from substitute round 1), merge+closeout]; friction=scratchpad poll script lost across sessions; GitHub mergeability stayed "unknown" (verified locally with merge-tree); note="3 bot threads fixed in round 1; substitute round 1 found a P2 (a description-only when_to_use fold cannot carry lrh-export-claude/lrh-work-remains/lrh-config-gates) and the user chose fix-now; round 2 redesigned it as fold-or-generated-section plus P3s; delta-review P3s deferred to the implementer; self_review_rounds=2"
+CHAIN-NOTE: cycles=2; stops=1; gates=[chain-auth (live, P3 policy), review-response-confirm x2, confirm-fixes batch (autopilot routine), confirm-fixes empty-thread (live, mid-escalation), stop-work (P2 from substitute round 1), merge+closeout]; friction=scratchpad CI-poll script lost across sessions; note="3 bot threads fixed in round 1; substitute round 1 found a P2 (a description-only when_to_use fold cannot carry lrh-export-claude, lrh-work-remains, lrh-config-gates) and the user chose fix-now; round 2 redesigned it as fold-or-generated-section plus P3s; delta-review P3s deferred to the implementer; GitHub mergeability stayed unknown, verified locally with git merge-tree"; self_review_rounds=2
 
 # Validation
 

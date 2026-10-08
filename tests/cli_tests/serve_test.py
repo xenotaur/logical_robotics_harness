@@ -15,6 +15,7 @@ import urllib.request
 from lrh import serve
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
 from lrh.ux import tokens
 from tests import testing_support
 
@@ -522,6 +523,67 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn('<aside class="lrh-drawer"', body)
         self.assertIn(">WI-ONE</h2>", body)
 
+    def _dependency_map_server(self) -> tuple[pathlib.Path, str]:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_reviewing_workstream_project(root)
+        _write(
+            root / "project" / "views" / "dependency_maps" / "main.md",
+            '---\nid: "main"\ntitle: "Main"\nlanes:\n- workstream: "WS-A"\n'
+            'phases:\n- id: "one"\n  title: "One"\n  work_items: ["WI-A"]\n'
+            "---\nBody.\n",
+        )
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        _httpd, base_url = self._start_server(root)
+        return root, base_url
+
+    def test_dependency_map_route_returns_the_snapshot(self) -> None:
+        root, base_url = self._dependency_map_server()
+
+        status, content_type, body = self._read(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+        head_status, _head_type = self._head(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        expected = json.loads(
+            dependency_map_snapshot.build_snapshot(root, "main").to_json()
+        )
+        payload.pop("generated_at")
+        expected.pop("generated_at")
+        self.assertEqual(payload, expected)
+        self.assertEqual({node["id"] for node in payload["nodes"]}, {"WI-A", "WI-B"})
+
+    def test_dependency_map_route_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+
+        for path, code in (
+            ("/api/project/main/dependency-maps/missing", 404),
+            ("/api/project/main/dependency-maps/broken", 422),
+            ("/api/project/main/dependency-maps/..%2Fx", 422),
+            ("/api/project/main/other/main", 404),
+            ("/api/project/main", 404),
+        ):
+            with self.subTest(path=path):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(base_url + path)
+                self.assertEqual(err_ctx.exception.code, code)
+
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -579,6 +641,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/health",
                 "/api/status",
                 "/api/project",
+                "/api/project/<project_id>/dependency-maps/<view>",
                 "/api/workbench",
                 "/api/conversations/codex",
                 "/api/conversations/codex/<export_id>",

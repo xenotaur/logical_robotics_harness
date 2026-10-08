@@ -29,6 +29,7 @@ Add content here when the reader already knows which command they need and wants
 - [`conversation`](conversation.md) — convert local conversation artifacts such as ChatGPT PDF exports.
 - [`sessions`](sessions.md) — reconcile execution-record session pointers with the private session archive.
 - [`serve`](serve.md) — start the safe-default local read-only server skeleton.
+- [`dependency-map`](dependency-map.md) — print the read-only snapshot of a declared dependency-map view.
 - [`work-items`](work-items.md) — validate, audit, and diagnose prompt-readiness for work-item files.
 - [`secrets`](secrets.md) — scan, review, and purge leaked secrets from a repository's git history.
 - [`pii`](pii.md) — scan a repository's full git history for misplaced documents and PII-shaped content.

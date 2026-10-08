@@ -39,6 +39,8 @@ from lrh.conversations import (
     export_inspector,
     pdf_import,
 )
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
+from lrh.dependency_maps import view as dependency_map_view
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.pii import config as pii_config
@@ -617,6 +619,27 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    dependency_map_parser = subparsers.add_parser(
+        "dependency-map",
+        help="Read-only dependency-map snapshots for declared views.",
+    )
+    dependency_map_subparsers = dependency_map_parser.add_subparsers(
+        dest="dependency_map_command"
+    )
+    dependency_map_snapshot_parser = dependency_map_subparsers.add_parser(
+        "snapshot",
+        help=(
+            "Print the versioned JSON snapshot of a view declared in "
+            "project/views/dependency_maps/<view>.md."
+        ),
+    )
+    dependency_map_snapshot_parser.add_argument("view", help="the view id")
+    dependency_map_snapshot_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="repository root (default: current directory)",
     )
 
     confirm_fixes_parser = subparsers.add_parser(
@@ -1506,6 +1529,25 @@ def main() -> None:
         parser.error(
             "agent-skills requires a subcommand (try: lrh agent-skills status)"
         )
+
+    if args.command == "dependency-map":
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+        if args.dependency_map_command != "snapshot":
+            dependency_map_parser.print_help(sys.stderr)
+            raise SystemExit(2)
+        project_root = Path(args.project_root).expanduser().resolve()
+        try:
+            snapshot = dependency_map_snapshot.build_snapshot(project_root, args.view)
+        except (
+            FileNotFoundError,
+            dependency_map_view.ViewDeclarationError,
+            dependency_map_snapshot.SnapshotError,
+        ) as err:
+            print(f"error: {err}", file=sys.stderr)
+            raise SystemExit(1) from err
+        print(snapshot.to_json())
+        raise SystemExit(0)
 
     if args.command == "chain-defaults":
         if args.chain_defaults_command == "check-staleness":

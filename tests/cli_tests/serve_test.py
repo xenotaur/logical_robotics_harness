@@ -304,7 +304,10 @@ class TestLrhServeRoutes(unittest.TestCase):
         # read timeout on slow CI runners.
         with (
             tempfile.TemporaryDirectory() as tmp_dir,
-            unittest.mock.patch.dict("os.environ", {"XDG_CONFIG_HOME": tmp_dir}),
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
         ):
             root = pathlib.Path(tmp_dir)
             _write_viewer_project(root)
@@ -319,7 +322,10 @@ class TestLrhServeRoutes(unittest.TestCase):
     def test_explicit_theme_pins_every_page(self) -> None:
         with (
             tempfile.TemporaryDirectory() as tmp_dir,
-            unittest.mock.patch.dict("os.environ", {"XDG_CONFIG_HOME": tmp_dir}),
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
         ):
             root = pathlib.Path(tmp_dir)
             _write_viewer_project(root)

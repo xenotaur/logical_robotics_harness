@@ -47,9 +47,10 @@ the Settings window opens. Fill in:
   **View > Open in …** use this choice.
 - **Start the server when LRH Console opens:** on by default.
 - **Appearance:** System (the default) follows the macOS appearance; Light and
-  Dark pin it. LRH Console's windows, including served pages, change at once;
-  a server started with Light or Dark picks up the change when it restarts. From a shell, `lrh serve --theme light|dark|system` does
-  the same for the browser.
+  Dark pin it. LRH Console's windows, including served pages, change at once.
+  **Restart server now** passes the new theme to the server, so pages in other
+  browsers, or a server started with Light or Dark, match too. From a shell,
+  `lrh serve --theme light|dark|system` does the same for the browser.
 
 Choose **Save**. The app checks every value before saving. If a value is
 wrong, it is rejected with a message next to the field, and the previous

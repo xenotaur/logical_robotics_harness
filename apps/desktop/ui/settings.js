@@ -138,7 +138,8 @@ form.addEventListener("submit", async (event) => {
         "now; the program and workspace stay on the LRH_CONSOLE_* settings for " +
         "this session."
       : outcome.restart_required
-        ? "Saved. Restart the server to use the new program, workspace, or appearance."
+        ? "Saved. Restart the server to use the new program or workspace, or so " +
+          "other browsers match the appearance."
         : outcome.started
           ? "Saved. Starting the server…"
           : "Saved.";

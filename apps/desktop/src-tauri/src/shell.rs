@@ -1004,9 +1004,10 @@ fn native_theme(appearance: Appearance) -> Option<Theme> {
     }
 }
 
-/// Applies the appearance to every window. The bundled pages follow it
-/// through `prefers-color-scheme`, with no script or capability; served pages
-/// get the same theme from `lrh serve --theme` when the server restarts.
+/// Applies the appearance to every window. Bundled pages, and pages from a
+/// server started with `--theme system`, follow it through
+/// `prefers-color-scheme`, with no script or capability. A restart passes the
+/// new `--theme`, so other browsers and a pinned server match too.
 fn apply_appearance<R: Runtime>(app: &AppHandle<R>, appearance: Appearance) {
     app.set_theme(native_theme(appearance));
 }

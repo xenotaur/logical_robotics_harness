@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-FRAME"
 title: "Add the LRH Console app frame to Serve's pages"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #792 (commit bf4f8f24). Every Serve page is wrapped, at response time and with no scripts, in the LRH Console frame: a top bar (the LRH icon always home to /meta, page name and scope, render time, refresh, the gear to /settings, a search slot), a Meta-registry scope switcher with the scope views that collapses to a labelled icon rail with CSS only (a rail with a flyout switcher on narrow screens), and a ?item= drawer overlay; one main landmark and a skip link per page. The LRH icon, a Latin Montserrat subset with its SIL OFL license, and 12 Lucide icons (tag 1.52.0) with their ISC license are packaged; /static/ serves an allowlist only, /settings is a read-only display and about page, and the CSP adds only img-src and font-src self. In LRH Console the gear opens native Settings with no main-window capability; the owner Mac check passed. A pre-existing design-route crash without a Meta workspace was flagged as a separate task.'
 owner: "anthony"
 contributors:
 - "anthony"

@@ -52,6 +52,59 @@ class SourcesTest(unittest.TestCase):
         with self.assertRaisesRegex(sources.SourceError, "excluded"):
             self._make("project/executions/AD_HOC/private.md")
 
+    def test_private_paths_rejected_at_any_depth_and_case(self) -> None:
+        for path in (
+            "sub/project/executions/AD_HOC/x.md",
+            "Project/Executions/x.md",
+            "lcats/PROJECT/memory/m.md",
+        ):
+            with self.subTest(path):
+                with self.assertRaisesRegex(sources.SourceError, "private path"):
+                    sources.check_path_allowed(path)
+
+    def test_credential_like_paths_rejected(self) -> None:
+        for path in (
+            ".env",
+            "config/.env.local",
+            ".envrc",
+            "deploy/.env_prod",
+            "config/secrets/prod.yaml",
+            "Credentials/gcp.json",
+            "keys/server.PEM",
+            "home/id_rsa",
+            "ops/aws_credentials.json",
+            "notes/my-secret.md",
+            ".npmrc",
+        ):
+            with self.subTest(path):
+                with self.assertRaisesRegex(sources.SourceError, "credential-like"):
+                    sources.check_path_allowed(path)
+        sources.check_path_allowed("project/design/demo.md")
+
+    def test_sensitivity_flagged_text_rejected_without_echoing_it(self) -> None:
+        with self.assertRaises(sources.SourceError) as caught:
+            sources.check_text_allowed(
+                "x.md", "api_key = sk-live-abcdef0123456789abcdef\n"
+            )
+        self.assertIn("sensitivity scan", str(caught.exception))
+        self.assertNotIn("sk-live", str(caught.exception))
+        self.assertEqual(sources.check_text_allowed("ok.md", "plain text\n"), ())
+
+    def test_medium_only_text_allowed_with_category_warnings(self) -> None:
+        warnings = sources.check_text_allowed(
+            "notes.md", "Mail ops@example.org; serve on 127.0.0.1.\n"
+        )
+        self.assertEqual(warnings, ("email", "ip_address"))
+
+    def test_high_finding_excludes_even_with_medium_findings(self) -> None:
+        text = "ops@example.org\napi_key = sk-live-abcdef0123456789abcdef\n"
+        with self.assertRaises(sources.SourceError) as caught:
+            sources.check_text_allowed("mixed.md", text)
+        message = str(caught.exception)
+        self.assertIn("secret", message)
+        self.assertNotIn("email", message)
+        self.assertNotIn("ops@example.org", message)
+
     def test_binary_rejected(self) -> None:
         with self.assertRaisesRegex(sources.SourceError, "binary"):
             self._make("project/data.bin")

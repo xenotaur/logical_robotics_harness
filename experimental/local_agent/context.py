@@ -226,7 +226,7 @@ def build_packet(
         entry = ref.as_dict()
         entry["resolved_by"] = resolved_by
         source_refs.append(entry)
-        sections.append(_render_source(ref, text))
+        sections.append(render_source(ref, text))
 
     manifest: dict[str, object] = {
         "record_schema_version": settings.RECORD_SCHEMA_VERSION,
@@ -251,7 +251,7 @@ def build_packet(
     return ContextPacket(manifest=manifest, text=text)
 
 
-def _render_source(ref: sources.SourceRef, text: str) -> str:
+def render_source(ref: sources.SourceRef, text: str) -> str:
     header = (
         f"### [{ref.source_id}] {ref.path} ({ref.relation}; "
         f"lines {ref.line_start}-{ref.line_end} of {ref.total_lines})"

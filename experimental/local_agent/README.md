@@ -1,142 +1,164 @@
-# Local agent briefing prototype (stage 0)
+# Local agent prototype
 
-> **Being reworked (2026-09-29).** `PROP-LOCAL-AGENT-DOGFOOD` replaced the formal
-> stage-0 pilot with a toy ladder (T0 ask, T1 brief) judged from automatic run
-> logs; see `WI-LOCAL-AGENT-001`. The pilot material below (pre-registration,
-> the `task` and `b0` commands, the scores template, and the Runbook) is
-> superseded, and will be removed or reworked when T0 is implemented. Do not
-> follow the pilot procedure.
+Temporary research code for `WI-LOCAL-AGENT-001`, part of the toy ladder in
+`PROP-LOCAL-AGENT-DOGFOOD`. Each rung gets a little more authority than the one
+before it. This package currently implements the first rung:
 
-Temporary research code for `WI-LOCAL-AGENT-001`. It briefs one selected LRH
-work item using a single local-model call over an explicitly approved,
-immutable context packet. The pre-registered evaluation lives in
-`experiments/01_local_agent_briefing/`.
+- **T0 ask:** ask the local model a question about a repository and get a cited
+  answer streamed back from tracked files.
+
+T1 (brief a work item) comes next. Evidence is collected automatically, and a
+run takes only a one-key rating from you.
+
+## Quick start
+
+```bash
+# Start Ollama by hand (local only; no cloud models).
+OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11434 ollama serve
+
+# Ask about the repository overview (README plus a tracked-file listing).
+experimental/local_agent/run ask "What is this repository for?"
+
+# Ask about one work item, with LRH's readiness diagnostics included.
+experimental/local_agent/run ask "What blocks this?" --wi WI-LOCAL-AGENT-001
+
+# Ask about specific tracked files.
+experimental/local_agent/run ask "How are runs stored?" \
+    --files experimental/local_agent/recorder.py
+
+# See how it has been going.
+experimental/local_agent/run log
+```
+
+`ask` first prints the sources it will send, on stderr, and asks for
+confirmation (skip it with `--yes`). It then streams the answer and prints a
+footer line with the run id, latency, tokens, and citation check. It ends by
+asking for a rating: `g`ood, `o`k, `b`ad, or Enter to skip. Rate later with
+`rate <run-id> g --note "..."`. Pass `--no-rate` to skip the prompt.
+
+`log` shows:
+
+- recent runs;
+- counts by outcome and rating;
+- latency and token medians;
+- the citation-resolution rate;
+- runs flagged for unresolved citations or non-completed outcomes.
+
+These numbers are the evidence behind each rung's go/no-go decision.
+
+Other options:
+
+- `--commit <rev>` reads sources at another commit (default `HEAD`).
+- `--repo <path>` and `--project-dir <subdir>` point at another LRH repository.
+- `--num-ctx`, `--max-output-tokens`, and `--timeout` set budgets.
+- `--backend fake --fake-response <file>` exercises everything without a model.
 
 ## Boundaries
 
-- The model gets **no tools**. It sees one prompt and returns one JSON briefing.
-  The prototype never writes repository files or project state.
-- **Context** comes only from files tracked at a pinned commit, read from Git
-  objects. Private paths (`project/sessions/`, `project/executions/`,
-  `project/memory/`), untracked files, and binary files are excluded.
-- **Readiness** diagnostics come from existing LRH code and are kept verbatim.
-  An unready item is briefed as unready.
-- **Inference** is local only. The service must be a loopback endpoint with
-  proxies and redirects disabled, serving the pinned local model digest, and
-  reporting no remote fields. There is no cloud fallback, no model download, and
-  no installation.
-- **Records** go to a private store outside Git. They are experimental attempt
-  logs, not canonical LRH run or work-item state.
-- Nothing in `src/lrh/` imports this package. It is not part of `scripts/test`
-  or the package build. Promotion needs a separate reviewed work item.
+- **The model gets no tools.** It sees one prompt and returns text. The
+  prototype never writes repository files or project state.
+- **Context comes only from committed, tracked files**, read from Git objects at
+  the pinned commit. Uncommitted edits are never sent. These are excluded and
+  listed as exclusions:
+  - private paths (`project/sessions/`, `project/executions/`, `project/memory/`);
+  - untracked and binary files;
+  - credential-like file names (`.env*`, `*.pem`, `*.key`, `id_rsa*`,
+    `*secret*`, `*credential*`, and similar);
+  - any file with a high-severity finding from LRH's sensitivity scanner
+    (secret, token, private key, URL credentials, payment card, government
+    ID).
 
-## Setup
+  Medium-severity findings (email, IP address, phone) do not exclude a file.
+  The source summary marks such a file `WARN: <categories>`, by category,
+  never by value, before the model is called. That text does reach the model,
+  which is acceptable only because inference stays on this machine.
+- **Readiness diagnostics come from existing LRH code** and are kept verbatim.
+  An unready item is described as unready.
+- **Inference is local only.** The service must be a loopback endpoint, with
+  proxies and redirects disabled. It must serve the pinned `gemma4:12b` manifest
+  digest and report no remote fields. There is no cloud fallback, no model
+  download, and no installation. Hidden reasoning is turned off (`think:
+  false`).
+- **Records go to a private store outside Git**, by default
+  `~/.local/share/lrh/local-agent/`. Override it with `--store` or
+  `LRH_LOCAL_AGENT_STORE`. These are experimental attempt logs, not canonical
+  LRH state. They are kept until the workstream closes, plus 90 days.
+  - `delete <run-id>` removes one run.
+  - `prune --before YYYY-MM-DD [--dry-run]` removes older runs.
+- **Nothing in `src/lrh/` imports this package.** It is not part of
+  `scripts/test` or the package build. Promotion needs a separate reviewed work
+  item.
 
-Use an environment bound to this worktree so `lrh` imports this checkout and the
-pinned Black/Ruff apply:
+## Outcomes
 
-```bash
-scripts/conda-worktree-env <EnvName>
-conda activate <EnvName>
-scripts/version tools
-```
+Every attempt ends with exactly one outcome. This includes attempts that stop
+before the model is called: a missing work item, a refused endpoint or model,
+or declining at the confirmation prompt. If an answer fails partway through,
+the streamed part is kept, marked `partial`.
 
-The prototype needs Python ≥ 3.11.4, for the safe tar extraction filters. The
-`run` and `test` wrappers put this checkout's `src/` and `experimental/` on
-`PYTHONPATH` themselves. Live runs need Ollama started by hand, for example:
-
-```bash
-OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11434 ollama serve
-```
-
-## Usage
-
-```bash
-# 1. Build and store a packet; review the printed sources and diagnostics.
-experimental/local_agent/run packet --repo . --repo-label LRH \
-    --commit <sha> --work-item <WI-ID> [--project-dir <subdir>] [--show]
-
-#    Or build a pre-registered pilot task's packet straight from tasks.yaml.
-experimental/local_agent/run task T01 --lrh-repo . --lcats-repo <path> [--show]
-
-# 2. Approve that exact packet by repeating its sha256, and brief it once.
-experimental/local_agent/run run --packet <sha256> --approve <sha256> [--task-id T01] \
-    [--prompt-version briefing_v1]
-
-#    Record an owner-written B0 baseline for the same packet.
-experimental/local_agent/run b0 --packet <sha256> --task-id T01 \
-    --briefing-file b0.md --minutes 12
-
-# 3. Inspect, score, recover, and export.
-experimental/local_agent/run inspect <run-id>
-experimental/local_agent/run list
-experimental/local_agent/run evaluate <run-id> --scores scores.json
-experimental/local_agent/run recover <run-id>
-experimental/local_agent/run export <run-id> --out <dir> [--include-output]
-```
-
-`run` re-hashes the stored packet and refuses it if its content changed after
-approval. `export --include-output` requires a recorded evaluation, and both the
-briefing and the evaluation notes must pass the sensitivity scan.
-
-Pass `--store <dir>` (or set `LRH_LOCAL_AGENT_STORE`) to use a store other than
-`~/.local/share/lrh/local-agent/`. `run --backend fake --fake-response <file>`
-exercises the whole path without a model.
-
-Every attempt ends with exactly one outcome:
-
-- `completed`: inference finished with schema-valid output. This is not human
-  acceptance.
-- `missing_prerequisite`
-- `budget_exhausted`
-- `invalid_model_output`
+- `completed`: the model finished. This is not acceptance; that is what your
+  rating is for.
+- `budget_exhausted`: the input was over budget, so nothing was sent, or the
+  output hit its limit, in which case the partial answer is kept.
+- `invalid_model_output`: the answer was empty. The detail notes any hidden
+  reasoning that used up the budget.
+- `missing_prerequisite`: for example, Ollama is not running or the model is not
+  pulled.
 - `backend_error`
 - `timeout`
 - `cancelled`
 
-B0 records use outcome `manual` and `condition: B0`, and model runs record
-`condition: B1`. `evaluate`, `inspect`, and `export` treat both the same. The
-step-by-step pilot procedure is the Runbook in
-`experiments/01_local_agent_briefing/README.md`.
+`inspect <run-id>` summarizes a run. `recover <run-id>` marks an interrupted run
+`incomplete`, and keeps any truncated final event as evidence.
 
-`recover` marks an interrupted run `incomplete` and keeps any truncated final
-event as evidence.
+`export <run-id> --out <dir>` writes a sanitized record. By default it leaves
+out the question, the answer, and your rating note. `--include-output` adds them
+only for a rated run whose text has no sensitivity finding at all, medium
+included.
 
-## Tests
+## Setup and tests
+
+Use an environment bound to this worktree, so that `lrh` imports this checkout
+and the pinned Black and Ruff apply:
 
 ```bash
+scripts/conda-worktree-env <EnvName>
+conda activate <EnvName>
 experimental/local_agent/test
-```
-
-The tests are opt-in `unittest.TestCase` suites that use a fake backend,
-temporary directories, and local throwaway Git repositories. They make no
-network or live-model calls. They cover:
-
-- source pinning and rejection;
-- preserved diagnostics;
-- budgets;
-- every outcome, including cancellation and truncated-log recovery;
-- export exclusions;
-- the local-only adapter checks.
-
-Lint and format with the repository scripts:
-
-```bash
 scripts/format --check --diff experimental/local_agent
 scripts/lint experimental/local_agent
 ```
+
+The prototype needs Python 3.11.4 or later, for the safe tar extraction filters.
+The `run` and `test` wrappers put `src/` and `experimental/` on `PYTHONPATH`
+themselves.
+
+The tests are opt-in `unittest` suites that use:
+
+- a fake backend;
+- a fake streaming transport;
+- temporary directories;
+- throwaway Git repositories.
+
+They make no network or live-model calls.
+
+## Legacy pilot commands
+
+`packet`, `task`, `b0`, `run`, and `evaluate` belong to the superseded stage-0
+pilot (`experiments/01_local_agent_briefing/`, now marked superseded). They are
+kept until T1 reworks briefing, but they are not part of the current procedure.
 
 ## Layout
 
 | Module | Role |
 |---|---|
+| `ask.py`, `prompts/ask_v1.md` | T0: context modes, one streamed call, rating, `log` summary |
 | `settings.py` | Versioned defaults: budgets, model pin, store location, exclusions |
-| `sources.py` | Pinned, tracked-only source reads with provenance |
-| `context.py` | Packet assembly from existing LRH readiness and context APIs |
-| `briefing.py`, `prompts/` | Prompt template, output schema, citation resolution |
-| `model.py` | Fake backend and local-only Ollama adapter |
-| `runner.py` | One-call runner with explicit outcomes |
-| `recorder.py` | Private single-writer store: manifests, JSONL events, recovery |
-| `export.py` | Inspection, human evaluation records, sanitized export |
-| `tasks.py` | Pre-registered task lookup from `tasks.yaml` |
+| `sources.py` | Pinned, tracked-only source reads with provenance and exclusions |
+| `context.py` | Work-item packet assembly from existing LRH readiness and context APIs |
+| `briefing.py`, `prompts/` | Briefing prompt and schema; citation resolution |
+| `model.py` | Fake backend and local-only, streaming Ollama adapter |
+| `recorder.py` | Private single-writer store: manifests, JSONL events, recovery, pruning |
+| `export.py` | Inspection, evaluation records, sanitized export |
+| `runner.py`, `tasks.py` | Legacy pilot runner and task lookup |
 | `cli.py` | Command line (`python -m local_agent`) |

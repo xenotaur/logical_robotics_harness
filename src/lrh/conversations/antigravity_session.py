@@ -44,10 +44,17 @@ def _is_valid_uuid(val: str) -> bool:
         return False
 
 
-def _derive_conversation_id_from_path(path: Path) -> str:
+def _derive_conversation_id_from_path(path: Path, brain_dir: Path | None = None) -> str:
+    if brain_dir is not None:
+        try:
+            rel = path.resolve().relative_to(brain_dir.resolve())
+            if rel.parts:
+                return rel.parts[0]
+        except ValueError:
+            pass
     parts = path.parts
-    for i, part in enumerate(parts):
-        if part == "brain" and i + 1 < len(parts):
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == "brain" and i + 1 < len(parts):
             return parts[i + 1]
     return ""
 
@@ -89,7 +96,7 @@ def _discover_latest_transcript(app_data_dir: Path) -> tuple[Path, str]:
         )
     matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     best = matches[0]
-    cid = _derive_conversation_id_from_path(best)
+    cid = _derive_conversation_id_from_path(best, brain_dir)
     if not _is_valid_uuid(cid):
         raise AntigravitySessionIdentityError(
             f"discovered transcript directory '{cid}' is not a valid conversation UUID"
@@ -109,8 +116,9 @@ def resolve_antigravity_session_identity(
 
     Hierarchy:
     1. Explicit conversation_id (validated as UUID)
-    2. If latest=True, heuristic discovery under brain/
-    3. ANTIGRAVITY_CONVERSATION_ID env var (validated as UUID, hard error if malformed)
+    2. ANTIGRAVITY_CONVERSATION_ID env var (validated as UUID, hard error if malformed)
+    3. If latest=True and ANTIGRAVITY_CONVERSATION_ID is absent,
+       heuristic discovery under brain/
     4. Otherwise, raises AntigravitySessionIdentityError
     """
 
@@ -146,14 +154,6 @@ def resolve_antigravity_session_identity(
             is_latest=False,
         )
 
-    if latest:
-        t_path, norm_id = _discover_latest_transcript(resolved_app_dir)
-        return AntigravitySessionIdentity(
-            conversation_id=norm_id,
-            transcript_path=t_path,
-            is_latest=True,
-        )
-
     raw_env_id = env.get(ANTIGRAVITY_CONVERSATION_ID_ENV)
     if raw_env_id is not None:
         trimmed = raw_env_id.strip()
@@ -168,6 +168,14 @@ def resolve_antigravity_session_identity(
             conversation_id=normalized_id,
             transcript_path=t_path,
             is_latest=False,
+        )
+
+    if latest:
+        t_path, norm_id = _discover_latest_transcript(resolved_app_dir)
+        return AntigravitySessionIdentity(
+            conversation_id=norm_id,
+            transcript_path=t_path,
+            is_latest=True,
         )
 
     raise AntigravitySessionIdentityError(

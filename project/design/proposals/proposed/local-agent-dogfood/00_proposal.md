@@ -217,9 +217,16 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
 - **refusals:** an override for a file that was not requested, is excluded by
   path, or lacks a high-severity finding is refused with its reason, not
   silently ignored;
-- **visibility:** the source summary marks the file
-  `ALLOWED DESPITE: <categories>`, and the run record notes the override by
-  path and category, never by value;
+- **per-finding confirmation:** a category cannot tell a false positive from
+  a real secret of the same category (`token: Callable[...]` and a real
+  `password = ...` are both `secret`). So an override run always stops at a
+  confirmation that lists every finding it would let through, by rule and
+  line, never by value (for example `recorder.py ALLOWED DESPITE secret:
+  secret.keyword_assignment at L99`). A newly added secret therefore shows up
+  as a new line before the owner says yes. `--allow-flagged` is refused with
+  `--yes` and without an interactive terminal;
+- **visibility:** the run record notes the override and the confirmed
+  findings by path, category, rule, and line, never by value;
 - **what is stored:** the allowed file's text reaches the model and may
   appear in the private store (for example, echoed in an answer); exports
   are unchanged and withhold any text with a finding.

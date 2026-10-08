@@ -123,9 +123,12 @@ network tools and cannot modify repository files or project state.
    categories and is refused if the file has another high-severity category,
    none at all, was not requested, or is excluded by path. It never applies
    to `--wi`, `brief`, or overview questions, and never lifts private,
-   untracked, binary, or credential-like exclusions. The summary marks the
-   file `ALLOWED DESPITE: <categories>`, and the run record notes the
-   override by path and category, never by value.
+   untracked, binary, or credential-like exclusions. An override run always
+   stops at a confirmation listing every finding it would let through by
+   rule and line, never by value (`ALLOWED DESPITE <category>: <rule> at
+   L<n>`); `--allow-flagged` is refused with `--yes` or without an
+   interactive terminal. The run record notes the override and the confirmed
+   findings by path, category, rule, and line, never by value.
 
    Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
@@ -161,7 +164,11 @@ network tools and cannot modify repository files or project state.
    - `--allow-flagged` sends only a requested file whose high-severity
      categories are exactly covered by the override; it is refused
      otherwise, never lifts private, untracked, binary, or credential-like
-     exclusions, and the override is recorded by path and category.
+     exclusions, and the override is recorded by path and category;
+   - an override run lists every allowed finding by rule and line (never by
+     value) and waits for confirmation; it is refused with `--yes` or
+     without an interactive terminal, and a second finding of an allowed
+     category appears as its own line.
 
    Update `experimental/local_agent/README.md` to describe the toys; the pilot
    runbook material is retired. Do not add live model or network calls to

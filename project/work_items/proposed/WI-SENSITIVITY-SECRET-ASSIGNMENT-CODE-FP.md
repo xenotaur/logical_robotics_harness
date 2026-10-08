@@ -39,6 +39,8 @@ required_evidence:
 artifacts_expected:
   - src/lrh/shared/sensitivity_rules.py
   - tests/shared_tests/sensitivity_rules_test.py
+  - tests/conversations_tests/sensitivity_test.py
+  - tests/pii_tests/layer2_test.py
 ---
 
 # Stop the Secret-Assignment Rule from Flagging Code-Shaped Values

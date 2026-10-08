@@ -1784,6 +1784,55 @@ Body.
         self.assertEqual(get_err.exception.code, 404)
         self.assertEqual(head_err.exception.code, 404)
 
+    def test_detail_routes_return_not_found_for_malformed_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            # A workstream without a title makes the control loader raise.
+            _write(
+                alpha / "project" / "workstreams" / "active" / "WS-BROKEN.md",
+                "---\nid: WS-BROKEN\nkind: planning_node\nstatus: active\n---\n",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            for route in (
+                "/project/alpha/designs/DP-1",
+                "/project/alpha/workstreams/WS-A",
+            ):
+                with self.subTest(route=route):
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        self._read(base_url + route)
+                    self.assertEqual(caught.exception.code, 404)
+                    payload = json.loads(caught.exception.read().decode("utf-8"))
+                    self.assertEqual(payload["error"], "not_found")
+                    self.assertIn("title", payload["message"])
+                    with self.assertRaises(urllib.error.HTTPError) as head_err:
+                        self._head(base_url + route)
+                    self.assertEqual(head_err.exception.code, 404)
+
+    def test_project_dashboard_omits_links_for_malformed_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write(
+                alpha / "project" / "workstreams" / "active" / "WS-BROKEN.md",
+                "---\nid: WS-BROKEN\nkind: planning_node\nstatus: active\n---\n",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/project/alpha")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertNotIn("/project/alpha/designs/", body)
+        self.assertNotIn("/project/alpha/workstreams/", body)
+
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

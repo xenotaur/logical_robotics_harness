@@ -118,7 +118,7 @@ def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
         # The frame is best-effort: a broken registry must not break pages.
         return ()
     # A record that fails to load is still listed, by its registry name, so
-    # its unavailable card on /meta stays reachable.
+    # the dashboard page for its unavailable card stays reachable.
     return tuple(
         frame.Project(
             selector=result.registry_name,

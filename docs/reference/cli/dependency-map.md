@@ -73,11 +73,11 @@ lane_overrides:                 # optional; chooses a lane, with a reason
     `done`; then `blocked` (the item's `blocked` flag, or a `blocked_by`
     target that is not done); then `in_progress`; then `waiting` (a
     `depends_on` prerequisite is not done); then `unblocked` (with reason
-    `no_prerequisites` when there are none). An abandoned
-    item has state `abandoned`. An item whose `status` is not `proposed`,
-    `active`, `resolved`, or `abandoned` has state `unknown` and an
-    `invalid_lifecycle` diagnostic; it is never shown as eligible. An abandoned or missing prerequisite never
-    counts as done.
+    `no_prerequisites` when there are none). An abandoned item has state
+    `abandoned`. An item whose `status` is not `proposed`, `active`,
+    `resolved`, or `abandoned` has state `unknown` and an `invalid_lifecycle`
+    diagnostic; it is never shown as eligible. An abandoned or missing
+    prerequisite never counts as done.
   - `prompt_ready`: from `lrh work-items readiness`.
   - `authorization`: always `not_derived`, because LRH grants no per-item
     execution authority.
@@ -92,8 +92,8 @@ lane_overrides:                 # optional; chooses a lane, with a reason
   `missing_reference`; `cycle`, reported separately per edge type for any
   cycle that touches a shown item; `ambiguous_lane`; `unplaced_lane`;
   `ambiguous_phase`; `unplaced_phase`; `unknown_view_reference`;
-  `unused_lane_override`; `invalid_lifecycle`; and `partial_source`. A consumer can call
-  `lrh.dependency_maps.snapshot.freshness_diagnostics` to get
-  `stale_snapshot` when the sources changed after generation.
+  `unused_lane_override`; `invalid_lifecycle`; and `partial_source`. A
+  consumer can call `lrh.dependency_maps.snapshot.freshness_diagnostics` to
+  get `stale_snapshot` when the sources changed after generation.
 
 There is no effort, duration, or critical-path data, and none is inferred.

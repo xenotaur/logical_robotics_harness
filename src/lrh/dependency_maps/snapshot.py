@@ -8,14 +8,17 @@ Structural state follows the Revision 2 precedence: Done, then Blocked (the
 item's own ``blocked`` flag, or a ``blocked_by`` target that is not done), then
 In progress, Waiting (a ``depends_on`` prerequisite is not done), and
 Unblocked. An abandoned item is never Done or Unblocked, and an abandoned or
-missing prerequisite never counts as done. Lifecycle, prompt-readiness, and
-authorization are separate layers; authorization is never derived.
+missing prerequisite never counts as done. An item whose status is not a known
+lifecycle has state Unknown and an ``invalid_lifecycle`` diagnostic, and is
+never shown as eligible. Lifecycle, prompt-readiness, and authorization are
+separate layers; authorization is never derived.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import datetime
+import functools
 import hashlib
 import json
 import pathlib
@@ -172,12 +175,17 @@ def _allowed(value: str, allowed: tuple[str, ...], where: str) -> None:
         raise ValueError(f"{where} {value!r} is not one of {', '.join(allowed)}")
 
 
+@functools.cache
+def _type_hints(cls: Any) -> dict[str, Any]:
+    return typing.get_type_hints(cls)
+
+
 def _typed(cls: Any, data: Any, where: str) -> Any:
     """Build dataclass ``cls`` from ``data``, checking each field's type."""
 
     if not isinstance(data, dict):
         raise ValueError(f"{where} must be an object")
-    hints = typing.get_type_hints(cls)
+    hints = _type_hints(cls)
     names = {field.name for field in dataclasses.fields(cls)}
     if set(data) != names:
         missing = sorted(names - set(data))
@@ -199,7 +207,10 @@ def _value(hint: Any, value: Any, where: str) -> Any:
         options = typing.get_args(hint)
         if value is None and type(None) in options:
             return None
-        (inner,) = [option for option in options if option is not type(None)]
+        inner_types = [option for option in options if option is not type(None)]
+        if len(inner_types) != 1:
+            raise TypeError(f"{where}: only X | None unions are supported")
+        (inner,) = inner_types
         return _value(inner, value, where)
     if origin is tuple:
         if not isinstance(value, list | tuple):

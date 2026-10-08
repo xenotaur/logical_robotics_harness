@@ -402,6 +402,30 @@ class AskExportTest(unittest.TestCase):
         self.assertNotIn("10.9.8.7", text)
         self.assertIn("[withheld:", text)
 
+    def test_override_run_exports_cleanly(self) -> None:
+        repo = self.base / "repo2"
+        repo.mkdir()
+        (repo / "annotated.py").write_text(
+            "token: Callable[[], str] = make_token\n", encoding="utf-8"
+        )
+        testing_support.make_repo(repo)
+        ctx = ask.build_context(
+            repo=repo,
+            files=["annotated.py"],
+            allow_flagged={"annotated.py": frozenset({"secret"})},
+        )
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=ctx,
+            adapter=model.FakeModel([model.ModelResponse("ok", "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["allowed_flagged"][0]["start_line"], 1)
+        self.assertNotIn("make_token", json.dumps(exported))
+        self.assertNotIn("[withheld", json.dumps(exported))
+
     def test_inspect_shows_kind_and_sources(self) -> None:
         run_id = self._ask("x")
         summary = export.inspect_run(self.store, run_id)

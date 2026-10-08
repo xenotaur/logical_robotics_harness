@@ -137,9 +137,11 @@ def dependency_map_payload(
 ) -> tuple[int, dict[str, object]]:
     """Answer ``/api/project/<project_id>/dependency-maps/<view>`` read-only.
 
-    Returns the versioned snapshot JSON, 404 for an unknown project path or
-    view, 422 for an invalid view declaration, or 500 if the project's control
-    files cannot be loaded.
+    Like the other ``/project/<project_id>/`` routes, a ``project_id`` that the
+    Meta registry cannot resolve to a local checkout falls back to the served
+    project. Returns the versioned snapshot JSON, 404 for a malformed path or
+    an unknown view, 422 for an invalid view declaration, or 500 if the
+    project's control files cannot be loaded.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
@@ -158,6 +160,25 @@ def dependency_map_payload(
     except dependency_map_snapshot.SnapshotError as err:
         return 500, {"error": "snapshot_failed", "message": str(err)}
     return 200, snapshot.to_dict()
+
+
+def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
+    """Return the dependency-map route's status from the view declaration alone.
+
+    HEAD answers without loading the project or building the snapshot.
+    """
+
+    parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
+    if len(parts) != 3 or parts[1] != "dependency-maps":
+        return 404
+    repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
+    try:
+        dependency_map_view.load_view(repo_root, parts[2])
+    except FileNotFoundError:
+        return 404
+    except dependency_map_view.ViewDeclarationError:
+        return 422
+    return 200
 
 
 def render_settings_page(config: ServeConfig) -> str:
@@ -3209,7 +3230,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 self._write_head(status_code, content_type)
                 return
             if route.startswith("/api/project/"):
-                status_code, _payload = dependency_map_payload(
+                status_code = dependency_map_head_status(
                     config, route.removeprefix("/api/project/")
                 )
                 self._write_head(status_code, "application/json; charset=utf-8")

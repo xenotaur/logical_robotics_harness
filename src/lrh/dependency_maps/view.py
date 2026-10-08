@@ -241,4 +241,7 @@ def _overrides(value: Any, problems: list[str]) -> tuple[LaneOverride, ...]:
                 work_item=entry["work_item"], lane=entry["lane"], reason=entry["reason"]
             )
         )
+    items = [override.work_item for override in overrides]
+    if len(set(items)) != len(items):
+        problems.append("lane_overrides must not repeat a work item")
     return tuple(overrides)

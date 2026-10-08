@@ -17,6 +17,9 @@ and workstreams, then prints the snapshot as JSON on stdout.
 |---|---|
 | `0` | Printed the snapshot. Problems in the data, such as cycles or missing references, are listed in its `diagnostics`; they are not failures. |
 | `1` | The view does not exist, its declaration is invalid, or the control files cannot be loaded. The reason goes to stderr. |
+| `2` | No subcommand was given. |
+
+`--project-root` may be the repository root or its `project/` directory.
 
 `lrh serve` serves the same JSON at
 `GET /api/project/<project_id>/dependency-maps/<view>`.
@@ -61,12 +64,14 @@ lane_overrides:                 # optional; chooses a lane, with a reason
   uncommitted edits change it. `generated_at` is UTC.
 - `lanes` and `phases` in view order. An `unplaced` phase row is always last,
   and an `unplaced` lane row appears when some item has no lane.
-- `nodes`, one per work item, with:
+- `nodes`, one for each item in the view, plus one for each item outside the
+  view that an in-view item references (`offscreen: true`), with:
   - `lifecycle`: the item's own `status`.
   - `state` and `state_reasons`: the structural state, in this precedence:
     `done`; then `blocked` (the item's `blocked` flag, or a `blocked_by`
     target that is not done); then `in_progress`; then `waiting` (a
-    `depends_on` prerequisite is not done); then `unblocked`. An abandoned
+    `depends_on` prerequisite is not done); then `unblocked` (with reason
+    `no_prerequisites` when there are none). An abandoned
     item has state `abandoned`. An abandoned or missing prerequisite never
     counts as done.
   - `prompt_ready`: from `lrh work-items readiness`.
@@ -74,15 +79,16 @@ lane_overrides:                 # optional; chooses a lane, with a reason
     execution authority.
   - `lane`, `phase`, and their `*_source` provenance: `workstream`,
     `override`, `declared`, `ambiguous`, `none`, or `offscreen`.
-  - `offscreen_predecessors`: how many of its references point outside the
-    view. Those items are included with `offscreen: true`, so they are never
-    silently dropped.
+  - `offscreen_predecessors`: how many distinct items outside the view it
+    references through `depends_on` or `blocked_by`. Those items are included
+    with `offscreen: true`, so they are never silently dropped.
 - `edges`: each `depends_on` and `blocked_by` reference, with the declaring
   file, and `resolved: false` when the target does not exist.
 - `diagnostics`, each with a `code`, `severity`, `message`, and `subjects`:
-  `missing_reference`, `cycle` (reported separately per edge type),
-  `ambiguous_lane`, `unplaced_lane`, `ambiguous_phase`, `unplaced_phase`,
-  `unknown_view_reference`, and `partial_source`. A consumer can call
+  `missing_reference`; `cycle`, reported separately per edge type for any
+  cycle that touches a shown item; `ambiguous_lane`; `unplaced_lane`;
+  `ambiguous_phase`; `unplaced_phase`; `unknown_view_reference`;
+  `unused_lane_override`; and `partial_source`. A consumer can call
   `lrh.dependency_maps.snapshot.freshness_diagnostics` to get
   `stale_snapshot` when the sources changed after generation.
 

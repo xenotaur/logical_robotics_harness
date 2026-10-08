@@ -7,10 +7,12 @@ import json
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh.control import validate_project
 from lrh.dependency_maps import snapshot
 from lrh.dependency_maps import view as view_module
+from lrh.work_items import readiness
 
 _AT = datetime.datetime(2026, 10, 8, 12, 0, tzinfo=datetime.UTC)
 
@@ -164,7 +166,24 @@ class StructuralStateTest(_RepoMixin, unittest.TestCase):
         self.assertEqual(node.lifecycle, "proposed")
         self.assertEqual(node.authorization, "not_derived")
         self.assertEqual(node.prompt_ready_source, "lrh work-items readiness")
-        self.assertIn(node.prompt_ready, (True, False))
+        report = readiness.evaluate_readiness(project_root=self.root)
+        expected = {item.work_item_id: item.prompt_ready for item in report.items}
+        self.assertEqual(node.prompt_ready, expected["WI-FREE"])
+
+    def test_unblocked_without_prerequisites_says_so(self) -> None:
+        _work_item(self.root, "WI-FREE")
+
+        node = self.nodes()["WI-FREE"]
+
+        self.assertEqual(node.state, "unblocked")
+        self.assertEqual(
+            node.state_reasons, (snapshot.StateReason(kind="no_prerequisites"),)
+        )
+
+    def test_an_unmet_blocker_outranks_in_progress(self) -> None:
+        _work_item(self.root, "WI-RUN", "active", blocked_by=["WI-WAIT"])
+
+        self.assertEqual(self.nodes()["WI-RUN"].state, "blocked")
 
     def test_placement_records_its_source(self) -> None:
         nodes = self.nodes()
@@ -229,7 +248,7 @@ class DiagnosticsTest(_RepoMixin, unittest.TestCase):
 
         self.assertEqual(
             sorted(item.message for item in cycles),
-            ["blocked_by cycle: WI-B", "depends_on cycle: WI-A -> WI-B"],
+            ["blocked_by cycle among WI-B", "depends_on cycle among WI-A, WI-B"],
         )
 
     def test_ambiguous_lane_needs_an_override(self) -> None:
@@ -326,6 +345,75 @@ phases:
 
         self.assertEqual(self.codes(built).count("unknown_view_reference"), 2)
 
+    def test_unavailable_readiness_is_a_partial_source(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        with unittest.mock.patch.object(
+            readiness,
+            "evaluate_readiness",
+            side_effect=readiness.WorkItemReadinessError("boom"),
+        ):
+            built = self.build()
+
+        self.assertIn("partial_source", self.codes(built))
+        self.assertIsNone(built.nodes[0].prompt_ready)
+
+    def test_parent_id_places_an_item_in_its_lane(self) -> None:
+        _work_item(self.root, "WI-CHILD", parent_id="WS-A")
+        _workstream(self.root, "WS-A", [])
+        _view(self.root, _simple_view(["WI-CHILD"]))
+
+        node = self.build().nodes[0]
+
+        self.assertEqual((node.lane, node.lane_source), ("WS-A", "workstream"))
+
+    def test_offscreen_blockers_and_their_cycles_are_shown(self) -> None:
+        _work_item(self.root, "WI-A", blocked_by=["WI-X"], depends_on=["WI-X"])
+        _work_item(self.root, "WI-X", depends_on=["WI-Y"])
+        _work_item(self.root, "WI-Y", depends_on=["WI-X"])
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        built = self.build()
+        nodes = {node.id: node for node in built.nodes}
+
+        self.assertEqual(nodes["WI-A"].state, "blocked")
+        self.assertEqual(nodes["WI-A"].offscreen_predecessors, 1)
+        self.assertTrue(nodes["WI-X"].offscreen)
+        self.assertIn(
+            "depends_on cycle among WI-X, WI-Y",
+            [item.message for item in built.diagnostics],
+        )
+
+    def test_a_repeated_item_in_one_phase_is_not_ambiguous(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A", "WI-A"]))
+
+        built = self.build()
+
+        self.assertEqual(built.nodes[0].phase, "one")
+        self.assertNotIn("ambiguous_phase", self.codes(built))
+
+    def test_an_override_for_an_item_outside_the_view_is_reported(self) -> None:
+        _work_item(self.root, "WI-A")
+        _work_item(self.root, "WI-OUT")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(
+            self.root,
+            _simple_view(
+                ["WI-A"],
+                extra=(
+                    'lane_overrides:\n- work_item: "WI-OUT"\n  lane: "WS-A"\n'
+                    '  reason: "x"\n'
+                ),
+            ),
+        )
+
+        self.assertIn("unused_lane_override", self.codes(self.build()))
+
     def test_changed_sources_make_a_snapshot_stale(self) -> None:
         _work_item(self.root, "WI-A")
         _workstream(self.root, "WS-A", ["WI-A"])
@@ -345,6 +433,33 @@ class ViewDeclarationTest(_RepoMixin, unittest.TestCase):
             view_module.load_view(self.root, "missing")
         with self.assertRaises(view_module.ViewDeclarationError):
             view_module.load_view(self.root, "../escape")
+
+    def test_duplicate_lane_overrides_are_rejected(self) -> None:
+        override = '- work_item: "WI-A"\n  lane: "WS-A"\n  reason: "x"\n'
+        _view(
+            self.root,
+            _simple_view(["WI-A"], extra="lane_overrides:\n" + override + override),
+        )
+
+        with self.assertRaises(view_module.ViewDeclarationError) as err_ctx:
+            view_module.load_view(self.root, "main")
+
+        self.assertIn(
+            "must not repeat a work item", " ".join(err_ctx.exception.problems)
+        )
+
+    def test_the_project_directory_also_works_as_the_root(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        built = snapshot.build_snapshot(self.root / "project", "main", now=_AT)
+
+        self.assertEqual([node.id for node in built.nodes], ["WI-A"])
+
+    def test_from_dict_rejects_malformed_data_with_value_error(self) -> None:
+        with self.assertRaises(ValueError):
+            snapshot.DependencyMapSnapshot.from_dict({"schema_version": 1})
 
     def test_malformed_declarations_list_every_problem(self) -> None:
         _view(

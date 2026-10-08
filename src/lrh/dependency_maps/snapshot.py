@@ -130,10 +130,19 @@ class DependencyMapSnapshot:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DependencyMapSnapshot:
+        """Rebuild a snapshot from its JSON form; ValueError if it does not fit."""
+
         if data.get("schema_version") != SCHEMA_VERSION:
             raise ValueError(
                 f"unsupported schema_version {data.get('schema_version')!r}"
             )
+        try:
+            return cls._from_dict(data)
+        except (KeyError, TypeError) as err:
+            raise ValueError(f"not a dependency-map snapshot: {err}") from err
+
+    @classmethod
+    def _from_dict(cls, data: dict[str, Any]) -> DependencyMapSnapshot:
         return cls(
             schema_version=data["schema_version"],
             view_id=data["view_id"],
@@ -214,11 +223,24 @@ def build_snapshot(
     """
 
     repo_root = repo_root.resolve()
+    try:
+        # Accept the project directory itself, as the loader does.
+        repo_root = loader.find_project_dir(repo_root).parent
+    except FileNotFoundError:
+        pass
     declaration = view_module.load_view(repo_root, view_id)
     try:
-        state = loader.load_project(repo_root)
+        return _build(repo_root, declaration, now)
     except (OSError, ValueError) as err:
         raise SnapshotError(f"could not load project control files: {err}") from err
+
+
+def _build(
+    repo_root: pathlib.Path,
+    declaration: view_module.ViewDeclaration,
+    now: datetime.datetime | None,
+) -> DependencyMapSnapshot:
+    state = loader.load_project(repo_root)
 
     items = state.work_items_by_id
     workstreams = state.workstreams_by_id
@@ -240,7 +262,7 @@ def build_snapshot(
 
     phase_of: dict[str, list[str]] = {}
     for phase in declaration.phases:
-        for item_id in phase.work_items:
+        for item_id in dict.fromkeys(phase.work_items):
             if item_id in items:
                 phase_of.setdefault(item_id, []).append(phase.id)
 
@@ -250,6 +272,16 @@ def build_snapshot(
         for override in declaration.lane_overrides
         if override.work_item in items and override.lane in lane_ids
     }
+    diagnostics.extend(
+        Diagnostic(
+            code="unused_lane_override",
+            severity="warning",
+            message=f"the lane override for {item_id} names an item not in this view",
+            subjects=(item_id,),
+        )
+        for item_id in overrides
+        if item_id not in members and item_id not in phase_of
+    )
 
     prompt_ready, readiness_problem = _prompt_readiness(repo_root)
     if readiness_problem:
@@ -310,10 +342,12 @@ def build_snapshot(
                 lane_reason=lane_reason,
                 phase=phase,
                 phase_source=phase_source,
-                offscreen_count=sum(
-                    1
-                    for edge in edges
-                    if edge.item == item_id and edge.target in offscreen
+                offscreen_count=len(
+                    {
+                        edge.target
+                        for edge in edges
+                        if edge.item == item_id and edge.target in offscreen
+                    }
                 ),
             )
         )
@@ -334,7 +368,7 @@ def build_snapshot(
             )
         )
 
-    diagnostics.extend(_cycle_diagnostics(items, in_view))
+    diagnostics.extend(_cycle_diagnostics(items, set(in_view) | offscreen))
 
     lanes = [
         Row(
@@ -390,6 +424,8 @@ def structural_state(
     waiting = _unmet(item.depends_on, "depends_on", items)
     if waiting:
         return "waiting", tuple(waiting)
+    if not item.depends_on:
+        return "unblocked", (StateReason(kind="no_prerequisites"),)
     return "unblocked", tuple(
         StateReason(kind="depends_on", target=target, target_lifecycle="resolved")
         for target in item.depends_on
@@ -505,9 +541,7 @@ def _place_phase(
     return UNPLACED, "none"
 
 
-def _cycle_diagnostics(
-    items: dict[str, WorkItem], in_view: list[str]
-) -> list[Diagnostic]:
+def _cycle_diagnostics(items: dict[str, WorkItem], shown: set[str]) -> list[Diagnostic]:
     """Report cycles separately per edge kind; the kinds mean different things."""
 
     diagnostics = []
@@ -516,16 +550,15 @@ def _cycle_diagnostics(
             item_id: [target for target in getattr(item, kind) if target in items]
             for item_id, item in items.items()
         }
-        view_ids = set(in_view)
         for component in _strongly_connected(graph):
             cyclic = len(component) > 1 or component[0] in graph[component[0]]
-            if cyclic and view_ids.intersection(component):
+            if cyclic and shown.intersection(component):
                 members = tuple(sorted(component))
                 diagnostics.append(
                     Diagnostic(
                         code="cycle",
                         severity="error",
-                        message=f"{kind} cycle: {' -> '.join(members)}",
+                        message=f"{kind} cycle among {', '.join(members)}",
                         subjects=members,
                     )
                 )

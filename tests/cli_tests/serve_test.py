@@ -583,6 +583,9 @@ class TestLrhServeRoutes(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as err_ctx:
                     self._read(base_url + path)
                 self.assertEqual(err_ctx.exception.code, code)
+                with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                    self._head(base_url + path)
+                self.assertEqual(head_ctx.exception.code, code)
 
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()

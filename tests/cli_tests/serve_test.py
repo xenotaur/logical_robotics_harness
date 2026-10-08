@@ -1,6 +1,7 @@
 import io
 import json
 import pathlib
+import shutil
 import socket
 import struct
 import sys
@@ -348,6 +349,179 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertIn('<html lang="en" data-theme="light">', body)
 
+    def _isolated_server(self) -> str:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        _httpd, base_url = self._start_server(root)
+        return base_url
+
+    def test_every_html_page_is_framed(self) -> None:
+        base_url = self._isolated_server()
+
+        detail_routes = (
+            "/settings",
+            "/project/main/work-items/WI-A",
+            "/project/main/work-items/WI-A/prompt",
+            "/workbench/prompt?work_item=WI-A",
+            "/workbench/run-packet?work_item=WI-A",
+            "/workbench/run-report?work_item=WI-A",
+        )
+        for route in _HTML_ROUTES + detail_routes:
+            with self.subTest(route=route):
+                _status, _type, body = self._read(base_url + route)
+                self.assertIn('<a class="lrh-home" href="/meta">', body)
+                self.assertIn('<nav class="lrh-sidebar"', body)
+                self.assertIn('class="lrh-main" id="lrh-content"', body)
+                self.assertEqual(body.count("<main"), 1, "one main landmark")
+                self.assertIn('<a class="lrh-skip" href="#lrh-content">', body)
+                self.assertIn(
+                    '<meta name="viewport" content="width=device-width, '
+                    'initial-scale=1">',
+                    body.split("</head>", 1)[0],
+                )
+                self.assertNotIn("<script", body.lower())
+
+    def test_content_security_policy_allows_only_same_origin_images_and_fonts(
+        self,
+    ) -> None:
+        base_url = self._isolated_server()
+
+        with urllib.request.urlopen(base_url + "/style", timeout=5) as response:
+            policy = response.headers.get("Content-Security-Policy")
+
+        self.assertEqual(
+            policy,
+            "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+            "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+            "form-action 'none'",
+        )
+
+    def test_static_serves_only_allowlisted_assets(self) -> None:
+        base_url = self._isolated_server()
+
+        for name, content_type in (
+            ("lrh-icon-64.png", "image/png"),
+            ("fonts/montserrat-latin.woff2", "font/woff2"),
+            ("fonts/OFL-montserrat.txt", "text/plain"),
+            ("icons/LICENSE-lucide.txt", "text/plain"),
+        ):
+            with self.subTest(name=name):
+                with urllib.request.urlopen(
+                    f"{base_url}/static/{name}", timeout=5
+                ) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertIn(content_type, response.headers["Content-Type"])
+                    self.assertTrue(response.read())
+                head_status, head_type = self._head(f"{base_url}/static/{name}")
+                self.assertEqual(head_status, 200)
+                self.assertIn(content_type, head_type)
+        for name in ("icons/settings.svg", "../serve.py", "tokens.py", ""):
+            with self.subTest(name=name):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(f"{base_url}/static/{name}")
+                self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_settings_page_explains_the_theme_and_licenses(self) -> None:
+        base_url = self._isolated_server()
+
+        status, content_type, body = self._read(base_url + "/settings")
+        head_status, _head_type = self._head(base_url + "/settings")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("This server uses the <strong>system</strong> theme", body)
+        self.assertIn("lrh serve --theme light", body)
+        self.assertIn('href="/static/fonts/OFL-montserrat.txt"', body)
+        self.assertIn('href="/static/icons/LICENSE-lucide.txt"', body)
+
+    def test_a_broken_registry_still_serves_framed_pages(self) -> None:
+        base_url = self._isolated_server()
+
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                side_effect=PermissionError("denied"),
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+        ):
+            status, _type, body = self._read(base_url + "/")
+
+        self.assertEqual(status, 200)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+
+    def test_scope_switcher_lists_projects_whose_records_fail_to_load(self) -> None:
+        loads = (
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="good",
+                record=serve.meta_workspace.MetaProjectRecord(
+                    registry_name="good",
+                    short_name="good",
+                    display_name="Good Project",
+                    project_id=None,
+                    repo_locator=None,
+                    project_dir=None,
+                    setup_state=None,
+                ),
+            ),
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="broken", record=None, error="bad toml"
+            ),
+        )
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                return_value=loads,
+            ),
+        ):
+            projects = serve._frame_projects(serve.ServeConfig())
+
+        self.assertEqual(
+            projects,
+            (
+                serve.frame.Project(selector="good", label="Good Project"),
+                serve.frame.Project(selector="broken", label="broken"),
+            ),
+        )
+
+    def test_frame_and_pinned_theme_combine(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            _write_viewer_project(pathlib.Path(tmp_dir))
+            _httpd, base_url = self._start_server(pathlib.Path(tmp_dir), theme="dark")
+            _status, _type, body = self._read(base_url + "/meta")
+
+        self.assertIn('<html lang="en" data-theme="dark">', body)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+
+    def test_item_query_opens_the_drawer(self) -> None:
+        base_url = self._isolated_server()
+
+        _status, _type, body = self._read(base_url + "/meta?item=WI-ONE")
+
+        self.assertIn('<aside class="lrh-drawer"', body)
+        self.assertIn(">WI-ONE</h2>", body)
+
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -395,6 +569,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/meta",
                 "/meta/project",
                 "/style",
+                "/settings",
+                "/static/<asset>",
                 "/project/<project_id>",
                 "/project/<project_id>/designs/<design_id>",
                 "/project/<project_id>/workstreams/<workstream_id>",

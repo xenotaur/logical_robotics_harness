@@ -70,7 +70,8 @@ effect when the server restarts.
 | --- | --- |
 | Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, with Settings on the left and Server Details on the right. Choosing either again brings it to the front; **Server Details…** also scrolls to and briefly highlights the details. |
 | Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
-| Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). |
+| Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). In a served page, the LRH icon in the top bar always goes home to the statusboard (Meta), and the sidebar switches between All projects and each registered project. |
+| Open Settings from a page | The gear in a served page's top bar opens the Settings window. In a browser it opens a read-only display and about page. |
 | Reload | **View > Reload** (⌘R). |
 | Go back or forward | **View > Back** (⌘[) or **View > Forward** (⌘]). They move between pages of the running server only, never to a status page or a previous server's address, and are enabled only when there is a page to go to. A restart starts a fresh history. |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |

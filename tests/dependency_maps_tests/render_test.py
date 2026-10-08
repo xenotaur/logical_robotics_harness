@@ -356,9 +356,12 @@ class RenderTest(unittest.TestCase):
         self.assertNotIn(">WI-D<", page)
 
     def test_prompt_readiness_does_not_apply_to_closed_items(self) -> None:
-        page = _view(_example(), item="WI-D") + _view(_example(), tab="table")
+        drawer = _view(_example(), item="WI-D").split('<aside class="lrh-drawer"')[1]
+        table = _view(_example(), tab="table")
+        row = table.split('href="?tab=table&amp;item=WI-D"', 1)[1].split("</tr>", 1)[0]
 
-        self.assertIn("Not applicable (closed)", page)
+        self.assertIn("Not applicable (closed)", drawer)
+        self.assertIn("Not applicable (closed)", row)
 
     def test_needs_come_from_edges_not_only_the_winning_state(self) -> None:
         flagged = _node(

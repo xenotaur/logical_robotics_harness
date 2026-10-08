@@ -51,7 +51,7 @@ artifacts_expected:
 
 ## Summary
 
-Add a second dependency-map layout, behind the existing `Layout` interface, that orders each lane's cards topologically and indents each card by its dependency depth. This makes the lines easier to follow than in the default `layered-grid` layout. Make it the default once the owner has reviewed it.
+Add a second dependency-map layout, behind the existing `Layout` interface, that orders each lane's cards topologically and indents each card by its dependency depth. This makes the lines easier to follow than in the default `layered-grid` layout. Decide the default with the owner after a side-by-side review.
 
 ## Problem / Context
 
@@ -63,8 +63,9 @@ In-repo: `src/lrh/dependency_maps/layout.py` defines `Layout` and `LayeredGridLa
 
 ## Scope
 
-- A new `Layout` implementation, for example `OutlineLayout` (`outline`): within each lane, cards in a topological order of `depends_on` and `blocked_by`, each indented by its dependency depth.
-- Phases stay organizational rows, and a cycle falls back to a stable order with a diagnostic.
+- A new `Layout` implementation, for example `OutlineLayout` (`outline`): cards in a topological order of `depends_on` and `blocked_by`, each indented by its dependency depth.
+- Open question for the owner: is the order within each lane, or across lanes?
+- Open question for the owner: do phase rows constrain the vertical order, or does the outline replace them in this layout? A cycle falls back to a stable order with a diagnostic.
 - A way to choose the layout per page (for example `?layout=outline`), and a decision with the owner on which is the default.
 - Lines routed for the indented positions, still right-angled, from prerequisite to dependent.
 

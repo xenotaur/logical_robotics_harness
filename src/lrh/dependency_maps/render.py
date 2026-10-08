@@ -56,8 +56,11 @@ def _unmet_needs(
     Built from the edges, not only the reasons for the winning state, so a
     flagged item still lists its unfinished dependencies. Offscreen nodes have
     no outgoing edges in the snapshot, so their reasons are used instead.
+    Closed items need nothing.
     """
 
+    if _closed(node):
+        return []
     needs = [
         (
             (edge.kind, edge.target, nodes[edge.target].lifecycle)
@@ -429,7 +432,11 @@ def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         needed_by.setdefault(edge.target, []).append(edge.item)
     rows = []
     for node in snapshot.nodes:
-        unmet = [target for _kind, target, _life in _unmet_needs(snapshot, nodes, node)]
+        unmet = list(
+            dict.fromkeys(
+                target for _kind, target, _life in _unmet_needs(snapshot, nodes, node)
+            )
+        )
         ready = _ready_text(node)
         dependents = sorted(set(needed_by.get(node.id, [])))
         rows.append(

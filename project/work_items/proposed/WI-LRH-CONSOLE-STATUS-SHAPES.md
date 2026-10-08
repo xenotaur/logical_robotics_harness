@@ -33,7 +33,7 @@ forbidden_actions:
 - "publish_package"
 - "deploy_remote_service"
 acceptance:
-- "In progress and Unblocked differ by fill (filled versus outlined), and Abandoned and Unknown differ by card border and title treatment, in both themes."
+- "In progress and Unblocked differ by fill (filled versus outlined), and Abandoned and Unknown differ by card fill and title treatment, and no new border style resembles Blocked's dashed border, in both themes."
 - "Contrast tests still pass, and every state carries text, an icon and a shape cue."
 - "The owner confirms the pairs are distinguishable, and the visual-language proposal records the rule."
 required_evidence:
@@ -64,7 +64,7 @@ In-repo: the status pills and cards are in `src/lrh/dependency_maps/render.py`, 
 ## Scope
 
 - Unblocked pills become outlined (hollow), and In progress pills stay filled.
-- Abandoned cards get a dotted border and a muted title, with their own icon. Unknown stays as it is, with its icon.
+- Abandoned cards get a muted (sunken) fill and a struck-through title, with their own icon. Unknown stays as it is, with its icon. Avoid a dotted border: it would be too close to the dashed border Blocked cards already use.
 - The style specimen and the legend show the new shapes.
 - The visual-language proposal's color-vision section records the change.
 
@@ -82,7 +82,7 @@ In-repo: the status pills and cards are in `src/lrh/dependency_maps/render.py`, 
 
 ## Acceptance Criteria
 
-- In progress and Unblocked differ by fill (filled versus outlined), and Abandoned and Unknown differ by card border and title treatment, in both themes.
+- In progress and Unblocked differ by fill (filled versus outlined), and Abandoned and Unknown differ by card fill and title treatment, and no new border style resembles Blocked's dashed border, in both themes.
 - Contrast tests still pass, and every state carries text, an icon and a shape cue.
 - The owner confirms the pairs are distinguishable, and the visual-language proposal records the rule.
 

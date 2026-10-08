@@ -23,7 +23,7 @@ from typing import Protocol
 from lrh.dependency_maps.snapshot import UNPLACED, DependencyMapSnapshot
 
 CARD_WIDTH = 264
-CARD_HEIGHT = 140
+CARD_HEIGHT = 144
 CARD_GAP = 14
 CELL_PADDING = 16
 LANE_GUTTER = 56

@@ -22,6 +22,8 @@ from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
+from lrh.dependency_maps import view as dependency_map_view
 from lrh.meta import workspace as meta_workspace
 from lrh.ux import dashboard, frame, tokens
 
@@ -59,6 +61,7 @@ _STATUS_ROUTES = (
     "/health",
     "/api/status",
     "/api/project",
+    "/api/project/<project_id>/dependency-maps/<view>",
     "/api/workbench",
     "/api/conversations/codex",
     "/api/conversations/codex/<export_id>",
@@ -127,6 +130,57 @@ def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
         )
         for result in results
     )
+
+
+def dependency_map_payload(
+    config: ServeConfig, remainder: str
+) -> tuple[int, dict[str, object]]:
+    """Answer ``/api/project/<project_id>/dependency-maps/<view>`` read-only.
+
+    Like the other ``/project/<project_id>/`` routes, a ``project_id`` that the
+    Meta registry cannot resolve to a local checkout falls back to the served
+    project. Returns the versioned snapshot JSON, 404 for a malformed path or
+    an unknown view, 422 for an invalid view declaration, or 500 if the
+    project's control files cannot be loaded.
+    """
+
+    parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
+    if len(parts) != 3 or parts[1] != "dependency-maps":
+        return 404, {"error": "not_found"}
+    project_selector, _, view_id = parts
+    repo_root = _config_for_project_selector(
+        config, project_selector
+    ).resolved_project_root()
+    try:
+        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    except FileNotFoundError:
+        return 404, {"error": "not_found", "view": view_id}
+    except dependency_map_view.ViewDeclarationError as err:
+        return 422, {"error": "invalid_view", "problems": list(err.problems)}
+    except dependency_map_snapshot.SnapshotError as err:
+        return 500, {"error": "snapshot_failed", "message": str(err)}
+    return 200, snapshot.to_dict()
+
+
+def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
+    """Return the dependency-map route's status from the view declaration alone.
+
+    HEAD answers without loading the project or building the snapshot.
+    """
+
+    parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
+    if len(parts) != 3 or parts[1] != "dependency-maps":
+        return 404
+    repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
+    try:
+        dependency_map_view.load_view(repo_root, parts[2])
+    except FileNotFoundError:
+        return 404
+    except dependency_map_view.ViewDeclarationError:
+        return 422
+    except OSError:
+        return 500
+    return 200
 
 
 def render_settings_page(config: ServeConfig) -> str:
@@ -3079,6 +3133,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route == "/api/project":
                 self._write_json(200, project_viewer_payload(config))
                 return
+            if route.startswith("/api/project/"):
+                status_code, payload = dependency_map_payload(
+                    config, route.removeprefix("/api/project/")
+                )
+                self._write_json(status_code, payload)
+                return
             if route == "/api/workbench":
                 self._write_json(200, workbench_payload(config))
                 return
@@ -3170,6 +3230,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     else "application/json; charset=utf-8"
                 )
                 self._write_head(status_code, content_type)
+                return
+            if route.startswith("/api/project/"):
+                status_code = dependency_map_head_status(
+                    config, route.removeprefix("/api/project/")
+                )
+                self._write_head(status_code, "application/json; charset=utf-8")
                 return
             if route.startswith("/api/conversations/codex/"):
                 export_id = urllib.parse.unquote(

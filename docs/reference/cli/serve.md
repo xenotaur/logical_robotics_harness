@@ -74,6 +74,18 @@ lrh serve --desktop-protocol
   HTML detail route renders transcript bodies as escaped inert text after an
   explicit export selection.
 
+## Dependency-map route
+
+- `/api/project/<project_id>/dependency-maps/<view>`: the versioned
+  `DependencyMapSnapshot` JSON for a view declared in
+  `project/views/dependency_maps/<view>.md`. It returns 404 for an unknown
+  view, 422 for an invalid declaration, and 500 if the view or the project's
+  control files cannot be read. As with the other `/project/<project_id>/`
+  routes, a `project_id` that the Meta registry cannot resolve to a local
+  checkout falls back to the served project. HEAD checks only the view
+  declaration. `lrh dependency-map snapshot <view>` prints the same JSON; see
+  the [dependency-map reference](dependency-map.md).
+
 ## Conversation archive routes
 
 - `/conversations/codex`: HTML index for configured Codex export roots.

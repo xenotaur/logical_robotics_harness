@@ -2,13 +2,13 @@
 execution_id: 2026_10_08_23_19_18_LRH_CONSOLE_MAP_STATIC_REVIEW
 prompt_id: PROMPT(WI-LRH-CONSOLE-MAP-STATIC:LRH_CONSOLE_MAP_STATIC_REVIEW)[2026-10-08T23:19:18+00:00]
 work_item: WI-LRH-CONSOLE-MAP-STATIC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/800
-commit:
+commit: 2f64eee46cabd6254943d8b8155489511a17a757
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/800"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-08T23:19:18+00:00
 ---
 

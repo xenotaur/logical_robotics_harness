@@ -23,10 +23,10 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
-use tauri::{AppHandle, Manager, Runtime, Url, WebviewUrl, WebviewWindow};
+use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
-use crate::settings::{self, BrowserChoice, Config, ConfigStore, FieldError};
+use crate::settings::{self, Appearance, BrowserChoice, Config, ConfigStore, FieldError};
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
 /// Label of the one default content window.
@@ -995,6 +995,23 @@ fn startup_config(store: Option<&ConfigStore>) -> StartupConfig {
     }
 }
 
+/// The native theme for an appearance; `None` follows the system.
+fn native_theme(appearance: Appearance) -> Option<Theme> {
+    match appearance {
+        Appearance::Light => Some(Theme::Light),
+        Appearance::Dark => Some(Theme::Dark),
+        Appearance::System => None,
+    }
+}
+
+/// Applies the appearance to every window. Bundled pages, and pages from a
+/// server started with `--theme system`, follow it through
+/// `prefers-color-scheme`, with no script or capability. A restart passes the
+/// new `--theme`, so other browsers and a pinned server match too.
+fn apply_appearance<R: Runtime>(app: &AppHandle<R>, appearance: Appearance) {
+    app.set_theme(native_theme(appearance));
+}
+
 /// Sets up the shell: configuration, menu, windows, and the action worker.
 pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let store = app
@@ -1011,6 +1028,9 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         supervisor.set_config(launch);
     }
     let configured = supervisor.is_configured();
+    if let Some(config) = &startup.config {
+        apply_appearance(app, config.appearance);
+    }
     let start_on_open = startup
         .config
         .as_ref()
@@ -1301,7 +1321,8 @@ pub fn get_settings(state: tauri::State<'_, ShellState>) -> SettingsView {
 /// Validates and saves the configuration. An invalid change is rejected and
 /// the last working configuration stays in effect.
 #[tauri::command]
-pub fn save_settings(
+pub fn save_settings<R: Runtime>(
+    app: AppHandle<R>,
     state: tauri::State<'_, ShellState>,
     config: Config,
 ) -> Result<SaveOutcome, Vec<FieldError>> {
@@ -1314,6 +1335,7 @@ pub fn save_settings(
     store.save(&config)?;
     let previous = lock(&state.config).replace(config.clone());
     state.links.set_browser(config.browser);
+    apply_appearance(&app, config.appearance);
     if *lock(&state.source) == ConfigSource::Environment {
         // The developer override stays in charge for this session.
         return Ok(SaveOutcome {
@@ -1734,6 +1756,13 @@ mod tests {
             SettingsSection::Details.show_script(),
             r#"window.lrhShowSection && window.lrhShowSection("details");"#
         );
+    }
+
+    #[test]
+    fn appearance_maps_to_the_native_theme() {
+        assert_eq!(native_theme(Appearance::Light), Some(Theme::Light));
+        assert_eq!(native_theme(Appearance::Dark), Some(Theme::Dark));
+        assert_eq!(native_theme(Appearance::System), None);
     }
 
     #[test]

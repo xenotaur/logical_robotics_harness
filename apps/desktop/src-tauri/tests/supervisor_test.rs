@@ -140,6 +140,15 @@ fn http_status(port: u16, path: &str) -> Option<u16> {
     response.split_whitespace().nth(1)?.parse().ok()
 }
 
+fn http_body(port: u16, path: &str) -> Option<String> {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).ok()?;
+    stream.set_read_timeout(Some(Duration::from_secs(5))).ok()?;
+    write!(stream, "GET {path} HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n").ok()?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response).ok()?;
+    Some(response.split_once("\r\n\r\n")?.1.to_string())
+}
+
 fn wait_for_state(supervisor: &Supervisor, state: State, bound: Duration) -> bool {
     let deadline = Instant::now() + bound;
     while Instant::now() < deadline {
@@ -178,6 +187,18 @@ fn start_serves_the_workspace_and_stop_is_graceful() {
     assert_eq!(http_status(handshake.port, "/health"), None);
     // Stopping again is a no-op.
     assert!(supervisor.stop().is_none());
+}
+
+#[test]
+fn serve_args_reach_the_backend() {
+    let mut config = lrh_config();
+    config.serve_args = vec!["--theme".into(), "dark".into()];
+    let supervisor = Supervisor::new(config);
+    let handshake = start_real(&supervisor);
+
+    let page = http_body(handshake.port, "/style").expect("the specimen page");
+    assert!(page.contains(r#"<html lang="en" data-theme="dark">"#));
+    supervisor.stop().expect("an owned child was stopped");
 }
 
 #[test]

@@ -12,7 +12,8 @@ const SOURCES = {
   environment:
     "Using the developer LRH_CONSOLE_* environment settings for this session. " +
     "Saving here writes the configuration file and applies the browser choice " +
-    "now; the saved program and workspace take effect in a later session " +
+    "and appearance now; the saved program and workspace take effect in a " +
+    "later session " +
     "started without those variables.",
   none: "No configuration yet. Choose a program and workspace, then Save.",
 };
@@ -43,6 +44,9 @@ function fill(config) {
   $("workspace").value = config.workspace;
   $("browser").value = config.browser;
   $("start_on_open").checked = config.start_on_open;
+  form.querySelector(
+    `input[name="appearance"][value="${config.appearance || "system"}"]`,
+  ).checked = true;
   showKind();
 }
 
@@ -60,6 +64,7 @@ function collect() {
     workspace: $("workspace").value.trim(),
     browser: $("browser").value,
     start_on_open: $("start_on_open").checked,
+    appearance: form.querySelector('input[name="appearance"]:checked').value,
   };
 }
 
@@ -129,10 +134,12 @@ form.addEventListener("submit", async (event) => {
     const outcome = await invoke("save_settings", { config: collect() });
     $("restart").hidden = !outcome.restart_required;
     $("saved").textContent = outcome.env_override_active
-      ? "Saved to the configuration file. The browser choice applies now; the " +
-        "program and workspace stay on the LRH_CONSOLE_* settings for this session."
+      ? "Saved to the configuration file. The browser choice and appearance apply " +
+        "now; the program and workspace stay on the LRH_CONSOLE_* settings for " +
+        "this session."
       : outcome.restart_required
-        ? "Saved. Restart the server to use the new program or workspace."
+        ? "Saved. Restart the server to use the new program or workspace, or so " +
+          "other browsers match the appearance."
         : outcome.started
           ? "Saved. Starting the server…"
           : "Saved.";
@@ -170,7 +177,8 @@ window.lrhShowSection = (name) => {
   // In the two-column layout each column scrolls on its own; in the narrow
   // one-column layout the page scrolls.
   (name === "details" ? $("server-details") : $("settings-form")).scrollTop = 0;
-  target.scrollIntoView({ block: "start", behavior: "smooth" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
   if (name === "details") {
     target.classList.remove("flash");
     void target.offsetWidth; // restart the animation

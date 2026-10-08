@@ -3,8 +3,9 @@ import io
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
-from local_agent import cli
+from local_agent import cli, recorder, testing_support
 
 
 class CliTest(unittest.TestCase):
@@ -95,6 +96,127 @@ class CliPilotCommandsTest(unittest.TestCase):
         code, err = self._main("task", "T99", "--lrh-repo", ".")
         self.assertEqual(code, 2)
         self.assertIn("unknown task", err)
+
+
+class CliAskTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        base = pathlib.Path(self._tmp.name)
+        self.repo = base / "repo"
+        self.repo.mkdir()
+        testing_support.make_repo(self.repo)
+        self.store = base / "store"
+        self.answer = base / "answer.md"
+        self.answer.write_text("It is a demo (S1:L1).", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _main(self, *argv: str) -> tuple[int, str, str]:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = cli.main(["--store", str(self.store), *argv])
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_ask_rate_log_delete_prune(self) -> None:
+        code, out, err = self._main(
+            "ask",
+            "What is the demo?",
+            "--repo",
+            str(self.repo),
+            "--files",
+            "project/design/demo.md",
+            "--backend",
+            "fake",
+            "--fake-response",
+            str(self.answer),
+            "--yes",
+        )
+        self.assertEqual(code, 0, err)
+        self.assertIn("It is a demo (S1:L1).", out)
+        self.assertIn("S1 project/design/demo.md", err)
+        run_id = recorder.Store(self.store).list_runs()[0]
+        self.assertIn(run_id, err)
+
+        self.assertEqual(self._main("rate", run_id, "good")[0], 0)
+        code, out, _ = self._main("log")
+        self.assertEqual(code, 0)
+        self.assertIn("good 1", out)
+
+        code, out, _ = self._main("prune", "--before", "2000-01-01", "--dry-run")
+        self.assertIn("would remove 0 run(s)", out)
+        self.assertEqual(self._main("delete", run_id)[0], 0)
+        self.assertEqual(recorder.Store(self.store).list_runs(), [])
+        self.assertEqual(self._main("delete", run_id)[0], 2)
+
+    def test_ask_failures_before_the_call_are_logged(self) -> None:
+        cases = (
+            (["--wi", "WI-NOPE", "--backend", "fake"], "missing_prerequisite"),
+            (
+                [
+                    "--base-url",
+                    "http://10.0.0.5:11434",
+                    "--files",
+                    "project/design/demo.md",
+                ],
+                "missing_prerequisite",
+            ),
+        )
+        binary = self.answer.with_name("binary.bin")
+        binary.write_bytes(b"\xff\xfe\x00bad")
+        cases += (
+            (
+                ["--backend", "fake", "--fake-response", "/nonexistent/answer.md"],
+                "missing_prerequisite",
+            ),
+            (
+                ["--backend", "fake", "--fake-response", str(binary)],
+                "missing_prerequisite",
+            ),
+        )
+        seen: set[str] = set()
+        for extra, outcome in cases:
+            with self.subTest(extra[0]):
+                code, _, err = self._main(
+                    "ask", "q", "--repo", str(self.repo), *extra, "--yes"
+                )
+                self.assertEqual(code, 2, err)
+                store = recorder.Store(self.store)
+                new = set(store.list_runs()) - seen
+                self.assertEqual(len(new), 1)
+                seen |= new
+                self.assertEqual(store.load_run(new.pop())["outcome"], outcome)
+
+    def test_only_enter_or_yes_sends(self) -> None:
+        for reply, sent in (("", True), ("yes", True), ("no", False), ("nah", False)):
+            with self.subTest(reply=reply):
+                before = set(recorder.Store(self.store).list_runs())
+                with (
+                    mock.patch.object(cli.sys.stdin, "isatty", return_value=True),
+                    mock.patch("builtins.input", side_effect=[reply, ""]),
+                ):
+                    self._main(
+                        "ask",
+                        "q",
+                        "--repo",
+                        str(self.repo),
+                        "--files",
+                        "project/design/demo.md",
+                        "--backend",
+                        "fake",
+                        "--fake-response",
+                        str(self.answer),
+                    )
+                store = recorder.Store(self.store)
+                (new,) = set(store.list_runs()) - before
+                outcome = store.load_run(new)["outcome"]
+                self.assertEqual(outcome == "completed", sent, outcome)
+
+    def test_rate_and_prune_report_bad_input(self) -> None:
+        self.assertEqual(self._main("rate", "nope", "g")[0], 2)
+        code, _, err = self._main("prune", "--before", "yesterday")
+        self.assertEqual(code, 2)
+        self.assertIn("error:", err)
 
 
 if __name__ == "__main__":

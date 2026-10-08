@@ -86,7 +86,220 @@ class OpenerTest(unittest.TestCase):
         )
 
 
+class FakeStream:
+    def __init__(self, chunks: list[dict]) -> None:
+        self.chunks = chunks
+        self.calls: list[tuple] = []
+
+    def __call__(self, url, body, timeout):
+        self.calls.append((url, body, timeout))
+        for chunk in self.chunks:
+            if isinstance(chunk, BaseException):
+                raise chunk
+            yield chunk
+
+
+class OllamaStreamingTest(unittest.TestCase):
+    def _adapter(self, stream: FakeStream, clock=None) -> model.OllamaModel:
+        kwargs = {"clock": clock} if clock else {}
+        return model.OllamaModel(
+            base_url="http://127.0.0.1:11434",
+            model="gemma4:12b",
+            manifest_digest=DIGEST,
+            transport=FakeTransport(_healthy()),
+            stream_transport=stream,
+            **kwargs,
+        )
+
+    def test_streams_text_with_thinking_off_and_no_format(self) -> None:
+        stream = FakeStream(
+            [
+                {"message": {"content": "Hel", "thinking": "hmm"}},
+                {"message": {"content": "lo"}},
+                {
+                    "message": {"content": ""},
+                    "done": True,
+                    "done_reason": "stop",
+                    "eval_count": 2,
+                    "prompt_eval_count": 9,
+                },
+            ]
+        )
+        seen: list[str] = []
+        request = model.ModelRequest("p", None, settings.Budgets(), on_text=seen.append)
+        response = self._adapter(stream).generate(request)
+        url, body, _ = stream.calls[0]
+        self.assertTrue(url.endswith("/api/chat"))
+        self.assertIs(body["think"], False)
+        self.assertTrue(body["stream"])
+        self.assertNotIn("format", body)
+        self.assertNotIn("tools", body)
+        self.assertEqual(seen, ["Hel", "lo"])
+        self.assertEqual(response.text, "Hello")
+        self.assertEqual(response.thinking_chars, 3)
+        self.assertEqual(response.output_tokens, 2)
+
+    def test_stream_without_done_is_backend_error(self) -> None:
+        stream = FakeStream([{"message": {"content": "cut"}}])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_BACKEND_ERROR)
+
+    def test_stream_stops_when_wall_time_runs_out(self) -> None:
+        ticks = iter([0.0, 400.0, 400.0])
+        stream = FakeStream(
+            [{"message": {"content": "a"}}, {"message": {"content": "b"}}]
+        )
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream, clock=lambda: next(ticks)).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_TIMEOUT)
+
+    def test_stream_error_chunk_keeps_its_message(self) -> None:
+        stream = FakeStream([{"error": "model ran out of memory"}])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaisesRegex(model.BackendError, "out of memory"):
+            self._adapter(stream).generate(request)
+
+    def test_output_failure_is_not_reported_as_backend_failure(self) -> None:
+        stream = FakeStream([{"message": {"content": "a"}}])
+
+        def broken(_: str) -> None:
+            raise BrokenPipeError("stdout closed")
+
+        request = model.ModelRequest("p", None, settings.Budgets(), on_text=broken)
+        with self.assertRaises(BrokenPipeError):
+            self._adapter(stream).generate(request)
+
+    def test_stream_socket_timeout_is_classified(self) -> None:
+        stream = FakeStream([socket.timeout("slow")])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_TIMEOUT)
+
+
 class OllamaLocalOnlyTest(unittest.TestCase):
+    def test_credentials_are_reported_first_and_never_echoed(self) -> None:
+        for url in (
+            "http://bob:hunter2@127.0.0.1:99999",
+            "http://bob:hunter2@127.0.0.1:11434",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertIn("credentials", str(caught.exception))
+                self.assertNotIn("hunter2", str(caught.exception))
+
+    def test_non_loopback_error_does_not_echo_the_url(self) -> None:
+        with self.assertRaises(model.BackendError) as caught:
+            model.check_loopback_url("http://gpu-box.corp.internal:11434/?t=abc123")
+        message = str(caught.exception)
+        self.assertNotIn("abc123", message)
+        self.assertNotIn("gpu-box", message)
+
+    def test_extra_url_parts_are_rejected_without_echo(self) -> None:
+        for url in (
+            "http://127.0.0.1:11434/x",
+            "http://127.0.0.1:11434/?session=opaque123",
+            "http://127.0.0.1:11434/;p=opaque123",
+            "http://localhost:11434#opaque123",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+                self.assertNotIn("opaque123", str(caught.exception))
+        for url in (
+            "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434/",
+            "http://[::1]",
+        ):
+            with self.subTest(url):
+                model.check_loopback_url(url)
+
+    def test_unparsable_url_is_refused_without_echo(self) -> None:
+        for url in (
+            "http://[SECRETTOKEN]:11434",
+            "http://[::1]SECRETTOKEN:11434",
+            "http://SECRETTOKEN@[::1",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+                self.assertNotIn("SECRETTOKEN", str(caught.exception))
+
+    def test_whitespace_and_control_characters_are_refused(self) -> None:
+        for url in (
+            " http://127.0.0.1:11434",
+            "http://127.0.0.1:11434 ",
+            "http://loc\nalhost:11434",
+            "http://127.0.0.1:11434\t",
+        ):
+            with self.subTest(repr(url)):
+                with self.assertRaisesRegex(model.BackendError, "whitespace"):
+                    model.check_loopback_url(url)
+
+    def test_accepted_url_is_rebuilt_from_host_and_port(self) -> None:
+        cases = {
+            "http://127.0.0.1:11434": "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434/": "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434?": "http://127.0.0.1:11434",
+            "http://localhost:11434#": "http://localhost:11434",
+            "HTTP://LOCALHOST:11434/;": "http://localhost:11434",
+            "http://[::1]": "http://[::1]",
+            "http://[::1]:11434/": "http://[::1]:11434",
+        }
+        for url, expected in cases.items():
+            with self.subTest(url):
+                self.assertEqual(model.check_loopback_url(url), expected)
+
+    def test_scheme_is_never_echoed(self) -> None:
+        for url in ("sk-secrettoken:11434", "SECRETTOKEN://127.0.0.1"):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertNotIn("secrettoken", str(caught.exception).lower())
+
+    def test_adapter_stores_and_uses_the_rebuilt_url(self) -> None:
+        transport = FakeTransport(_healthy())
+        adapter = model.OllamaModel(
+            base_url="http://127.0.0.1:11434?",
+            manifest_digest=DIGEST,
+            transport=transport,
+        )
+        self.assertEqual(adapter.describe()["base_url"], "http://127.0.0.1:11434")
+        adapter.preflight()
+        self.assertTrue(
+            all(
+                call[1].startswith("http://127.0.0.1:11434/api/")
+                for call in transport.calls
+            ),
+            transport.calls,
+        )
+
+    def test_invalid_port_rejected(self) -> None:
+        for url in (
+            "http://127.0.0.1:99999",
+            "http://localhost:abc",
+            "http://127.0.0.1:0",
+            "http://127.0.0.1:",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+
     def test_non_loopback_endpoint_refused(self) -> None:
         for url in (
             "http://10.0.0.5:11434",

@@ -9,6 +9,7 @@ included.
 from __future__ import annotations
 
 import dataclasses
+import fnmatch
 import hashlib
 import io
 import pathlib
@@ -16,6 +17,8 @@ import subprocess
 import tarfile
 
 from local_agent import settings
+from lrh.conversations import sensitivity
+from lrh.shared import sensitivity_rules
 
 
 class SourceError(ValueError):
@@ -39,6 +42,7 @@ class SourceRef:
     total_bytes: int
     truncated: bool
     relation: str
+    sensitivity_warnings: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -71,6 +75,18 @@ def split_lines(text: str) -> list[str]:
     return lines
 
 
+def list_tracked_files(repo: pathlib.Path, commit: str) -> list[str]:
+    """Repository-relative paths of files tracked at ``commit``."""
+    output = _git(repo, "ls-tree", "-r", "--name-only", commit)
+    return [line for line in output.decode("utf-8").splitlines() if line]
+
+
+def repo_root(start: pathlib.Path) -> pathlib.Path:
+    """The Git top-level directory containing ``start``."""
+    output = _git(start, "rev-parse", "--show-toplevel")
+    return pathlib.Path(output.decode("utf-8").strip())
+
+
 def resolve_commit(repo: pathlib.Path, revision: str) -> str:
     """Return the full commit SHA for ``revision`` in ``repo``."""
     output = _git(repo, "rev-parse", "--verify", f"{revision}^{{commit}}")
@@ -82,9 +98,43 @@ def check_path_allowed(project_relative_path: str) -> None:
     normalized = project_relative_path.replace("\\", "/")
     if normalized.startswith("/") or ".." in normalized.split("/"):
         raise SourceError(f"path must be relative and confined: {normalized}")
+    # Match private subtrees at any depth (``sub/project/executions/...``).
+    bounded = f"/{normalized}".lower()
     for prefix in settings.EXCLUDED_PROJECT_PREFIXES:
-        if normalized.startswith(prefix):
+        if f"/{prefix}" in bounded:
             raise SourceError(f"excluded private path: {normalized}")
+    *directories, basename = normalized.lower().split("/")
+    for pattern in settings.CREDENTIAL_NAME_PATTERNS:
+        if fnmatch.fnmatchcase(basename, pattern):
+            raise SourceError(f"excluded credential-like path: {normalized}")
+    for directory in directories:
+        for pattern in settings.CREDENTIAL_DIR_PATTERNS:
+            if fnmatch.fnmatchcase(directory, pattern):
+                raise SourceError(f"excluded credential-like path: {normalized}")
+
+
+def check_text_allowed(repo_path: str, text: str) -> tuple[str, ...]:
+    """Apply proposal Decision 3's severity rule (a best-effort guard).
+
+    A high-severity finding (secret, token, private key, URL credentials,
+    payment card, government ID) excludes the source. Medium-severity findings
+    (email, IP address, phone) do not; their categories are returned as
+    warnings. Any severity other than medium is treated as high. Errors and
+    warnings name categories only, never matched content.
+    """
+    scan = sensitivity.scan_text_for_sensitive_findings(text)
+    blocking = sorted(
+        {
+            finding.category
+            for finding in scan.findings
+            if finding.severity != sensitivity_rules.SEVERITY_MEDIUM
+        }
+    )
+    if blocking:
+        raise SourceError(
+            f"excluded by sensitivity scan ({', '.join(blocking)}): {repo_path}"
+        )
+    return tuple(sorted({finding.category for finding in scan.findings}))
 
 
 def _join(project_dir: str, project_relative_path: str) -> str:
@@ -131,6 +181,7 @@ def make_source(
     check_path_allowed(project_relative_path)
     repo_path = _join(project_dir, project_relative_path)
     text, raw, blob_id = read_tracked_text(repo, commit, repo_path)
+    warnings = check_text_allowed(repo_path, text)
     lines = split_lines(text)
     kept: list[str] = []
     used = 0
@@ -155,6 +206,7 @@ def make_source(
         total_bytes=len(raw),
         truncated=truncated,
         relation=relation,
+        sensitivity_warnings=warnings,
     )
     return ref, "".join(kept)
 

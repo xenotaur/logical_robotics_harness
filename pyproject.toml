@@ -57,6 +57,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
+"lrh.ux" = ["static/*.css"]
 "lrh.assist" = ["templates/*.md", "templates/*/*.md", "templates/**/*.md"]
 "lrh" = [
   "templates/project_bootstrap/*.md",

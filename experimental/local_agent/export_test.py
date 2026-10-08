@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from local_agent import (
+    ask,
     context,
     export,
     model,
@@ -236,6 +237,176 @@ class ExportTest(unittest.TestCase):
         self.assertIn("S1 project/work_items/proposed/WI-T-1.md", text)
         self.assertIn("outcome: completed", text)
         self.assertNotIn("SECRET PACKET BODY", text)
+
+
+class AskExportTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.base = pathlib.Path(self._tmp.name)
+        repo = self.base / "repo"
+        repo.mkdir()
+        testing_support.make_repo(repo)
+        self.store = recorder.Store(
+            self.base / "store", clock=testing_support.SteppingClock()
+        )
+        self.ctx = ask.build_context(repo=repo, files=["project/design/demo.md"])
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _ask(self, answer: str, question: str | None = None) -> str:
+        return ask.run_ask(
+            store=self.store,
+            question=question or "PRIVATE QUESTION?",
+            ctx=self.ctx,
+            adapter=model.FakeModel([model.ModelResponse(answer, "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+
+    def _export(self, run_id: str, **kwargs: object) -> dict:
+        path = export.export_run(
+            self.store, run_id, self.base / "out", home=str(self.base), **kwargs
+        )
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_default_export_omits_question_answer_and_note(self) -> None:
+        run_id = self._ask("PRIVATE ANSWER")
+        ask.record_rating(self.store, run_id, "o", "PRIVATE NOTE")
+        text = json.dumps(self._export(run_id))
+        for secret in ("PRIVATE QUESTION", "PRIVATE ANSWER", "PRIVATE NOTE"):
+            self.assertNotIn(secret, text)
+        self.assertIn('"value": "ok"', text)
+
+    def test_include_output_requires_rating_and_clean_scan(self) -> None:
+        run_id = self._ask("Fine answer (S1:L1).")
+        with self.assertRaisesRegex(export.ExportError, "rated runs"):
+            self._export(run_id, include_output=True)
+        ask.record_rating(self.store, run_id, "g", "nice")
+        exported = self._export(run_id, include_output=True)
+        self.assertEqual(exported["answer"], "Fine answer (S1:L1).")
+        self.assertEqual(exported["run"]["rating"]["note"], "nice")
+
+        leaky = self._ask("api_key = sk-live-abcdef0123456789abcdef")
+        ask.record_rating(self.store, leaky, "b")
+        with self.assertRaisesRegex(export.ExportError, "withheld"):
+            self._export(leaky, include_output=True)
+
+    def test_include_output_withholds_medium_only_findings(self) -> None:
+        cases = (
+            ("Ask ops@example.org.", "ok", "answer"),
+            ("Fine answer.", "ok", "question"),
+            ("Fine answer.", "call 555-867-5309 about it", "rating note"),
+        )
+        for answer, note, label in cases:
+            with self.subTest(label):
+                question = "Is 10.1.2.3 up?" if label == "question" else None
+                run_id = self._ask(answer, question=question)
+                ask.record_rating(self.store, run_id, "g", note)
+                with self.assertRaisesRegex(export.ExportError, "withheld"):
+                    self._export(run_id, include_output=True)
+
+    def test_real_model_runs_export_with_loopback_endpoint(self) -> None:
+        class OllamaShaped(model.FakeModel):
+            def describe(self) -> dict[str, object]:
+                return {
+                    "backend": "ollama",
+                    "base_url": "http://127.0.0.1:11434",
+                    "model": "gemma4:12b",
+                    "local_only": True,
+                }
+
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=self.ctx,
+            adapter=OllamaShaped([model.ModelResponse("ok", "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:11434")
+        self.assertNotIn("127.0.0.1", json.dumps(exported))
+
+    def test_hex_digests_do_not_trip_the_final_scan(self) -> None:
+        luhn_digest = "5d8f6cce532a7aeb57196be62344095936793400b3aeb3580d248b17d5518a86"
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, prompt_template_sha256=luhn_digest)
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["prompt_template_sha256"], luhn_digest)
+
+    def test_invalid_endpoint_port_exports_as_invalid(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(
+            run_id, model={"backend": "ollama", "base_url": "http://127.0.0.1:99999"}
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:invalid")
+
+    def test_long_run_timings_do_not_trip_the_final_scan(self) -> None:
+        run_id = self._ask("ok")
+        luhn_ns = 1234567890128
+        self.store.update_run(
+            run_id, usage={"backend_timings": {"total_duration_ns": luhn_ns}}
+        )
+        exported = self._export(run_id)
+        timings = exported["run"]["usage"]["backend_timings"]
+        self.assertEqual(timings["total_duration_ns"], luhn_ns)
+
+    def test_prefixed_hex_tokens_are_not_masked(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, model={"model": "sk-" + "ab12" * 10})
+        with self.assertRaisesRegex(export.ExportError, "export withheld"):
+            self._export(run_id)
+
+    def test_free_text_is_scanned_unmasked(self) -> None:
+        hex_email = "ab" * 16 + "@example.com"
+        luhn_digest = "5d8f6cce532a7aeb57196be62344095936793400b3aeb3580d248b17d5518a86"
+        cases = (
+            (f"Reply to {hex_email}.", "", "hex-local-part email in the answer"),
+            ("Fine answer.", f"matches {luhn_digest}", "quoted digest in the note"),
+        )
+        for answer, note, label in cases:
+            with self.subTest(label):
+                run_id = self._ask(answer)
+                ask.record_rating(self.store, run_id, "g", note)
+                with self.assertRaisesRegex(export.ExportError, "withheld"):
+                    self._export(run_id, include_output=True)
+
+    def test_only_whole_digest_values_are_neutralized(self) -> None:
+        hex_email = "ab" * 16 + "@example.com"
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, model={"model": hex_email})
+        with self.assertRaisesRegex(export.ExportError, "email"):
+            self._export(run_id)
+
+    def test_port_zero_and_booleans_survive_export(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(
+            run_id,
+            model={"backend": "ollama", "base_url": "http://127.0.0.1:0"},
+            flag=True,
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:0")
+        self.assertIs(exported["run"]["flag"], True)
+
+    def test_failure_details_with_findings_are_withheld(self) -> None:
+        run_id = ask.record_failure(
+            self.store,
+            "q",
+            "missing_prerequisite",
+            "adapter: endpoint must be loopback, got "
+            "'http://10.9.8.7:11434/?token=ghp_abcdef0123456789abcdef0123'",
+        )
+        text = json.dumps(self._export(run_id))
+        self.assertNotIn("ghp_", text)
+        self.assertNotIn("10.9.8.7", text)
+        self.assertIn("[withheld:", text)
+
+    def test_inspect_shows_kind_and_sources(self) -> None:
+        run_id = self._ask("x")
+        summary = export.inspect_run(self.store, run_id)
+        self.assertIn("ask", summary)
+        self.assertIn("project/design/demo.md", summary)
 
 
 if __name__ == "__main__":

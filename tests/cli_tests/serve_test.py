@@ -612,6 +612,26 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn('class="lrh-map-table"', table)
         self.assertIn("Nothing in this view is waiting or blocked.", blockers)
 
+    def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+
+        with unittest.mock.patch.object(
+            dependency_map_snapshot.loader,
+            "load_project",
+            side_effect=ValueError("bad control file"),
+        ):
+            for path in (
+                "/project/main/dependency-maps/main",
+                "/api/project/main/dependency-maps/main",
+            ):
+                with self.subTest(path=path):
+                    with self.assertRaises(urllib.error.HTTPError) as get_ctx:
+                        self._read(base_url + path)
+                    with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                        self._head(base_url + path)
+                    self.assertEqual(get_ctx.exception.code, 500)
+                    self.assertEqual(head_ctx.exception.code, 500)
+
     def test_dependency_map_index_and_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
         base = base_url + "/project/main/dependency-maps"

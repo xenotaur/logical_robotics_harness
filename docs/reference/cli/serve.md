@@ -102,8 +102,8 @@ lrh serve --desktop-protocol
   view, 422 for an invalid declaration, and 500 if the view or the project's
   control files cannot be read. As with the other `/project/<project_id>/`
   routes, a `project_id` that the Meta registry cannot resolve to a local
-  checkout falls back to the served project. HEAD checks only the view
-  declaration. `lrh dependency-map snapshot <view>` prints the same JSON; see
+  checkout falls back to the served project. HEAD builds the snapshot
+  as GET does, so the two always agree. `lrh dependency-map snapshot <view>` prints the same JSON; see
   the [dependency-map reference](dependency-map.md).
 
 ## Conversation archive routes

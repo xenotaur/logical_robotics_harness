@@ -36,6 +36,44 @@ STATE_STYLES = {
     "unknown": ("unknown", "?", "Unknown"),
 }
 LINE_LABELS = {"depends_on": "Depends on", "blocked_by": "Blocked by"}
+EMPTY_VIEW = "This view has no items yet. Add work items to its lanes or phases."
+
+
+def _outside(node: Node) -> str:
+    if not node.offscreen_predecessors:
+        return ""
+    return (
+        f'<span class="lrh-outside">+{node.offscreen_predecessors} outside this '
+        "view</span>"
+    )
+
+
+def _unmet_needs(
+    snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node
+) -> list[tuple[str, str, str]]:
+    """Every unfinished prerequisite or blocker, as (kind, target, lifecycle).
+
+    Built from the edges, not only the reasons for the winning state, so a
+    flagged item still lists its unfinished dependencies. Offscreen nodes have
+    no outgoing edges in the snapshot, so their reasons are used instead.
+    """
+
+    needs = [
+        (
+            (edge.kind, edge.target, nodes[edge.target].lifecycle)
+            if edge.target in nodes
+            else (edge.kind, edge.target, "missing")
+        )
+        for edge in snapshot.edges
+        if edge.item == node.id
+    ]
+    if not any(edge.item == node.id for edge in snapshot.edges):
+        needs = [
+            (reason.kind, reason.target, reason.target_lifecycle or "missing")
+            for reason in node.state_reasons
+            if reason.target
+        ]
+    return [need for need in needs if need[2] != "resolved"]
 
 
 def render_view(
@@ -161,8 +199,20 @@ def _why(node: Node) -> str:
     return node.lifecycle.capitalize()
 
 
+def _closed(node: Node) -> bool:
+    return node.state in ("done", "abandoned")
+
+
+def _ready_text(node: Node, unknown: str = "Unknown") -> str:
+    """Prompt-readiness, which only applies to open work."""
+
+    if _closed(node):
+        return "Not applicable (closed)"
+    return {True: "Yes", False: "No", None: unknown}[node.prompt_ready]
+
+
 def _not_prompt_ready(node: Node) -> str:
-    if node.prompt_ready is False and node.state not in ("done", "abandoned"):
+    if node.prompt_ready is False and not _closed(node):
         return '<span class="lrh-flag">Not prompt-ready</span>'
     return ""
 
@@ -299,12 +349,7 @@ def _map(
             role = '<span class="lrh-role">Downstream</span>'
         if node.state == "blocked":
             classes += " lrh-card--blocked"
-        outside = (
-            f'<span class="lrh-outside">+{node.offscreen_predecessors} outside this '
-            "view</span>"
-            if node.offscreen_predecessors
-            else ""
-        )
+        outside = _outside(node)
         cards.append(
             f'<a class="{classes}" href="{_attr(_href("map", card.id))}"'
             f' title="{_attr(card.id + ": " + node.title)}"'
@@ -317,12 +362,7 @@ def _map(
             f"{_not_prompt_ready(node)}</span>"
             f'<span class="lrh-card-why">{html.escape(_why(node))}{outside}</span></a>'
         )
-    empty = (
-        '<p class="lrh-muted">This view has no items yet. Add work items to its '
-        "lanes or phases.</p>"
-        if not result.cards
-        else ""
-    )
+    empty = f'<p class="lrh-muted">{EMPTY_VIEW}</p>' if not result.cards else ""
     return f"""<section class="lrh-map-scroll" aria-label="Dependency map">
 {empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px">
   {lanes}{phases}
@@ -364,10 +404,14 @@ def _focused_list(
             f'{current if node.id == selected else ""}>'
             f'<span class="lrh-mono">{html.escape(node.id)}</span> '
             f"{html.escape(node.title)}</a> {_pill(node.state)}"
-            f'<span class="lrh-card-why">{html.escape(_why(node))}</span></li>'
+            f"{_not_prompt_ready(node)}"
+            f'<span class="lrh-card-why">{html.escape(_why(node))}'
+            f"{_outside(node)}</span></li>"
             for node in members
         )
         groups.append(f"<h3>{html.escape(phase.title)}</h3><ul>{items}</ul>")
+    if not groups:
+        groups.append(f'<p class="lrh-muted">{EMPTY_VIEW}</p>')
     return (
         '<section class="lrh-map-list" aria-label="Dependency map as a list">'
         + "".join(groups)
@@ -385,12 +429,8 @@ def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         needed_by.setdefault(edge.target, []).append(edge.item)
     rows = []
     for node in snapshot.nodes:
-        unmet = [
-            reason.target
-            for reason in node.state_reasons
-            if reason.target and reason.target_lifecycle != "resolved"
-        ]
-        ready = {True: "Yes", False: "No", None: "Unknown"}[node.prompt_ready]
+        unmet = [target for _kind, target, _life in _unmet_needs(snapshot, nodes, node)]
+        ready = _ready_text(node)
         dependents = sorted(set(needed_by.get(node.id, [])))
         rows.append(
             "<tr>"
@@ -446,21 +486,16 @@ def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         )
     items = []
     for node in stuck:
-        needs = "".join(
-            "<li>"
-            + (
-                f"Blocked: {html.escape(reason.detail or 'no reason given')}"
-                if reason.kind == "blocked_flag"
-                else (
-                    f"{'Blocked by' if reason.kind == 'blocked_by' else 'Needs'} "
-                    f'<a class="lrh-mono" href="'
-                    f'{_attr(_href("blockers", reason.target or ""))}">'
-                    f"{html.escape(reason.target or '')}</a> "
-                    f"({html.escape(reason.target_lifecycle or '')})"
-                )
-            )
-            + "</li>"
+        flags = [
+            f"<li>Blocked: {html.escape(reason.detail or 'no reason given')}</li>"
             for reason in node.state_reasons
+            if reason.kind == "blocked_flag"
+        ]
+        needs = "".join(flags) + "".join(
+            f"<li>{'Blocked by' if kind == 'blocked_by' else 'Needs'} "
+            f'<a class="lrh-mono" href="{_attr(_href("blockers", target))}">'
+            f"{html.escape(target)}</a> ({html.escape(lifecycle)})</li>"
+            for kind, target, lifecycle in _unmet_needs(snapshot, nodes, node)
         )
         items.append(
             f'<li><a class="lrh-mono" href="'
@@ -498,9 +533,7 @@ def _drawer(
     reasons = "".join(
         f"<li>{html.escape(_reason_text(reason))}</li>" for reason in node.state_reasons
     )
-    ready = {True: "Yes", False: "No", None: "Unknown (readiness unavailable)"}[
-        node.prompt_ready
-    ]
+    ready = _ready_text(node, unknown="Unknown (readiness unavailable)")
     lane = _lane_label(snapshot, node)
     if node.lane_reason:
         lane += f" ({node.lane_source}: {node.lane_reason})"
@@ -508,6 +541,11 @@ def _drawer(
         lane += f" ({node.lane_source})"
     close = html.escape(_href(tab), quote=True)
     full = html.escape(full_page_href(node.id), quote=True)
+    show_on_map = (
+        f'<a href="{_attr(_href("map", node.id))}">Show on map</a> · '
+        if tab != "map" and not node.offscreen
+        else ""
+    )
     return f"""<aside class="lrh-drawer" aria-labelledby="lrh-drawer-title">
   <header>
     <h2 id="lrh-drawer-title" class="lrh-mono">{html.escape(node.id)}</h2>
@@ -531,7 +569,7 @@ def _drawer(
     <dt>Source</dt><dd><code>{html.escape(node.source)}</code></dd>
     <dt>Effort</dt><dd>Not modeled yet</dd>
   </dl>
-  <p><a href="{full}">Open the full page</a></p>
+  <p>{show_on_map}<a href="{full}">Open the full page</a></p>
 </aside>"""
 
 
@@ -712,7 +750,7 @@ MAP_STYLES = """
   }
   .lrh-card-title {
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     display: -webkit-box;
     font-size: 0.85rem;
     font-weight: 600;

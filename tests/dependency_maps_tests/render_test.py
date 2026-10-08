@@ -355,6 +355,46 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Blocked: waiting on ops", page)
         self.assertNotIn(">WI-D<", page)
 
+    def test_prompt_readiness_does_not_apply_to_closed_items(self) -> None:
+        page = _view(_example(), item="WI-D") + _view(_example(), tab="table")
+
+        self.assertIn("Not applicable (closed)", page)
+
+    def test_needs_come_from_edges_not_only_the_winning_state(self) -> None:
+        flagged = _node(
+            "WI-F",
+            "WS-A",
+            "one",
+            "blocked",
+            reasons=(StateReason(kind="blocked_flag", detail="ops"),),
+        )
+        snapshot = _snapshot(
+            (flagged, _node("WI-A", "WS-B", "one")), (_edge("WI-F", "WI-A"),)
+        )
+
+        table = _view(snapshot, tab="table")
+        blockers = _view(snapshot, tab="blockers")
+
+        row = table.split('href="?tab=table&amp;item=WI-F"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn("WI-A", row)
+        self.assertIn("Blocked: ops", blockers)
+        self.assertIn('href="?tab=blockers&amp;item=WI-A"', blockers)
+
+    def test_drawer_offers_the_map_from_other_tabs(self) -> None:
+        self.assertIn("Show on map", _view(_example(), tab="table", item="WI-B"))
+        self.assertNotIn("Show on map", _view(_example(), item="WI-B"))
+
+    def test_the_narrow_list_keeps_flags_counts_and_empty_state(self) -> None:
+        outside = dataclasses.replace(
+            _node("WI-B", "WS-A", "one", prompt_ready=False), offscreen_predecessors=2
+        )
+        listing = _view(_snapshot((outside,))).split('<section class="lrh-map-list"')[1]
+
+        self.assertIn("Not prompt-ready", listing)
+        self.assertIn("+2 outside this view", listing)
+        empty = _view(_snapshot(())).split('<section class="lrh-map-list"')[1]
+        self.assertIn("This view has no items yet.", empty)
+
     def test_blockers_says_so_when_nothing_waits(self) -> None:
         page = _view(_snapshot((_node("WI-A", "WS-A", "one"),)), tab="blockers")
 

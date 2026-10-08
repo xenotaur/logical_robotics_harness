@@ -267,9 +267,10 @@ def _dependency_map_document(title: str, body: str) -> str:
 
 
 def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
-    """Return the dependency-map route's status from the view declaration alone.
+    """Return the status GET would give for a dependency-map path.
 
-    HEAD answers without loading the project or building the snapshot.
+    HEAD builds the snapshot exactly as GET does, so the two always agree,
+    including a 500 when another control file cannot be read.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
@@ -277,12 +278,12 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
         return 404
     repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
     try:
-        dependency_map_view.load_view(repo_root, parts[2])
+        dependency_map_snapshot.build_snapshot(repo_root, parts[2])
     except FileNotFoundError:
         return 404
     except dependency_map_view.ViewDeclarationError:
         return 422
-    except OSError:
+    except dependency_map_snapshot.SnapshotError:
         return 500
     return 200
 

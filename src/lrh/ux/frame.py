@@ -133,9 +133,11 @@ def apply_frame(page: str, context: FrameContext) -> str:
     )
     # One main landmark per page: keep the page's own <main> if it has one.
     tag = "div" if "<main" in body else "main"
+    # A page that renders its own detail drawer replaces the frame's default.
+    own_drawer = 'class="lrh-drawer"' in body
     return (
         before
-        + _frame_open(title or "LRH Console", context, tag)
+        + _frame_open(title or "LRH Console", context, tag, own_drawer)
         + body
         + f"\n  </{tag}>\n</div>\n"
         + after
@@ -167,6 +169,7 @@ def _views(selector: str | None) -> list[tuple[str, str, str]]:
         ]
     return [
         ("Overview", f"/project/{_quote(selector)}", "house"),
+        ("Dependency maps", f"/project/{_quote(selector)}/dependency-maps", "network"),
         ("Statusboard", HOME_PATH, "layout-dashboard"),
     ]
 
@@ -178,7 +181,9 @@ def _current_url(context: FrameContext, **overrides: str | None) -> str:
     return context.path + (f"?{encoded}" if encoded else "")
 
 
-def _frame_open(title: str, context: FrameContext, tag: str) -> str:
+def _frame_open(
+    title: str, context: FrameContext, tag: str, own_drawer: bool = False
+) -> str:
     selector, scope_label = _labels(context)
     rendered_at = context.rendered_at or datetime.datetime.now(datetime.UTC)
     stamp = rendered_at.astimezone(datetime.UTC).strftime("%H:%M:%S UTC")
@@ -230,7 +235,7 @@ def _frame_open(title: str, context: FrameContext, tag: str) -> str:
     </details>
     <ul class="lrh-views">{views}</ul>
   </nav>
-{_drawer(context)}  <{tag} class="lrh-main" id="lrh-content">"""
+{"" if own_drawer else _drawer(context)}  <{tag} class="lrh-main" id="lrh-content">"""
 
 
 def _scope_link(label: str, href: str, current: bool) -> str:

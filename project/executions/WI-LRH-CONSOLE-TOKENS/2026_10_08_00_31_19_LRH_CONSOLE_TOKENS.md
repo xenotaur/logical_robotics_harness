@@ -2,13 +2,13 @@
 execution_id: 2026_10_08_00_31_19_LRH_CONSOLE_TOKENS
 prompt_id: PROMPT(WI-LRH-CONSOLE-TOKENS:LRH_CONSOLE_TOKENS)[2026-10-07T23:24:24+00:00]
 work_item: WI-LRH-CONSOLE-TOKENS
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/785
-commit:
+commit: e25bfe3127da9ab5ed13350c07ec682e872f19c7
 agent: "claude_app"
 instruction_source: "user request in session: /lrh-execute WS-LRH-CONSOLE-LOCAL-DOGFOOD (chain approved: \"Approve as stated\")"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-08T00:31:19+00:00
 ---
 

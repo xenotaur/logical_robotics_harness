@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-TOKENS"
 title: "Add the shared LRH Console token file, style specimen, and contrast test"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #785 (commit e25bfe31). One --lrh- token file (src/lrh/ux/static/lrh-tokens.css) holds every color, space, radius, font-role, shadow, and motion token for light and dark; Serve inlines it and the desktop app bundles an identical copy, with a sync test. A read-only /style specimen follows the system theme while every existing Serve page stays light until WI-LRH-CONSOLE-THEME. Contrast tests cover every declared text, line, focus, status, and band pair in both themes; they moved the light edge color to #78849f (3.19:1 on the sunken surface). The Settings highlight and scroll honor reduced motion. color.plane tokens are deferred until a view needs them.'
 owner: "anthony"
 contributors:
 - "anthony"

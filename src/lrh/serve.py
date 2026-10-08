@@ -850,11 +850,20 @@ def render_project_operational_dashboard(
 def _project_from_meta_selector(
     config: ServeConfig, project_selector: str
 ) -> tuple[meta_workspace.MetaProjectRecord | None, Path | None]:
-    workspace = meta_workspace.resolve_meta_workspace(
-        cwd=config.resolved_project_root(),
-        options=meta_workspace.MetaWorkspaceResolveOptions(),
-    )
-    for result in meta_workspace.list_registered_project_loads_in_workspace(workspace):
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        load_results = meta_workspace.list_registered_project_loads_in_workspace(
+            workspace
+        )
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ):
+        return None, None
+    for result in load_results:
         if result.record is None:
             continue
         if project_selector in {result.registry_name, result.record.project_id}:

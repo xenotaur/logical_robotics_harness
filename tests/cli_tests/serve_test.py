@@ -1494,6 +1494,32 @@ Body.
         self.assertIn("Parent: WS-A", body)
         self.assertIn("Child &lt;stream&gt;", body)
 
+    def test_detail_routes_return_not_found_without_meta_workspace(self) -> None:
+        # An empty config home and blank overrides leave no Meta workspace to
+        # resolve; the detail routes must answer 404 instead of dropping the
+        # connection.
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            for route in (
+                "/project/main/designs/DP-1",
+                "/project/main/workstreams/WS-A",
+            ):
+                with self.subTest(route=route):
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        self._read(base_url + route)
+                    self.assertEqual(caught.exception.code, 404)
+                    payload = json.loads(caught.exception.read().decode("utf-8"))
+                    self.assertEqual(payload, {"error": "not_found", "project": "main"})
+
     def test_project_dashboard_route_escapes_dynamic_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

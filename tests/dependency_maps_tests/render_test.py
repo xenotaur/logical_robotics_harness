@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import html
+import json
 import re
 import unittest
 
@@ -453,10 +455,31 @@ class RenderTest(unittest.TestCase):
     def test_items_and_lines_carry_data_for_the_script(self) -> None:
         page = _view(_example())
 
-        self.assertIn('data-id="WI-B" data-state="waiting" data-unmet="WI-A"', page)
+        self.assertIn(
+            'data-id="WI-B" data-state="waiting" data-unmet="[&quot;WI-A&quot;]"',
+            page,
+        )
+        self.assertIn('data-id="WI-A" data-state="unblocked" data-unmet="[]"', page)
         self.assertIn('data-source="WI-A" data-item="WI-B"', page)
         self.assertIn('class="lrh-dependency-map" data-lrh-tab="map"', page)
         self.assertEqual(page.count("<aside"), 0)
+
+    def test_unmet_ids_with_spaces_survive_as_a_json_list(self) -> None:
+        page = _view(
+            _snapshot(
+                (
+                    _node("WI-NEEDS REVIEW", "WS-A", "one"),
+                    _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+                ),
+                (_edge("WI-B", "WI-NEEDS REVIEW"),),
+            )
+        )
+
+        match = re.search(
+            r'data-id="WI-B" data-state="waiting" data-unmet="([^"]*)"', page
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(json.loads(html.unescape(match.group(1))), ["WI-NEEDS REVIEW"])
 
     def test_untrusted_text_is_escaped_and_there_are_no_scripts(self) -> None:
         hostile = '<script>alert("x")</script>'

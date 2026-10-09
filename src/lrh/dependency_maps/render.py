@@ -11,6 +11,7 @@ text as well as a color, and lines differ by style as well as weight.
 from __future__ import annotations
 
 import html
+import json
 import urllib.parse
 
 from lrh.dependency_maps.layout import Layout, LayoutResult
@@ -154,8 +155,9 @@ def render_view(
 def _data(snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node) -> str:
     """Data attributes the packaged script reads; inert without scripts."""
 
-    unmet = " ".join(
-        dict.fromkeys(t for _k, t, _l in _unmet_needs(snapshot, nodes, node))
+    # A JSON list, not a space-joined string: work-item IDs may contain spaces.
+    unmet = json.dumps(
+        list(dict.fromkeys(t for _k, t, _l in _unmet_needs(snapshot, nodes, node)))
     )
     return (
         f' data-id="{_attr(node.id)}" data-state="{_attr(node.state)}"'

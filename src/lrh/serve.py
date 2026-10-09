@@ -3576,7 +3576,10 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 else frame.read_static(name)
             )
             if body is None:
-                self._write_json(404, {"error": "not_found"})
+                if head:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_json(404, {"error": "not_found"})
                 return
             self.send_response(200)
             self.send_header("Content-Type", frame.STATIC_FILES[name])

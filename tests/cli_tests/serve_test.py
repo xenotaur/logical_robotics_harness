@@ -1,3 +1,4 @@
+import http.client
 import io
 import json
 import os
@@ -12,6 +13,7 @@ import threading
 import unittest
 import unittest.mock
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from lrh import serve
@@ -515,6 +517,17 @@ class TestLrhServeRoutes(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as err_ctx:
                     self._read(static_url + name)
                 self.assertEqual(err_ctx.exception.code, 404)
+                # HEAD keeps the 404 but, like every HEAD, sends no body.
+                parts = urllib.parse.urlsplit(static_url)
+                connection = http.client.HTTPConnection(
+                    parts.hostname, parts.port, timeout=5
+                )
+                self.addCleanup(connection.close)
+                connection.request("HEAD", name)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 404)
+                self.assertEqual(response.read(), b"")
+                self.assertIsNone(response.getheader("Content-Length"))
         with urllib.request.urlopen(live_url + script, timeout=5) as response:
             self.assertEqual(response.headers["Cache-Control"], "no-cache")
 

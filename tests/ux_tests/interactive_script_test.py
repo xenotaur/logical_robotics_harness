@@ -51,7 +51,17 @@ class InteractiveScriptTest(unittest.TestCase):
         self.assertIn('if (root.hasAttribute("data-theme")) return;', self.early)
 
     def test_filters_keep_unfinished_needs_visible(self) -> None:
-        self.assertIn("item.dataset.unmet", self.source)
+        # The list is JSON, never split on spaces: IDs may contain them.
+        self.assertIn('JSON.parse(item.dataset.unmet || "[]")', self.source)
+        self.assertNotIn("unmet.split(", self.source)
+
+    def test_closing_a_drawer_returns_focus_before_hiding_it(self) -> None:
+        body = self.source.split("function showDrawer(id) {", 1)[1].split(
+            "\n    }\n", 1
+        )[0]
+        guard = body.index("drawer.contains(document.activeElement)")
+        self.assertLess(guard, body.index("trigger.focus()"))
+        self.assertLess(body.index("map.focus()"), body.index("drawer.hidden = hide;"))
 
 
 if __name__ == "__main__":

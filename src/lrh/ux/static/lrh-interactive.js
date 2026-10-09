@@ -137,9 +137,31 @@
       }
     }
 
+    // The card, table row, or list link that opens a drawer, for returning
+    // focus when that drawer closes.
+    function triggerFor(id) {
+      for (const link of map.querySelectorAll("[data-id] a[href], a.lrh-card[data-id]")) {
+        const owner = link.closest("[data-id]");
+        if (owner && owner.dataset.id === id && link.offsetParent !== null) return link;
+      }
+      return null;
+    }
+
     function showDrawer(id) {
       for (const drawer of document.querySelectorAll("[data-drawer-for]")) {
-        drawer.hidden = drawer.dataset.drawerFor !== id;
+        const hide = drawer.dataset.drawerFor !== id;
+        // Hiding the element that has focus would strand keyboard and
+        // screen-reader users, so focus returns to what opened the drawer.
+        if (hide && !drawer.hidden && drawer.contains(document.activeElement)) {
+          const trigger = triggerFor(drawer.dataset.drawerFor);
+          if (trigger) trigger.focus();
+          // A filtered (invisible) trigger cannot take focus; the map can.
+          if (!trigger || document.activeElement !== trigger) {
+            map.setAttribute("tabindex", "-1");
+            map.focus();
+          }
+        }
+        drawer.hidden = hide;
       }
     }
 
@@ -207,6 +229,16 @@
     setupFilters(map);
   }
 
+  // data-unmet is a JSON list of IDs, which may contain spaces.
+  function readUnmet(item) {
+    try {
+      const value = JSON.parse(item.dataset.unmet || "[]");
+      return Array.isArray(value) ? value.map(String) : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
   // Filters hide items by state, but never an unfinished item that a shown
   // item still needs: blockers stay visible.
   function setupFilters(map) {
@@ -240,7 +272,7 @@
 
     function refresh() {
       const byId = new Map();
-      for (const item of items) byId.set(item.dataset.id, item.dataset.unmet.split(" ").filter(Boolean));
+      for (const item of items) byId.set(item.dataset.id, readUnmet(item));
       const visible = new Set(
         items.filter((item) => shown.has(item.dataset.state)).map((item) => item.dataset.id),
       );

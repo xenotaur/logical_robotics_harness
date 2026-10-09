@@ -14,6 +14,7 @@ from lrh import (
     prompt_workflow_sessions,
     prompt_workflow_slug,
 )
+from lrh.control import frontmatter_migration
 
 VALID_STATUSES = {
     "planned",
@@ -92,7 +93,7 @@ def render_execution_content(
     session_transcript: str = "",
 ) -> str:
     optional_fields = "".join(
-        f"{field}: {value}\n"
+        f"{field}: {frontmatter_migration.render_safe_scalar(value)}\n"
         for field, value in (
             ("agent", agent),
             ("instruction_source", instruction_source),
@@ -481,30 +482,36 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
             )
             return 1
         text = record.path.read_text(encoding="utf-8")
-        text = _replace_or_insert_frontmatter_field(text, "status", args.status)
+        updates: list[tuple[str, str, tuple[str, ...]]] = [
+            ("status", args.status, ("execution_id",)),
+        ]
         if args.pr is not None:
-            text = _replace_or_insert_frontmatter_field(text, "pr", args.pr)
-        if args.commit is not None:
-            text = _replace_or_insert_frontmatter_field(text, "commit", args.commit)
-        if args.session_transcript is not None:
-            text = _replace_or_insert_frontmatter_field(
-                text,
+            updates.append(("pr", args.pr, ("rerun_of", "status")))
+        updates.append(("commit", args.commit, ("pr", "rerun_of", "status")))
+        for field, value, anchors in (
+            (
                 "session_transcript",
                 args.session_transcript,
-                insert_after="commit",
-            )
-        try:
-            for field, value in (
-                ("instruction_source", args.instruction_source),
-                ("agent", args.agent),
-            ):
-                if value is not None:
-                    text = _set_frontmatter_field(
-                        text,
+                ("commit", "pr", "status"),
+            ),
+            (
+                "instruction_source",
+                args.instruction_source,
+                ("created_at", "commit", "status"),
+            ),
+            ("agent", args.agent, ("created_at", "commit", "status")),
+        ):
+            if value is not None:
+                updates.append(
+                    (
                         field,
-                        value.strip(),
-                        anchors=("created_at", "commit", "status"),
+                        frontmatter_migration.render_safe_scalar(value.strip()),
+                        anchors,
                     )
+                )
+        try:
+            for field, value, anchors in updates:
+                text = _set_frontmatter_field(text, field, value, anchors=anchors)
         except ValueError as error:
             print(f"error: {record.path.as_posix()}: {error}", file=sys.stderr)
             return 1

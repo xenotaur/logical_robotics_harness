@@ -118,7 +118,8 @@ later through `lrh prompt update-execution --agent <value>
 `update-execution` still only moves an `in_progress` record to `landed`, so a
 record that is already `landed` or in any other status cannot be amended this
 way. Values must be non-empty and single-line; the commands reject anything
-else.
+else. A value that plain YAML would misread, such as `review: PR #531`, `true`,
+or `[foo]`, is written quoted so it round-trips as the exact string given.
 
 ## Status values
 

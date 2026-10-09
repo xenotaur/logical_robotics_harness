@@ -93,6 +93,18 @@ class PromptWorkflowTest(unittest.TestCase):
             ["created_at", "agent", "instruction_source", "session_transcript"],
         )
 
+    def test_render_execution_content_encodes_yaml_unsafe_optional_values(
+        self,
+    ) -> None:
+        content = self._render(
+            agent="true",
+            instruction_source="review: PR #531",
+            session_transcript="[foo]",
+        )
+        self.assertIn("agent: 'true'\n", content)
+        self.assertIn("instruction_source: 'review: PR #531'\n", content)
+        self.assertIn("session_transcript: '[foo]'\n", content)
+
     def test_set_frontmatter_field_replaces_existing_without_touching_body(
         self,
     ) -> None:

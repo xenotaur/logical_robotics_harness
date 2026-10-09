@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
+import tempfile
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -188,11 +190,11 @@ class PrereqOrderingTest(unittest.TestCase):
         self.assertIn("first such candidate in list order", _flatten(self.step1))
         reference = _read(SOURCE_ROOT, REFERENCE_FILE)
         self.assertIn("**first** such candidate", reference)
-        self.assertIn("**every** skipped candidate", reference)
+        self.assertIn("**every** availability-skipped", reference)
         flat = _flatten(self.step1)
         self.assertIn("do **not** run the open-PR lookup per candidate", flat)
         self.assertIn("runs lazily, once, after the whole list", flat)
-        self.assertIn("lookup **once** for all skipped candidates", flat)
+        self.assertIn("skipped by the availability check", flat)
         self.assertIn(
             "Do not run the open-PR lookup per candidate", _flatten(reference)
         )
@@ -258,6 +260,112 @@ class MirrorConsistencyTest(unittest.TestCase):
                         _body(_read(SOURCE_ROOT, relative)),
                         _body(_read(root, relative)),
                     )
+
+
+def _snippet(text: str, marker: str) -> str:
+    """Return the first fenced bash block containing `marker`."""
+    for block in _fenced_blocks(text):
+        if marker in block:
+            return block
+    raise AssertionError(f"no fenced block containing {marker!r}")
+
+
+def _git(cwd: pathlib.Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _run_availability(snippet: str, wi_id: str, cwd: pathlib.Path) -> dict[str, str]:
+    script = snippet.replace("<WI-ID>", wi_id).replace("<candidate-WI-ID>", wi_id)
+    script += '\nprintf "RESULT path=%s status=%s\\n" "${path:-}" "${status:-}"\n'
+    out = subprocess.run(
+        ["bash", "-c", script], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout
+    line = [ln for ln in out.splitlines() if ln.startswith("RESULT ")][-1]
+    path, status = re.match(r"RESULT path=(.*?) status=(.*)$", line).groups()
+    return {"path": path, "status": status}
+
+
+class AvailabilitySnippetBehaviorTest(unittest.TestCase):
+    """Run the docs' own bash snippets against real temp repositories."""
+
+    def setUp(self) -> None:
+        self.reference = _read(SOURCE_ROOT, REFERENCE_FILE)
+        self.skill = _read(SOURCE_ROOT, SKILL_FILE)
+        self.snippets = {
+            "reference": _snippet(self.reference, "git ls-tree"),
+            "skill WI-ID": _snippet(self.skill, "<WI-ID>.md"),
+            "skill WS-ID": _snippet(self.skill, "<candidate-WI-ID>.md"),
+        }
+
+    def _repo(self, project_dir: str, buckets: dict[str, str]) -> pathlib.Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = pathlib.Path(tmp.name)
+        _git(repo, "init", "-q")
+        for wi_id, status in buckets.items():
+            bucket = repo / project_dir / "project" / "work_items" / status
+            bucket.mkdir(parents=True, exist_ok=True)
+            (bucket / f"{wi_id}.md").write_text(
+                f"---\nid: {wi_id}\nstatus: '{status}'\n---\nbody\n"
+            )
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "x")
+        _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        return repo / project_dir
+
+    def test_status_is_read_at_the_repository_root_and_in_a_nested_project(
+        self,
+    ) -> None:
+        for project_dir in ("", "lcats"):
+            cwd = self._repo(
+                project_dir, {"WI-AVAIL": "proposed", "WI-DONE": "resolved"}
+            )
+            for name, snippet in self.snippets.items():
+                with self.subTest(project_dir=project_dir or "<root>", snippet=name):
+                    proposed = _run_availability(snippet, "WI-AVAIL", cwd)
+                    self.assertEqual(proposed["status"], "proposed")
+                    self.assertTrue(proposed["path"].endswith("WI-AVAIL.md"))
+                    resolved = _run_availability(snippet, "WI-DONE", cwd)
+                    self.assertEqual(resolved["status"], "resolved")
+                    absent = _run_availability(snippet, "WI-NOPE", cwd)
+                    self.assertEqual(absent["path"], "")
+
+    def test_no_snippet_reads_a_cwd_relative_path_from_the_repository_root(
+        self,
+    ) -> None:
+        for name, text in (("reference", self.reference), ("skill", self.skill)):
+            with self.subTest(section=name):
+                self.assertNotIn('origin/main:$path"', text)
+                self.assertIn('origin/main:./$path"', text)
+
+
+class SnapshotAndScopeWordingTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.reference = _flatten(_read(SOURCE_ROOT, REFERENCE_FILE))
+        self.skill = _flatten(_read(SOURCE_ROOT, SKILL_FILE))
+
+    def test_fetch_is_a_point_in_time_snapshot_and_failure_is_a_blocker(self) -> None:
+        for name, text in (("reference", self.reference), ("skill", self.skill)):
+            with self.subTest(section=name):
+                self.assertIn("point-in-time snapshot", text)
+                self.assertIn("If the fetch fails, stop and report", text)
+                self.assertNotIn("never a false positive", text)
+                self.assertNotIn("only ever lags behind reality", text)
+
+    def test_open_pr_file_match_accounts_for_a_nested_project_prefix(self) -> None:
+        self.assertIn("git rev-parse --show-prefix", self.reference)
+        self.assertIn('grep -x "${prefix}project/work_items/', self.reference)
+
+    def test_ws_lookup_is_limited_to_availability_skipped_candidates(self) -> None:
+        for name, text in (("reference", self.reference), ("skill", self.skill)):
+            with self.subTest(section=name):
+                self.assertIn("skipped by the availability check", text)
+                self.assertIn("cannot make", text)
 
 
 if __name__ == "__main__":

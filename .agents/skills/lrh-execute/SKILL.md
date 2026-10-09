@@ -113,10 +113,12 @@ followed by a second, restated plan gate.
 cases run a prerequisite lifecycle check (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`,
 extended by `WI-EXECUTE-OPEN-PREREQ-PR-STOP`) against the local
 `origin/main` ref via `git ls-tree` / `git show`, which is only as fresh as
-the last fetch. Refresh it once here so neither branch can read a stale
-ref — a stale ref only ever lags behind reality, so the failure mode is a
-false-negative "not available yet" on a candidate that actually landed
-moments ago, never a false positive:
+the last fetch. Refresh it once here so neither branch reads a stale ref.
+A successful fetch is a **point-in-time snapshot**, not a guarantee:
+`origin/main` can move afterward (a WI can be resolved or reopened between the
+fetch and the merge), and the gate reads mutable lifecycle status, so a
+snapshot can be wrong in either direction. **If the fetch fails, stop and
+report that as a blocker** — never continue on a stale ref:
 
 ```bash
 git fetch -q origin main
@@ -151,7 +153,7 @@ branch split):
 ```bash
 path=$(git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -x "project/work_items/[a-z]*/<WI-ID>.md" || true)
-status=$([ -n "$path" ] && git show "origin/main:$path" \
+status=$([ -n "$path" ] && git show "origin/main:./$path" \
   | awk 'NR>1 && /^---$/ {exit} /^status:/ {print $2; exit}' | tr -d "'\"")
 ```
 
@@ -210,7 +212,7 @@ state on `origin/main` exactly as in the `WI-ID` case:
 ```bash
 path=$(git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -x "project/work_items/[a-z]*/<candidate-WI-ID>.md" || true)
-status=$([ -n "$path" ] && git show "origin/main:$path" \
+status=$([ -n "$path" ] && git show "origin/main:./$path" \
   | awk 'NR>1 && /^---$/ {exit} /^status:/ {print $2; exit}' | tr -d "'\"")
 ```
 
@@ -247,15 +249,19 @@ matching the rule's own wording; an unfiltered `^status:` grep would
 wrongly disqualify on any prior record regardless of its value). Take
 the **first** candidate in `work_items:` order that satisfies all of the
 above. **Stop and report if no ready WI exists — do not propose creating
-one.** Then run the verified open-PR lookup **once** for all skipped
-candidates together (one exhaustive enumeration, matching every skipped
-candidate's exact path; same head-version `status: proposed` rules as the
-`WI-ID` case). If any skipped candidate has exactly one qualifying blocking
-PR, use the structured stop report from the reference doc for the `WS-ID`
-case (Immediate next action: `/lrh-land` for the first such candidate in
-list order; Why: every skipped candidate that has a qualifying PR, naming
-it, plus one count line for the other skipped candidates; After that:
-re-run `/lrh-execute <WS-ID>`, not yet actionable). Record the stop
+one.** Then run the verified open-PR lookup **once**, only for the candidates
+**skipped by the availability check** (absent from, or not `proposed` on,
+`origin/main`) — never for a candidate that is already `proposed` there but
+failed `depends_on`, readiness, or the execution-record check, because
+landing an unrelated PR cannot make that candidate ready. One exhaustive
+enumeration matches every availability-skipped candidate's exact path; the
+head-version `status: proposed` rules are the same as the `WI-ID` case. If
+any availability-skipped candidate has exactly one qualifying blocking PR,
+use the structured stop report from the reference doc for the `WS-ID` case
+(Immediate next action: `/lrh-land` for the first such candidate in list
+order; Why: every availability-skipped candidate that has a qualifying PR,
+naming it, plus one count line for all the other skipped candidates; After
+that: re-run `/lrh-execute <WS-ID>`, not yet actionable). Record the stop
 in Step 5 (Step 1 stop variant, `wi: null` since no WI resolved,
 `stop_reason: no_ready_wi`) before reporting. Creation actions ("create a work item," "create a workstream,"
 "create a proposal") belong to `/lrh-next`, not this skill; proposing

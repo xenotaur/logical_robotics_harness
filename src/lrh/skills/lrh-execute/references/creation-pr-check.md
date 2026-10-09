@@ -51,9 +51,14 @@ current one.
 ## The core gate: availability on `origin/main`
 
 `/lrh-execute` Step 1 runs `git fetch -q origin main` once, ahead of both
-the `WI-ID` and `WS-ID` branches — not per candidate. A stale ref only ever
-lags behind reality: it can miss a file or a status change that landed
-since the last fetch, never invent one that does not exist.
+the `WI-ID` and `WS-ID` branches — not per candidate. **If the fetch fails,
+stop and report that as a blocker; never continue on a stale ref.** A
+successful fetch is a **point-in-time snapshot**, not a guarantee:
+`origin/main` can move afterward, and because this gate reads mutable
+lifecycle status (not just file existence), a snapshot can be wrong in
+either direction — for example it can still show `proposed` for a WI that
+`main` has since resolved. `/lrh-implement` Step 5 re-verifies against a
+freshly pulled `main` right before branching.
 
 For a given `WI-ID`, compute its state on `origin/main`:
 
@@ -63,7 +68,7 @@ path=$(git ls-tree -r --name-only origin/main -- project/work_items/ \
 if [ -z "$path" ]; then
   echo "state=absent"
 else
-  status=$(git show "origin/main:$path" \
+  status=$(git show "origin/main:./$path" \
     | awk 'NR>1 && /^---$/ {exit} /^status:/ {print $2; exit}' | tr -d "'\"")
   echo "state=present status=$status"
 fi
@@ -128,12 +133,20 @@ equivalent exhaustive form.) **Truncation guard:** if the number of PRs
 returned equals the limit, the enumeration may be truncated — do not name a
 PR; use the no-PR stop form and say the enumeration was truncated.
 
-For each open PR, list its files and test for the WI's exact path:
+For each open PR, list its files and test for the WI's exact path. The PR
+file list is **repository-root-relative**, while `git ls-tree` output is
+relative to the current directory, so when the LRH project sits below the
+repository root (a nested project such as `lcats/`) prepend the project's
+prefix (`git rev-parse --show-prefix` — empty at the repository root):
 
 ```bash
+prefix=$(git rev-parse --show-prefix)
 gh api --paginate "repos/$repo/pulls/<N>/files" --jq '.[].filename' \
-  | grep -x "project/work_items/[a-z]*/<WI-ID>.md"
+  | grep -x "${prefix}project/work_items/[a-z]*/<WI-ID>.md"
 ```
+
+The matched `filename` is already repository-root-relative, so it is used
+as-is in the contents call below.
 
 For each PR that matches, read the WI as it exists at that PR's head
 commit and require `status: proposed`:
@@ -256,13 +269,19 @@ and runs once, only after the whole list is evaluated with no ready WI.
 
 If **no ready WI exists** after the whole list is evaluated, stop and
 report, and do not propose creating one. Then run the verified open-PR
-lookup **once** for all skipped candidates together: enumerate open PRs
-exhaustively one time and match every skipped candidate's exact path in the
-same pass. When at least one skipped candidate has exactly one qualifying
-PR, use the stop report with: Immediate next action `/lrh-land <pr-url>`
+lookup **once** for the availability-skipped candidates together: enumerate
+open PRs exhaustively one time and match each of their exact paths in the
+same pass. **Only candidates skipped by the availability check (absent
+from, or not `proposed` on, `origin/main`) are looked up** — never a
+candidate that is already `proposed` there but failed `depends_on`,
+readiness, or the execution-record check: an unrelated open PR that edits
+such a WI while leaving it `proposed` would satisfy the qualifying-PR rules
+and be falsely named as the prerequisite, although landing it cannot make
+the WI ready. When at least one availability-skipped candidate has exactly
+one qualifying PR, use the stop report with: Immediate next action `/lrh-land <pr-url>`
 for the **first** such candidate in list order (the one `/lrh-execute`
-would pick first once unblocked); Why lists **every** skipped candidate
-that has a qualifying PR, naming it, plus a single count line for the other
+would pick first once unblocked); Why lists **every** availability-skipped
+candidate that has a qualifying PR, naming it, plus a single count line for the other
 skipped candidates and their reasons (already `resolved`, failed
 `depends_on` or readiness, and so on); After that, re-run
 `/lrh-execute <WS-ID>` (not actionable yet). If no skipped candidate has a

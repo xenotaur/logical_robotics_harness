@@ -108,10 +108,10 @@ run-report request surfaces when a leaf is ready.
 The `/meta` page is the statusboard, LRH Console's home view: a safe-default,
 read-only operational triage view of registered projects in the active LRH meta
 workspace. It renders one collapsible band per operational state (Blocked, Needs
-attention, Active work, Awaiting review, Stable, Unknown), per-project
-focus, next action, validation, and freshness, source/validation/readiness summaries when
-available, explicit unavailable/unknown states when a project cannot be inspected,
-and capability gaps for fields not implemented yet. The page follows the staged
+attention, Active work, Awaiting review, Stable, Unknown), with each project's
+focus, next action, validation, and freshness, explicit unavailable/unknown states
+when a project cannot be inspected, and capability gaps for fields not implemented
+yet. The page follows the staged
 serve design in
 `project/design/proposals/proposed/lrh-serve-operational-triage-mvp/00_proposal.md`
 and treats meta workspace data as coordinating context rather than an override of

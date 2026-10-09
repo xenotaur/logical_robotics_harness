@@ -576,7 +576,6 @@ impl MenuEnablement {
     }
 }
 
-/// The page the main window should show for a supervisor status.
 /// The statusboard, LRH Console's home view, relative to the backend's root.
 const HOME_PAGE: &str = "meta";
 
@@ -585,6 +584,7 @@ pub fn home_page(root: &str) -> Option<Url> {
     Url::parse(root).ok()?.join(HOME_PAGE).ok()
 }
 
+/// The page the main window should show for a supervisor status.
 pub fn page_for_status(status: &Status, configured: bool) -> Url {
     match (status.state, &status.handshake) {
         (State::Running, Some(handshake)) => {

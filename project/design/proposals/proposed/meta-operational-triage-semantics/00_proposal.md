@@ -182,6 +182,14 @@ Unknown
 `Awaiting Review` can be considered later only if LRH can detect review-ready
 state reliably.
 
+**Statusboard decision (2026-10-09):** LRH Console's statusboard, the first UI
+for these lanes, shows the six lanes LRH computes today, as bands: Blocked,
+Needs attention, Active work, Awaiting review, Stable, and Unknown, with Blocked
+first and sentence-case labels. Ready for Work and Archived remain the target
+here, and become bands once LRH computes them. See the owner decision in
+[`PROP-LRH-CONSOLE-VISUAL-LANGUAGE`](../lrh-console-visual-language/00_proposal.md)
+(Vocabulary).
+
 ### Blocked
 
 - Question answered: Can ordinary forward progress proceed?

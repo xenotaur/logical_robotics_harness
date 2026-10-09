@@ -34,6 +34,8 @@ STATIC_FILES = {
     "fonts/montserrat-latin.woff2": "font/woff2",
     "fonts/OFL-montserrat.txt": "text/plain; charset=utf-8",
     "icons/LICENSE-lucide.txt": "text/plain; charset=utf-8",
+    # Served only by --interactive servers; see serve._write_static.
+    "lrh-interactive.js": "text/javascript; charset=utf-8",
 }
 
 ICON_NAMES = (
@@ -222,6 +224,7 @@ def _frame_open(
       <span class="lrh-scopename">{html.escape(scope_label)}</span>
     </div>
     <div class="lrh-search-slot"></div>
+    <div class="lrh-theme-slot" data-lrh-theme-slot></div>
     <span class="lrh-fresh">Rendered {stamp}</span>
     <a class="lrh-iconbtn" href="{refresh}">{icon("refresh-cw")}
       <span class="lrh-tip">Refresh</span></a>
@@ -356,6 +359,32 @@ FRAME_STYLES = """
   .lrh-scopename, .lrh-fresh { color: var(--lrh-color-text-muted); font-size: 0.85rem; }
   .lrh-scopename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lrh-search-slot { flex: 1; }
+  /* The in-page theme switch, added by the --interactive script. */
+  .lrh-theme-switch { display: inline-flex; }
+  .lrh-theme-switch button {
+    background: var(--lrh-color-surface-panel);
+    border: 1px solid var(--lrh-color-border-strong);
+    color: var(--lrh-color-text-primary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 0.15rem 0.55rem;
+  }
+  .lrh-theme-switch button:first-child {
+    border-radius: var(--lrh-radius-sm) 0 0 var(--lrh-radius-sm);
+  }
+  .lrh-theme-switch button:last-child {
+    border-radius: 0 var(--lrh-radius-sm) var(--lrh-radius-sm) 0;
+  }
+  .lrh-theme-switch button[aria-pressed="true"] {
+    background: var(--lrh-color-action-accent);
+    border-color: var(--lrh-color-action-accent);
+    color: var(--lrh-color-action-on-accent);
+  }
+  .lrh-theme-switch button:focus-visible {
+    box-shadow: var(--lrh-focus-ring);
+    outline: none;
+  }
   .lrh-iconbtn {
     align-items: center;
     border-radius: var(--lrh-radius-sm);

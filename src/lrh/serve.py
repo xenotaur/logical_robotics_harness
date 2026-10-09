@@ -86,6 +86,7 @@ class ServeConfig:
     allow_nonlocal_host: bool = False
     codex_archive_roots: tuple[Path, ...] = ()
     theme: str = DEFAULT_THEME
+    interactive: bool = False
 
     def resolved_project_root(self) -> Path:
         """Return the deterministic absolute project root used for status labels."""
@@ -105,6 +106,26 @@ _CONTENT_SECURITY_POLICY = (
     "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
     "form-action 'none'"
 )
+# --interactive adds only same-origin scripts: never inline script or eval.
+_INTERACTIVE_CONTENT_SECURITY_POLICY = _CONTENT_SECURITY_POLICY + "; script-src 'self'"
+_INTERACTIVE_SCRIPT = "lrh-interactive.js"
+_INTERACTIVE_SCRIPT_TAG = f'<script src="/static/{_INTERACTIVE_SCRIPT}" defer></script>'
+
+
+def content_security_policy(config: ServeConfig) -> str:
+    """Return the policy for this server: script-free unless --interactive."""
+
+    if config.interactive:
+        return _INTERACTIVE_CONTENT_SECURITY_POLICY
+    return _CONTENT_SECURITY_POLICY
+
+
+def apply_interactive(page: str, interactive: bool) -> str:
+    """Add the packaged script to an HTML page's head under --interactive."""
+
+    if not interactive or "</head>" not in page:
+        return page
+    return page.replace("</head>", _INTERACTIVE_SCRIPT_TAG + "</head>", 1)
 
 
 def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
@@ -216,6 +237,7 @@ def render_dependency_map_page(
         tab=query.get("tab", "map"),
         item=query.get("item"),
         since=query.get("since"),
+        interactive=config.interactive,
         full_page_href=lambda item_id: (
             f"/project/{selector}/work-items/{_url_quote(item_id)}"
         ),
@@ -394,6 +416,7 @@ def status_payload(
             _codex_archive_root_label(root) for root in codex_archive_roots
         ],
         "theme": config.theme,
+        "interactive": config.interactive,
         "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
     }
@@ -3487,7 +3510,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_header("X-Frame-Options", "DENY")
             self.send_header(
                 "Content-Security-Policy",
-                _CONTENT_SECURITY_POLICY,
+                content_security_policy(config),
             )
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
@@ -3541,7 +3564,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             return None
 
         def _write_static(self, name: str, *, head: bool = False) -> None:
-            body = frame.read_static(name)
+            # The script exists only for --interactive servers.
+            body = (
+                None
+                if name == _INTERACTIVE_SCRIPT and not config.interactive
+                else frame.read_static(name)
+            )
             if body is None:
                 self._write_json(404, {"error": "not_found"})
                 return
@@ -3581,6 +3609,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     ),
                 )
                 text = apply_theme(text, config.theme)
+                text = apply_interactive(text, config.interactive)
             body = text.encode("utf-8")
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
@@ -3656,6 +3685,15 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help=(
+            "add packaged same-origin scripts for tracing, filters, and the "
+            "in-page theme switch (CSP script-src 'self'); pages still work "
+            "without them"
+        ),
+    )
+    parser.add_argument(
         "--show-config",
         action="store_true",
         help="validate and print deterministic JSON configuration without serving",
@@ -3668,7 +3706,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
             "request on stdin, bind 127.0.0.1 on an OS-assigned port, and "
             "report ready/failed as JSON on stdout (see "
             "docs/reference/desktop-server-protocol.md); cannot be combined "
-            "with other serve options except --theme"
+            "with other serve options except --theme and --interactive"
         ),
     )
     parser.add_argument(
@@ -3692,6 +3730,7 @@ def config_from_args(args: argparse.Namespace) -> ServeConfig:
         allow_nonlocal_host=args.allow_nonlocal_host,
         codex_archive_roots=tuple(Path(root) for root in args.codex_archive_root),
         theme=args.theme,
+        interactive=args.interactive,
     )
 
 
@@ -3723,7 +3762,7 @@ def _desktop_protocol_conflicts(prog: str, argv: list[str] | None) -> list[str]:
 
 
 def _desktop_server_factory(
-    project_root: Path, theme: str = DEFAULT_THEME
+    project_root: Path, theme: str = DEFAULT_THEME, interactive: bool = False
 ) -> ThreadingHTTPServer:
     """Create a loopback server on an OS-assigned port for desktop mode."""
 
@@ -3733,6 +3772,7 @@ def _desktop_server_factory(
             port=0,
             project_root=project_root,
             theme=theme,
+            interactive=interactive,
         )
     )
 
@@ -3763,7 +3803,9 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
     return desktop_protocol.run_desktop_protocol(
-        lambda project_root: _desktop_server_factory(project_root, theme=args.theme),
+        lambda project_root: _desktop_server_factory(
+            project_root, theme=args.theme, interactive=args.interactive
+        ),
         start_request_timeout=timeout,
     )
 

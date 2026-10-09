@@ -1,6 +1,7 @@
 import io
 import json
 import pathlib
+import re
 import shutil
 import socket
 import struct
@@ -98,6 +99,22 @@ class TestLrhServeCli(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(json.loads(captured.stdout.getvalue())["theme"], "dark")
+
+    def test_interactive_is_off_by_default_and_reported(self) -> None:
+        parser = serve.build_parser("lrh serve")
+        self.assertFalse(serve.config_from_args(parser.parse_args([])).interactive)
+        self.assertTrue(
+            serve.config_from_args(parser.parse_args(["--interactive"])).interactive
+        )
+        with testing_support.capture_output() as captured:
+            serve.run_serve_cli(["--interactive", "--show-config"])
+        self.assertTrue(json.loads(captured.stdout.getvalue())["interactive"])
+        self.assertEqual(
+            serve._desktop_protocol_conflicts(
+                "lrh serve", ["--desktop-protocol", "--interactive"]
+            ),
+            [],
+        )
 
     def test_unknown_theme_is_rejected(self) -> None:
         with testing_support.capture_output(capture_stderr=True) as captured:
@@ -404,6 +421,71 @@ class TestLrhServeRoutes(unittest.TestCase):
             "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
             "form-action 'none'",
         )
+
+    def _interactive_server(self, interactive: bool) -> str:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        httpd = serve.create_http_server(
+            serve.ServeConfig(port=0, project_root=root, interactive=interactive)
+        )
+        host, port = httpd.server_address[:2]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(httpd.server_close)
+        return f"http://{host}:{port}"
+
+    def test_interactive_mode_adds_only_same_origin_scripts(self) -> None:
+        static_url = self._interactive_server(False)
+        live_url = self._interactive_server(True)
+        script = "/static/lrh-interactive.js"
+        inline = re.compile(r"<script(?![^>]*\bsrc=)", re.IGNORECASE)
+
+        with urllib.request.urlopen(live_url + "/style", timeout=5) as response:
+            live_policy = response.headers["Content-Security-Policy"]
+            live_body = response.read().decode("utf-8")
+        with urllib.request.urlopen(static_url + "/style", timeout=5) as response:
+            static_policy = response.headers["Content-Security-Policy"]
+            static_body = response.read().decode("utf-8")
+
+        self.assertEqual(
+            live_policy,
+            "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+            "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+            "form-action 'none'; script-src 'self'",
+        )
+        self.assertNotIn("script-src", static_policy)
+        self.assertNotIn("unsafe-eval", live_policy)
+        head = live_body.split("</head>", 1)[0]
+        self.assertIn(f'<script src="{script}" defer></script>', head)
+        self.assertNotIn("<script", static_body)
+        for route in _HTML_ROUTES + ("/settings",):
+            with self.subTest(route=route):
+                _s, _t, body = self._read(live_url + route)
+                self.assertEqual(body.count("<script"), 1)
+                self.assertIsNone(inline.search(body))
+        with urllib.request.urlopen(live_url + script, timeout=5) as response:
+            self.assertIn("text/javascript", response.headers["Content-Type"])
+        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+            self._read(static_url + script)
+        self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_desktop_server_factory_passes_interactive(self) -> None:
+        httpd = serve._desktop_server_factory(pathlib.Path("."), interactive=True)
+        host, port = httpd.server_address[:2]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(httpd.server_close)
+
+        with urllib.request.urlopen(f"http://{host}:{port}/style", timeout=5) as resp:
+            self.assertIn("script-src 'self'", resp.headers["Content-Security-Policy"])
 
     def test_static_serves_only_allowlisted_assets(self) -> None:
         base_url = self._isolated_server()

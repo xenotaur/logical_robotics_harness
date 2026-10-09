@@ -125,6 +125,9 @@ pub fn dev_launch_config(env: impl Fn(&str) -> Option<OsString>) -> Result<Launc
             config
         }
     };
+    // The developer override runs the same interactive mode as saved settings.
+    let mut config = config;
+    config.serve_args = vec![settings::INTERACTIVE_FLAG.into()];
     // Keep the program path exactly as given. Canonicalizing would resolve a
     // virtualenv's `python` symlink to the base interpreter and lose the venv.
     Ok(config)
@@ -1502,6 +1505,7 @@ mod tests {
                 .unwrap();
         assert_eq!(config.program, PathBuf::from("/x/lrh"));
         assert!(config.program_args.is_empty());
+        assert_eq!(config.serve_args, vec![OsString::from("--interactive")]);
 
         let config = dev_launch_config(env_of(&[
             (ENV_PYTHON, "/x/python"),

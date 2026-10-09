@@ -30,11 +30,26 @@ lrh serve --desktop-protocol
   operating system's light or dark appearance; `light` and `dark` pin every
   page to that theme. Also accepted with `--desktop-protocol`, where LRH Console
   passes its **Appearance** setting.
+- `--interactive`: add packaged, same-origin scripts. The Content-Security-Policy
+  then adds `script-src 'self'`, and nothing else; there is no inline script
+  and no `eval`. Every page still works without the scripts. They add:
+  - **Tracing:** hovering over or focusing a dependency-map card previews its
+    upstream and downstream; clicking selects it without a reload, opens its
+    drawer, and updates `?item=`. Escape closes it.
+  - **Filters:** checkboxes by state on the map and table. A filter never hides
+    an unfinished item that a shown item still needs.
+  - **Theme switch:** Light, Dark, and System in the top bar, remembered per
+    browser. It is hidden when `--theme light` or `--theme dark` pins the theme.
+
+  Without the flag, the script URL returns 404. `--show-config` reports
+  `interactive`. Also accepted with `--desktop-protocol`, which LRH Console
+  always passes.
 - `--show-config`: validate and print deterministic JSON configuration without serving.
 - `--desktop-protocol`: run under a desktop supervisor. Reads a versioned JSON
   start request on stdin, binds `127.0.0.1` on an OS-assigned port, and reports
   ready/failed and lifecycle events as JSON lines on stdout; human logs go to
-  stderr. Cannot be combined with the options above, except `--theme`. See the
+  stderr. Cannot be combined with the options above, except `--theme` and
+  `--interactive`. See the
   [desktop server protocol](../desktop-server-protocol.md).
 - `--desktop-start-timeout SECONDS`: with `--desktop-protocol`, how long to wait
   for the start request (default 10, range 0.1–120).

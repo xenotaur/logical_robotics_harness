@@ -2,14 +2,14 @@
 execution_id: 2026_10_08_06_26_13_WI_EXECUTE_OPEN_PREREQ_PR_STOP_IMPL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXECUTE_OPEN_PREREQ_PR_STOP_IMPL_SELFREVIEW)[2026-10-08T06:26:12+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/795
+commit: 0a6e845439bbf8355c68de75a1199d6b4089b1c9
 created_at: 2026-10-08T06:26:19Z
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXECUTE-OPEN-PREREQ-PR-STOP.md
-session_transcript: pending
+session_transcript: claude-app:e4c60740-30c9-4440-8717-474f04557750
 ---
 
 # Summary

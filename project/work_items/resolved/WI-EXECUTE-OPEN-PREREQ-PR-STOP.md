@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR 795 (commit 0a6e845439bbf8355c68de75a1199d6b4089b1c9)'
 blocked_reason: null
 blocked: false
 id: WI-EXECUTE-OPEN-PREREQ-PR-STOP
 title: "Make /lrh-execute stop with a structured Immediate-next-action report when an open prerequisite lifecycle PR blocks the target WI"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -30,6 +30,7 @@ from lrh.cli import vcs as vcs_cli
 from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
+    antigravity_session,
     claude_export,
     claude_session,
     codex_app_server_export,
@@ -163,6 +164,11 @@ def main() -> None:
         "export-antigravity-session",
         add_help=False,
         help="Convert a Google Antigravity session transcript log into Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "current-antigravity-conversation-id",
+        add_help=False,
+        help="Report the current Antigravity conversation id and session pointer.",
     )
     conversation_subparsers.add_parser(
         "export-claude-session",
@@ -1299,9 +1305,17 @@ def main() -> None:
                     prog="lrh conversation current-claude-session-id",
                 )
             )
+        if args.conversation_command == "current-antigravity-conversation-id":
+            raise SystemExit(
+                antigravity_session.run_current_antigravity_conversation_id_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation current-antigravity-conversation-id",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
             "(try: lrh conversation export-antigravity-session, "
+            "lrh conversation current-antigravity-conversation-id, "
             "lrh conversation export-claude-session, "
             "lrh conversation current-claude-session-id, "
             "lrh conversation convert-codex-file, "

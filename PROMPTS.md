@@ -133,6 +133,15 @@ values and grammar; summarized here for the Claude.app case:
   every case, and the record can still be left `pending` for a human to
   resolve later.
 
+### Optional execution-record fields for Google Antigravity sessions
+
+- `agent: antigravity_app` identifies the backend.
+- `instruction_source` references the instruction-phase artifact (e.g. work item path or PR URL).
+- `session_transcript` references the session as `antigravity-app:<conversation-id>`
+  — the conversation UUID from the `$ANTIGRAVITY_CONVERSATION_ID` env var or
+  `lrh conversation current-antigravity-conversation-id`. Use
+  `session_transcript: pending` when the ID is not yet known.
+
 ## Rerun, revert, and supersession handling
 
 Use status values from `project/executions/README.md`: `planned`, `in_progress`, `landed`, `failed`, `reverted`, `superseded`.

@@ -190,7 +190,8 @@ def _assemble(
     for path in allow:
         if path not in candidates:
             raise sources.SourceError(
-                f"--allow-flagged names {path}, which is not in --files"
+                f"--allow-flagged names {sources.shown_path(path)}, "
+                "which is not in --files"
             )
 
     refs: list[dict[str, object]] = []
@@ -203,8 +204,10 @@ def _assemble(
         remaining = budgets.max_packet_bytes - used
         if remaining <= 0:
             if path in allow:
-                raise sources.SourceError(f"--allow-flagged cannot send {path}: budget")
-            excluded.append({"path": path, "reason": "budget"})
+                raise sources.SourceError(
+                    f"--allow-flagged cannot send {sources.shown_path(path)}: budget"
+                )
+            excluded.append({"path": sources.shown_path(path), "reason": "budget"})
             continue
         try:
             ref, text = sources.make_source(
@@ -222,24 +225,29 @@ def _assemble(
             if path in allow:
                 # An override never silently degrades into an exclusion.
                 raise sources.SourceError(
-                    f"--allow-flagged cannot send {path}: {error}"
+                    f"--allow-flagged cannot send {sources.shown_path(path)}: {error}"
                 ) from error
-            excluded.append({"path": path, "reason": str(error)})
+            excluded.append({"path": sources.shown_path(path), "reason": str(error)})
             continue
         if ref.included_bytes == 0:
             # A first line longer than the remaining budget leaves nothing to
             # send; an empty section would only invite invented citations.
             if path in allow:
-                raise sources.SourceError(f"--allow-flagged cannot send {path}: budget")
-            excluded.append({"path": path, "reason": "budget"})
+                raise sources.SourceError(
+                    f"--allow-flagged cannot send {sources.shown_path(path)}: budget"
+                )
+            excluded.append({"path": sources.shown_path(path), "reason": "budget"})
             continue
         if path in allow and not ref.allowed_findings:
             # Every flagged line falls past the budget: the override would
             # send nothing it covers, so refuse it rather than fall back to
             # the ordinary prompt without the typed-yes gate.
             raise sources.SourceError(
-                f"--allow-flagged not needed for {path}: its flagged lines fall "
-                "outside the byte budget"
+                "--allow-flagged has nothing to confirm for "
+                f"{sources.shown_path(path)}: its flagged lines fall outside "
+                "the byte budget, and the file is still excluded without the "
+                "override; ask about fewer files or raise the global "
+                "--max-packet-bytes (given before `ask`)"
             )
         used += ref.included_bytes
         refs.append(ref.as_dict())

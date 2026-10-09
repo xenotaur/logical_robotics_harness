@@ -1,5 +1,6 @@
 import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 
@@ -355,7 +356,7 @@ class AllowFlaggedTest(AskTestBase):
         )
         testing_support.run_git(self.repo, "add", "-A")
         testing_support.run_git(self.repo, "commit", "-q", "-m", "late")
-        with self.assertRaisesRegex(sources.SourceError, "not needed"):
+        with self.assertRaisesRegex(sources.SourceError, "nothing to confirm"):
             ask.build_context(
                 repo=self.repo,
                 files=[late],
@@ -371,8 +372,19 @@ class AllowFlaggedTest(AskTestBase):
             self.skipTest("filesystem rejects newlines in names")
         testing_support.run_git(self.repo, "add", "-A")
         testing_support.run_git(self.repo, "commit", "-q", "-m", "odd")
-        with self.assertRaisesRegex(sources.SourceError, "control characters"):
+        with self.assertRaisesRegex(
+            sources.SourceError, "control characters"
+        ) as caught:
             self._build([odd], {odd: {"secret"}})
+        # The refusal quotes the path rather than printing a raw newline.
+        self.assertNotIn("\n", str(caught.exception))
+        self.assertIn("\\n", str(caught.exception))
+        # Without the override, the excluded path is quoted in the prompt and
+        # summary too, so it cannot forge a line in either.
+        plain = ask.build_context(repo=self.repo, files=[odd, "plain.py"])
+        for shown in (plain.text, ask.source_summary(plain)):
+            self.assertNotIn("\ntoken: abcdef123", shown)
+            self.assertIn("safe\\ntoken", shown)
         # The listing returns the real, unquoted name, which path checks reject.
         commit = sources.resolve_commit(self.repo, "HEAD")
         self.assertIn(odd, sources.list_tracked_files(self.repo, commit))
@@ -436,6 +448,60 @@ class AllowFlaggedTest(AskTestBase):
         )
         self.assertNotIn("scan_text", run)
         self.assertNotIn("make_token", json.dumps(run))
+
+
+class WorkItemOmissionQuotingTest(AskTestBase):
+    def test_omitted_related_path_cannot_forge_lines(self) -> None:
+        odd = "project/design/a\nINJECTED: yes.md"
+        try:
+            (self.repo / odd).write_text("# design\n", encoding="utf-8")
+        except OSError:
+            self.skipTest("filesystem rejects newlines in names")
+        item = testing_support.READY_ITEM.replace("WI-T-1", "WI-T-8").replace(
+            "  - project/design/demo.md",
+            '  - "project/design/a\\nINJECTED: yes.md"',
+        )
+        (self.repo / "project/work_items/proposed/WI-T-8.md").write_text(
+            item, encoding="utf-8"
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "odd related")
+        ctx = ask.build_context(repo=self.repo, work_item="WI-T-8")
+        omitted = [e for e in ctx.excluded if "INJECTED" in e["path"]]
+        self.assertEqual(len(omitted), 1, ctx.excluded)
+        for shown in (ctx.text, ask.source_summary(ctx)):
+            self.assertNotIn("\nINJECTED", shown)
+            self.assertIn("a\\nINJECTED", shown)
+
+
+class NonUtf8NameTest(AskTestBase):
+    def test_overview_survives_a_non_utf8_tracked_name(self) -> None:
+        (self.repo / "content.tmp").write_text("hello\n", encoding="utf-8")
+        blob = testing_support.run_git(self.repo, "hash-object", "-w", "content.tmp")
+        (self.repo / "content.tmp").unlink()
+        # Stage a name whose bytes are not valid UTF-8 via git plumbing.
+        subprocess.run(
+            [
+                b"git",
+                b"-C",
+                str(self.repo).encode(),
+                b"update-index",
+                b"--add",
+                b"--cacheinfo",
+                b"100644," + blob.encode() + b",caf\xe9.md",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "latin-1 name")
+        commit = sources.resolve_commit(self.repo, "HEAD")
+        names = sources.list_tracked_files(self.repo, commit)
+        bad = [name for name in names if name.startswith("caf")]
+        self.assertEqual(len(bad), 1)
+        with self.assertRaisesRegex(sources.SourceError, "not valid UTF-8"):
+            sources.check_path_allowed(bad[0])
+        ctx = ask.build_context(repo=self.repo)
+        self.assertNotIn("caf", ctx.text)
 
 
 class RunAskTest(AskTestBase):

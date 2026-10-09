@@ -63,7 +63,7 @@ class SourcesTest(unittest.TestCase):
                     sources.check_path_allowed(path)
 
     def test_control_characters_in_paths_rejected_without_echo(self) -> None:
-        for path in ("safe\ntoken: abcdef123.py", "a\tb.py", "x\x7f.py"):
+        for path in ("safe\ntoken: abcdef123.py", "a\tb.py", "x\x7f.py", "c\x9bd.py"):
             with self.subTest(repr(path)):
                 with self.assertRaises(sources.SourceError) as caught:
                     sources.check_path_allowed(path)

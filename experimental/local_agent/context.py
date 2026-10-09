@@ -194,6 +194,9 @@ def build_packet(
         if rel_path in seen_paths:
             continue
         seen_paths.add(rel_path)
+        # Omissions are rendered into the prompt and the summary; quote unsafe
+        # paths so a crafted file name cannot forge a line in either.
+        shown = sources.shown_path(rel_path)
         source_id = f"S{len(source_refs) + 1}"
         remaining = budgets.max_packet_bytes - used
         # The target work item may use the whole budget; context is capped.
@@ -201,7 +204,7 @@ def build_packet(
         if relation != "WorkItem":
             cap = min(budgets.max_source_bytes, remaining)
         if cap <= 0:
-            omitted.append({"path": rel_path, "relation": relation, "reason": "budget"})
+            omitted.append({"path": shown, "relation": relation, "reason": "budget"})
             continue
         try:
             ref, text = sources.make_source(
@@ -215,12 +218,10 @@ def build_packet(
                 max_bytes=cap,
             )
         except sources.SourceError as error:
-            omitted.append(
-                {"path": rel_path, "relation": relation, "reason": str(error)}
-            )
+            omitted.append({"path": shown, "relation": relation, "reason": str(error)})
             continue
         if ref.included_bytes == 0:
-            omitted.append({"path": rel_path, "relation": relation, "reason": "budget"})
+            omitted.append({"path": shown, "relation": relation, "reason": "budget"})
             continue
         used += ref.included_bytes
         entry = ref.as_dict()

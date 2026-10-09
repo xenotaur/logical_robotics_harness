@@ -2,13 +2,13 @@
 execution_id: 2026_10_09_01_25_18_LRH_CONSOLE_INTERACTIVE
 prompt_id: PROMPT(WI-LRH-CONSOLE-INTERACTIVE:LRH_CONSOLE_INTERACTIVE)[2026-10-09T00:02:17+00:00]
 work_item: WI-LRH-CONSOLE-INTERACTIVE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/801
-commit:
+commit: 2a37bf6ac4e843e9fd002808f1a4f52a0c8c33ae
 agent: "claude_app"
 instruction_source: "user request in session: /lrh-execute WS-LRH-CONSOLE-LOCAL-DOGFOOD (chain approved: \"Approve as stated, with the desktop app passing --interactive\")"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-09T01:25:18+00:00
 ---
 

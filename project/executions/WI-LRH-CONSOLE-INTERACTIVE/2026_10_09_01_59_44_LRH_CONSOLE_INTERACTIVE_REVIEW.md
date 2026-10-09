@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_01_59_44_LRH_CONSOLE_INTERACTIVE_REVIEW
 prompt_id: PROMPT(WI-LRH-CONSOLE-INTERACTIVE:LRH_CONSOLE_INTERACTIVE_REVIEW)[2026-10-09T01:59:44+00:00]
 work_item: WI-LRH-CONSOLE-INTERACTIVE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/801
-commit:
+commit: 2a37bf6ac4e843e9fd002808f1a4f52a0c8c33ae
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/801"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

@@ -356,6 +356,10 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Needs", page)
         self.assertIn("Blocked: waiting on ops", page)
         self.assertNotIn(">WI-D<", page)
+        # Each entry names its item, so focus can return to it, but carries
+        # no state: the Blockers tab has no filters.
+        self.assertIn('<li data-id="WI-B"><a class="lrh-mono"', page)
+        self.assertNotIn("data-state", page.split('<ul class="lrh-blockers">', 1)[1])
 
     def test_prompt_readiness_does_not_apply_to_closed_items(self) -> None:
         drawer = _view(_example(), item="WI-D").split('<aside class="lrh-drawer"')[1]

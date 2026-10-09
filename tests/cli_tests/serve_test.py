@@ -518,6 +518,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                     self._read(static_url + name)
                 self.assertEqual(err_ctx.exception.code, 404)
                 # HEAD keeps the 404 but, like every HEAD, sends no body.
+                # http.client never reads a HEAD body, so Content-Length is
+                # the observable signal that one was written.
                 parts = urllib.parse.urlsplit(static_url)
                 connection = http.client.HTTPConnection(
                     parts.hostname, parts.port, timeout=5
@@ -526,7 +528,6 @@ class TestLrhServeRoutes(unittest.TestCase):
                 connection.request("HEAD", name)
                 response = connection.getresponse()
                 self.assertEqual(response.status, 404)
-                self.assertEqual(response.read(), b"")
                 self.assertIsNone(response.getheader("Content-Length"))
         with urllib.request.urlopen(live_url + script, timeout=5) as response:
             self.assertEqual(response.headers["Cache-Control"], "no-cache")

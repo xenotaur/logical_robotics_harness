@@ -61,7 +61,18 @@ class InteractiveScriptTest(unittest.TestCase):
         )[0]
         guard = body.index("drawer.contains(document.activeElement)")
         self.assertLess(guard, body.index("trigger.focus()"))
-        self.assertLess(body.index("map.focus()"), body.index("drawer.hidden = hide;"))
+        fallback = body.index("map.focus({ preventScroll: true })")
+        self.assertLess(fallback, body.index("drawer.hidden = hide;"))
+
+    def test_returning_focus_after_a_close_is_not_a_preview(self) -> None:
+        self.assertIn(
+            "if (!currentSelection() && !restoringFocus) mark(id, true);", self.source
+        )
+        body = self.source.split("function showDrawer(id) {", 1)[1]
+        self.assertLess(
+            body.index("restoringFocus = true;"), body.index("trigger.focus()")
+        )
+        self.assertLess(body.index("map.focus("), body.index("restoringFocus = false;"))
 
 
 if __name__ == "__main__":

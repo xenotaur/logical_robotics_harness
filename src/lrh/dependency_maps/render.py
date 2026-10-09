@@ -543,7 +543,9 @@ def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
             for kind, target, lifecycle in _unmet_needs(snapshot, nodes, node)
         )
         items.append(
-            f'<li><a class="lrh-mono" href="'
+            # data-id only (no data-state): the script returns focus here when
+            # a drawer closes, but the Blockers tab has no filters.
+            f'<li data-id="{_attr(node.id)}"><a class="lrh-mono" href="'
             f'{html.escape(_href("blockers", node.id), quote=True)}">'
             f"{html.escape(node.id)}</a> {html.escape(node.title)} {_pill(node.state)}"
             f"<ul>{needs}</ul></li>"
@@ -862,6 +864,7 @@ MAP_STYLES = """
   /* Interactive mode (lrh serve --interactive) only. */
   .lrh-drawer[hidden] { display: none; }
   .lrh-card--preview { border-color: var(--lrh-color-edge-strong); }
+  .lrh-dependency-map:focus { outline: none; }
   .lrh-card.lrh-filtered, .lrh-line.lrh-filtered { visibility: hidden; }
   tr.lrh-filtered, li.lrh-filtered { display: none; }
   .lrh-filters {

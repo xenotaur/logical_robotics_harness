@@ -147,6 +147,10 @@
       return null;
     }
 
+    // True while focus returns to a card after its drawer closes, so that
+    // focus does not count as a hover-or-focus preview.
+    let restoringFocus = false;
+
     function showDrawer(id) {
       for (const drawer of document.querySelectorAll("[data-drawer-for]")) {
         const hide = drawer.dataset.drawerFor !== id;
@@ -154,12 +158,15 @@
         // screen-reader users, so focus returns to what opened the drawer.
         if (hide && !drawer.hidden && drawer.contains(document.activeElement)) {
           const trigger = triggerFor(drawer.dataset.drawerFor);
+          restoringFocus = true;
           if (trigger) trigger.focus();
-          // A filtered (invisible) trigger cannot take focus; the map can.
+          // A filtered (invisible) trigger cannot take focus; the map can,
+          // without scrolling the page to its top.
           if (!trigger || document.activeElement !== trigger) {
             map.setAttribute("tabindex", "-1");
-            map.focus();
+            map.focus({ preventScroll: true });
           }
+          restoringFocus = false;
         }
         drawer.hidden = hide;
       }
@@ -206,7 +213,7 @@
         select(id);
       });
       const preview = () => {
-        if (!currentSelection()) mark(id, true);
+        if (!currentSelection() && !restoringFocus) mark(id, true);
       };
       const clear = () => {
         if (!currentSelection()) mark(null, false);

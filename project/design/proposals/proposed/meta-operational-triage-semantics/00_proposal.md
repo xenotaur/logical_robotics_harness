@@ -186,7 +186,13 @@ state reliably.
 for these lanes, shows the six lanes LRH computes today, as bands: Blocked,
 Needs attention, Active work, Awaiting review, Stable, and Unknown, with Blocked
 first and sentence-case labels. Ready for Work and Archived remain the target
-here, and become bands once LRH computes them. See the owner decision in
+here, and become bands once LRH computes them.
+
+**Open question (2026-10-09):** today any single blocked work item makes a
+whole project Blocked, so Logical Robotics Harness shows as Blocked with about
+20 active threads of work. Should Blocked instead mean that nothing else can
+move? `WI-LRH-PROJECT-UPDATE-SKILL` records this question; the decision is the
+owner's. See the owner decision in
 [`PROP-LRH-CONSOLE-VISUAL-LANGUAGE`](../lrh-console-visual-language/00_proposal.md)
 (Vocabulary).
 

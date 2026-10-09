@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_02_19_07_LOCAL_AGENT_ALLOW_FLAGGED_FOLLOWUPS_REVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_ALLOW_FLAGGED_FOLLOWUPS_REVIEW)[2026-10-09T02:18:04+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_09_02_08_18_LOCAL_AGENT_ALLOW_FLAGGED_FOLLOWUPS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/803
-commit:
+commit: 3e55eb5e68e7480c2123cf737cb66ee794de6786
 created_at: 2026-10-09T02:19:07+00:00
 agent: claude_app
 instruction_source: lrh-land Step 4 review-response for PR 803; owner confirmed the fix

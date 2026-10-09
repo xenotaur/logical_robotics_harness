@@ -373,7 +373,7 @@ class AllowFlaggedTest(AskTestBase):
         testing_support.run_git(self.repo, "add", "-A")
         testing_support.run_git(self.repo, "commit", "-q", "-m", "odd")
         with self.assertRaisesRegex(
-            sources.SourceError, "control characters"
+            sources.SourceError, "control or invisible"
         ) as caught:
             self._build([odd], {odd: {"secret"}})
         # The refusal quotes the path rather than printing a raw newline.

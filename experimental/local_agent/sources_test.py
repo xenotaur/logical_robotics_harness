@@ -63,11 +63,30 @@ class SourcesTest(unittest.TestCase):
                     sources.check_path_allowed(path)
 
     def test_control_characters_in_paths_rejected_without_echo(self) -> None:
-        for path in ("safe\ntoken: abcdef123.py", "a\tb.py", "x\x7f.py", "c\x9bd.py"):
+        for path in (
+            "safe\ntoken: abcdef123.py",
+            "a\tb.py",
+            "x\x7f.py",
+            "c\x9bd.py",
+            "line\u2028sep.py",
+            "para\u2029sep.py",
+            "evil\u202egpj.py",
+            "zero\u200bwidth.py",
+            "\ufeffbom.py",
+        ):
             with self.subTest(repr(path)):
                 with self.assertRaises(sources.SourceError) as caught:
                     sources.check_path_allowed(path)
                 self.assertNotIn("abcdef123", str(caught.exception))
+
+    def test_shown_path_quotes_unicode_separators_and_bidi(self) -> None:
+        self.assertEqual(sources.shown_path("ok/path.py"), "ok/path.py")
+        self.assertEqual(sources.shown_path("caf\u00e9.md"), "caf\u00e9.md")
+        for path in ("a\u2028b", "a\u202eb"):
+            with self.subTest(repr(path)):
+                shown = sources.shown_path(path)
+                self.assertTrue(shown.isascii())
+                self.assertNotEqual(shown, path)
 
     def test_credential_like_paths_rejected(self) -> None:
         for path in (

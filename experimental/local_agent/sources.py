@@ -15,6 +15,7 @@ import io
 import pathlib
 import subprocess
 import tarfile
+import unicodedata
 
 from local_agent import settings
 from lrh.conversations import sensitivity
@@ -100,9 +101,18 @@ def resolve_commit(repo: pathlib.Path, revision: str) -> str:
 
 
 def unsafe_path_char(char: str) -> bool:
-    """C0/C1 controls, DEL, or an undecodable byte (a surrogate escape)."""
+    """A control, separator, or invisible formatting character.
+
+    C0/C1 controls, DEL, undecodable bytes (surrogate escapes), Unicode line
+    and paragraph separators (``Zl``/``Zp``), and format characters (``Cf``:
+    bidi overrides such as U+202E, zero-width characters, BOM). All of ``Cf``
+    is rejected on purpose, including ZWJ/ZWNJ and the soft hyphen, which
+    some legitimate names use; this prototype fails closed.
+    """
     code = ord(char)
-    return code < 0x20 or 0x7F <= code <= 0x9F or 0xDC80 <= code <= 0xDCFF
+    if code < 0x20 or 0x7F <= code <= 0x9F or 0xDC80 <= code <= 0xDCFF:
+        return True
+    return unicodedata.category(char) in ("Zl", "Zp", "Cf")
 
 
 def shown_path(path: str) -> str:
@@ -116,7 +126,7 @@ def check_path_allowed(project_relative_path: str) -> None:
         raise SourceError("path is not valid UTF-8")
     if any(unsafe_path_char(char) for char in project_relative_path):
         # Never echo such a path: it could smuggle text into headers.
-        raise SourceError("path contains control characters")
+        raise SourceError("path contains control or invisible formatting characters")
     normalized = project_relative_path.replace("\\", "/")
     if normalized.startswith("/") or ".." in normalized.split("/"):
         raise SourceError(f"path must be relative and confined: {normalized}")

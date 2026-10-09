@@ -3,6 +3,7 @@
 The reference documents the predicate as real, runnable code, so these tests
 extract it verbatim from every committed copy and run it in bash against a
 fake `gh` on PATH. Return codes: 0 green, 1 terminal failure, 2 pending.
+A wiring check also pins SKILL.md Step 8's first CI read to the predicate.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ SKILL_ROOTS = (
     REPO_ROOT / "src" / "lrh" / "skills",
     REPO_ROOT / ".claude" / "skills",
     REPO_ROOT / ".agents" / "skills",
+    REPO_ROOT / ".gemini" / "plugins" / "lrh" / "skills",
 )
 PREDICATE = re.compile(
     r"^check_ci_predicate\(\) \{\n.*?^\}\n", re.MULTILINE | re.DOTALL
@@ -154,6 +156,18 @@ class ConfirmFixesCiPredicateTest(unittest.TestCase):
         self._assert_all_roots(
             0, all_checks=f"[{PASS}]", head="new-sha", expected_sha="new-sha"
         )
+
+
+class ConfirmFixesStep8WiringTest(unittest.TestCase):
+    def test_step8_first_ci_read_uses_the_sha_aware_predicate(self) -> None:
+        for root in SKILL_ROOTS:
+            with self.subTest(root=str(root.relative_to(REPO_ROOT))):
+                content = (root / "lrh-confirm-fixes" / "SKILL.md").read_text()
+                step8 = content.split("### Step 8", 1)[1]
+                self.assertIn(
+                    'check_ci_predicate <pr-url> "$(git rev-parse HEAD)"', step8
+                )
+                self.assertNotIn("gh pr checks <pr-url> --required", step8)
 
 
 if __name__ == "__main__":

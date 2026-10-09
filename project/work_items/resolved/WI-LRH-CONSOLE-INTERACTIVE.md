@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-INTERACTIVE"
 title: "Add the opt-in lrh serve --interactive mode with packaged scripts"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #801 (commit 2a37bf6a). lrh serve --interactive adds packaged same-origin scripts and only script-src self to the CSP; without the flag the script URLs return 404 and every page stays script-free. An early blocking script applies a stored theme before first paint; the deferred script adds a Light, Dark, and System switch (hidden when the server pins a theme), hover and focus tracing of upstream and downstream, click selection that updates ?item= and same-page links without a reload, Escape and close that return focus to the opener, and state filters on the map and table that never hide an unfinished item a shown item needs. LRH Console always passes --interactive. Review fixes: JSON data-unmet for IDs with spaces, HEAD 404 without a body, and drawer focus handling. The owner checked it in LRH Console; their layout and navigation feedback is in project/design/backlog.md as layout-redesign input.'
 owner: "anthony"
 contributors:
 - "anthony"

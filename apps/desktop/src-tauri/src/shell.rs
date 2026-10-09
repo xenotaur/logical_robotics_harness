@@ -99,7 +99,7 @@ pub fn dev_launch_config(env: impl Fn(&str) -> Option<OsString>) -> Result<Launc
     let python = absolute(ENV_PYTHON)?;
     let workspace = absolute(ENV_WORKSPACE)?
         .ok_or_else(|| format!("set {ENV_WORKSPACE} to an absolute LRH workspace path"))?;
-    let config = match (executable, python) {
+    let mut config = match (executable, python) {
         (Some(_), Some(_)) => {
             return Err(format!("set only one of {ENV_EXECUTABLE} or {ENV_PYTHON}"))
         }
@@ -125,6 +125,8 @@ pub fn dev_launch_config(env: impl Fn(&str) -> Option<OsString>) -> Result<Launc
             config
         }
     };
+    // The developer override runs the same interactive mode as saved settings.
+    config.serve_args = vec![settings::INTERACTIVE_FLAG.into()];
     // Keep the program path exactly as given. Canonicalizing would resolve a
     // virtualenv's `python` symlink to the base interpreter and lose the venv.
     Ok(config)
@@ -202,7 +204,21 @@ impl NavigationPolicy {
     pub fn backend(&self) -> Option<Url> {
         lock(&self.backend).clone()
     }
+
+    /// True if `url` is the frame's gear: exactly [`SETTINGS_PAGE_PATH`] on
+    /// the running backend's origin. The shell opens native Settings for it
+    /// instead of loading the page.
+    pub fn is_settings_request(&self, url: &Url) -> bool {
+        url.path() == SETTINGS_PAGE_PATH
+            && lock(&self.backend)
+                .as_ref()
+                .is_some_and(|backend| backend.origin() == url.origin())
+    }
 }
+
+/// The Serve path the frame's gear links to (`lrh.ux.frame.SETTINGS_PATH`).
+/// In a browser it is a read-only display and about page.
+pub const SETTINGS_PAGE_PATH: &str = "/settings";
 
 /// The main window's Back/Forward history, kept by the app.
 ///
@@ -690,12 +706,25 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         .to_string();
     let popup_links = Arc::clone(&links);
     let download_links = Arc::clone(&links);
+    let app = manager.app_handle().clone();
+    let gear_limiter = RateLimiter::default();
     let download_history = history.clone();
     let download_policy = policy.clone();
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
         .title("LRH Console")
         .inner_size(1100.0, 760.0)
         .on_navigation(move |url| {
+            // The gear opens native Settings; the page never loads here and
+            // the main window gains no capability. Rate-limited like links.
+            if policy.is_settings_request(url) {
+                if gear_limiter.try_acquire() {
+                    let handle = app.clone();
+                    let _ = app.run_on_main_thread(move || {
+                        show_settings(&handle, SettingsSection::Settings);
+                    });
+                }
+                return false;
+            }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
                 return true;
@@ -1475,6 +1504,7 @@ mod tests {
                 .unwrap();
         assert_eq!(config.program, PathBuf::from("/x/lrh"));
         assert!(config.program_args.is_empty());
+        assert_eq!(config.serve_args, vec![OsString::from("--interactive")]);
 
         let config = dev_launch_config(env_of(&[
             (ENV_PYTHON, "/x/python"),
@@ -1756,6 +1786,31 @@ mod tests {
             SettingsSection::Details.show_script(),
             r#"window.lrhShowSection && window.lrhShowSection("details");"#
         );
+    }
+
+    #[test]
+    fn only_the_backend_settings_path_is_a_settings_request() {
+        let policy = NavigationPolicy::default();
+        let settings = Url::parse("http://127.0.0.1:49152/settings").unwrap();
+        assert!(!policy.is_settings_request(&settings), "no backend yet");
+
+        policy.set_backend(Some(&Url::parse("http://127.0.0.1:49152/").unwrap()));
+        assert!(policy.is_settings_request(&settings));
+        assert!(policy.is_settings_request(
+            &Url::parse("http://127.0.0.1:49152/settings?from=gear").unwrap()
+        ));
+        for other in [
+            "http://127.0.0.1:49153/settings",
+            "http://127.0.0.1:49152/settings/x",
+            "http://127.0.0.1:49152/settingsx",
+            "http://127.0.0.1:49152/meta",
+            "https://example.com/settings",
+        ] {
+            assert!(
+                !policy.is_settings_request(&Url::parse(other).unwrap()),
+                "{other}"
+            );
+        }
     }
 
     #[test]

@@ -223,7 +223,7 @@ def load_core_project_state(
         validate=validate,
     )
     validation = _validation_summary(report)
-    if validation.error_count:
+    if _has_state_blocking_errors(report):
         return _empty_core_project_state(identity, validation)
 
     loaded_project = control_loader.load_project(project_dir)
@@ -268,6 +268,22 @@ def _resolve_validation_report(
     if validate:
         return control_validator.validate_project(project_dir)
     return control_validator.ValidationReport(issues=[])
+
+
+def _has_state_blocking_errors(report: control_validator.ValidationReport) -> bool:
+    """Whether ``report`` has errors that make the planning state unsafe to load.
+
+    Dependency-map view errors still count toward ``ValidationSummary`` (and
+    fail ``lrh validate``), but views are read only by the dependency-map
+    pages, which report them on their own. Letting them blank the whole state
+    would hide every work item from unrelated pages.
+    """
+
+    return any(
+        issue.severity == "error"
+        and issue.code not in control_validator.DEPENDENCY_MAP_VIEW_ISSUE_CODES
+        for issue in report.issues
+    )
 
 
 def _empty_core_project_state(

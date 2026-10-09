@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-MAP-SNAPSHOT"
 title: "Build the typed DependencyMapSnapshot and dependency-map view declarations"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #796 (commit b0f55c74). src/lrh/dependency_maps/ builds the read-only, versioned DependencyMapSnapshot from view declarations at project/views/dependency_maps/<name>.md (ordered workstream lanes, ordered phases, lane overrides with reasons; checked by lrh validate, including the view-id file-name grammar). It carries nodes, typed depends_on and blocked_by edges, lane and phase placement with Unplaced rows and provenance, and no absolute paths; structural state follows the Revision 2 precedence (unknown lifecycles are never eligible), with lifecycle, prompt-ready, and authorization as separate layers. Diagnostics cover missing references, cycles per edge type, unknown view IDs, ambiguous or unplaced placement, unused overrides, invalid lifecycles, and partial sources; offscreen predecessors are kept and counted. GET /api/project/<id>/dependency-maps/<view> and lrh dependency-map snapshot <view> return the same JSON, and from_dict type-checks it. This workstream has its own view, lrh-console-l1. The stale_snapshot check is Python-level; surfacing it is deferred to WI-LRH-CONSOLE-MAP-STATIC. An unresolvable project id falls back to the served project, as the other project routes do.'
 owner: "anthony"
 contributors:
 - "anthony"

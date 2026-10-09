@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Added `lrh chain-defaults restamp`, which re-stamps confirmed_commit/confirmed_at and records user-scope installed-target fingerprints bound to that same stamp as one act. The store lives in the git common dir and fails closed on any stamp mismatch. The real run is bound to the approved dry run via `--expect-digest`. `/lrh-config-gates` gains a separately confirmed re-confirm step. Merged in PR #783.'
 blocked_reason: null
 blocked: false
 id: WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS
 title: "Record installed-target gate fingerprints with every confirmed_commit re-stamp, including a new /lrh-config-gates re-confirm step"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

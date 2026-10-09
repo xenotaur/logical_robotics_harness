@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-MAP-STATIC"
 title: "Render the static dependency map, table, and blockers views with a pluggable layout"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #800 (commit 2f64eee4). /project/<id>/dependency-maps lists declared views, and /project/<id>/dependency-maps/<view> draws one server-side with no scripts, in the frame: lanes as columns and phases as rows; cards with the mono ID, title, a status pill (icon, text, color), a Not prompt-ready flag, and why waiting or blocked; solid depends-on and dashed blocked-by lines from prerequisite to dependent, with a legend. ?item= highlights upstream and downstream cards and lines and fills the drawer with the three state layers, placement, reasons, needs, needed-by, the source path, and Effort: not modeled yet. The Table and Blockers views and a narrow-screen list share the snapshot, with explicit empty, diagnostic, invalid, unreadable, and since-fingerprint freshness states. After a recorded evaluation found no fitting Python library (networkx needs Python 3.12 and has no routing; grandalf and igraph are GPL; graphviz needs native binaries), the owner approved a minimal LayeredGridLayout behind a swappable Layout interface: fixed cells, barycenter ordering, right-angled routing. The owner checked it in LRH Console; their feedback was applied, and two follow-ups were filed: WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT and WI-LRH-CONSOLE-STATUS-SHAPES. Each request rebuilds the snapshot, about 0.8 s on the real view.'
 owner: "anthony"
 contributors:
 - "anthony"

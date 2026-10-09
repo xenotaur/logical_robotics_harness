@@ -211,7 +211,7 @@ old procedure.
 - scripts/test
 - diff src/lrh/skills/lrh-implement/SKILL.md .claude/skills/lrh-implement/SKILL.md
 - diff src/lrh/skills/lrh-self-review/references/self-review-workflow.md .claude/skills/lrh-self-review/references/self-review-workflow.md
-- grep -n -- "--pr <pr-url-from-step-8>" .agents/skills/lrh-implement/SKILL.md .gemini/plugins/lrh/skills/lrh-implement/SKILL.md
+- grep -c "_SELFREVIEW" src/lrh/skills/lrh-implement/SKILL.md .claude/skills/lrh-implement/SKILL.md .agents/skills/lrh-implement/SKILL.md .gemini/plugins/lrh/skills/lrh-implement/SKILL.md (each count must be non-zero; all four are 0 before this change, so this proves the regenerated copies carry the new Step 9 text)
 - lrh chain-defaults check-staleness --confirmed-commit "$(grep '^confirmed_commit:' project/config/chain-defaults.yaml | sed 's/^confirmed_commit: *//')" --project-root .
 
 ## Risk Notes

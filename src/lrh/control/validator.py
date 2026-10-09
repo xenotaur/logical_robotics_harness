@@ -111,6 +111,15 @@ DESIGN_PROPOSAL_BUCKETS = ("proposed", "adopted", "rejected", "superseded")
 # Pointer Grammar" decision-log entry and project/executions/README.md.
 EXECUTION_TRANSCRIPT_SENTINELS = {"pending", "none"}
 
+# Issue codes scoped to ``views/dependency_maps/*.md``. They are errors for
+# ``lrh validate``, but no planning artifact depends on a view declaration, so
+# consumers that load planning state need not refuse to load over them.
+DEPENDENCY_MAP_VIEW_INVALID = "DEPENDENCY_MAP_VIEW_INVALID"
+DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE = "DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE"
+DEPENDENCY_MAP_VIEW_ISSUE_CODES = frozenset(
+    {DEPENDENCY_MAP_VIEW_INVALID, DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE}
+)
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -533,7 +542,7 @@ def _validate_dependency_map_views(
         except OSError as err:
             issues.append(
                 _issue(
-                    project_root, path, "error", "DEPENDENCY_MAP_VIEW_INVALID", str(err)
+                    project_root, path, "error", DEPENDENCY_MAP_VIEW_INVALID, str(err)
                 )
             )
             continue
@@ -544,7 +553,7 @@ def _validate_dependency_map_views(
                         project_root,
                         path,
                         "error",
-                        "DEPENDENCY_MAP_VIEW_INVALID",
+                        DEPENDENCY_MAP_VIEW_INVALID,
                         problem,
                     )
                 )
@@ -557,7 +566,7 @@ def _validate_dependency_map_views(
                     project_root,
                     path,
                     "error",
-                    "DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE",
+                    DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE,
                     problem,
                 )
             )

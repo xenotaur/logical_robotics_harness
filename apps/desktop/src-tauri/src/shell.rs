@@ -54,8 +54,8 @@ pub mod menu_id {
     pub const STOP: &str = "server-stop";
     pub const RESTART: &str = "server-restart";
     pub const DETAILS: &str = "server-details";
-    pub const DASHBOARD: &str = "view-dashboard";
-    pub const META: &str = "view-meta";
+    pub const STATUSBOARD: &str = "view-statusboard";
+    pub const WORKSPACE: &str = "view-workspace";
     pub const RELOAD: &str = "view-reload";
     pub const BACK: &str = "view-back";
     pub const FORWARD: &str = "view-forward";
@@ -543,7 +543,7 @@ pub struct MenuEnablement {
     pub start: bool,
     pub stop: bool,
     pub restart: bool,
-    /// Dashboard, Meta, Open in Chrome, and Open in Browser.
+    /// Statusboard, Workspace, Open in Chrome, and Open in Browser.
     pub running_views: bool,
 }
 
@@ -577,10 +577,18 @@ impl MenuEnablement {
 }
 
 /// The page the main window should show for a supervisor status.
+/// The statusboard, LRH Console's home view, relative to the backend's root.
+const HOME_PAGE: &str = "meta";
+
+/// The home page on the backend at `root` (the handshake URL).
+pub fn home_page(root: &str) -> Option<Url> {
+    Url::parse(root).ok()?.join(HOME_PAGE).ok()
+}
+
 pub fn page_for_status(status: &Status, configured: bool) -> Url {
     match (status.state, &status.handshake) {
         (State::Running, Some(handshake)) => {
-            Url::parse(&handshake.url).unwrap_or_else(|_| status_url("failed", None))
+            home_page(&handshake.url).unwrap_or_else(|| status_url("failed", None))
         }
         (State::Starting, _) => status_url("starting", None),
         (State::Stopping, _) => status_url("stopping", None),
@@ -839,8 +847,18 @@ fn build_menu<R: Runtime>(
         stop: item(menu_id::STOP, "Stop Server", false, None)?,
         restart: item(menu_id::RESTART, "Restart Server", false, None)?,
         running_views: vec![
-            item(menu_id::DASHBOARD, "Dashboard", false, Some("CmdOrCtrl+0"))?,
-            item(menu_id::META, "Meta", false, Some("CmdOrCtrl+Shift+M"))?,
+            item(
+                menu_id::STATUSBOARD,
+                "Statusboard",
+                false,
+                Some("CmdOrCtrl+0"),
+            )?,
+            item(
+                menu_id::WORKSPACE,
+                "Workspace",
+                false,
+                Some("CmdOrCtrl+Shift+0"),
+            )?,
             item(menu_id::OPEN_CHROME, chrome_label, false, None)?,
             item(
                 menu_id::OPEN_BROWSER,
@@ -1242,13 +1260,13 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
         menu_id::START => state.request(Action::Start),
         menu_id::STOP => state.request(Action::Stop),
         menu_id::RESTART => state.request(Action::Restart),
-        menu_id::DASHBOARD => {
-            if let Some(url) = backend_page(&state, "") {
+        menu_id::STATUSBOARD => {
+            if let Some(url) = backend_page(&state, HOME_PAGE) {
                 navigate_main(app, &url);
             }
         }
-        menu_id::META => {
-            if let Some(url) = backend_page(&state, "meta") {
+        menu_id::WORKSPACE => {
+            if let Some(url) = backend_page(&state, "") {
                 navigate_main(app, &url);
             }
         }
@@ -1271,7 +1289,8 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             }
         }
         menu_id::OPEN_CHROME | menu_id::OPEN_BROWSER => {
-            let page = current_backend_page(app, &state).or_else(|| backend_page(&state, ""));
+            let page =
+                current_backend_page(app, &state).or_else(|| backend_page(&state, HOME_PAGE));
             if let Some(url) = page {
                 let choice = if id == menu_id::OPEN_CHROME {
                     BrowserChoice::Chrome
@@ -1925,6 +1944,15 @@ mod tests {
             page_for_status(&bad_workspace, true).query(),
             Some("state=failed&code=workspace_not_lrh_project")
         );
+    }
+
+    #[test]
+    fn a_running_backend_opens_on_the_statusboard() {
+        assert_eq!(
+            home_page("http://127.0.0.1:50543/").map(String::from),
+            Some("http://127.0.0.1:50543/meta".to_string())
+        );
+        assert_eq!(home_page("not a url"), None);
     }
 
     #[test]

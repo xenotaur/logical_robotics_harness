@@ -44,10 +44,26 @@ check of this branch's LRH Console build.
 
 Fix commit: `f02282b894b17d2afadcb43bf41394f6159b41aa`.
 
+## Round 2: substitute-review findings
+
+A cold-context review of round 1 (`02c320d6`) rated all three fixes Clear-satisfied, with CI 7/7
+green, and raised four low-severity findings. The owner chose to fix all four in this PR:
+
+- Returning focus to a card after its drawer closes fired the card's focus preview, leaving the
+  closed item highlighted. A `restoringFocus` guard now skips the preview.
+- Blockers entries had no `data-id`, so focus fell back to the whole map. They now carry
+  `data-id` (and no `data-state`, so the Blockers tab gains no filters).
+- The map fallback now uses `focus({ preventScroll: true })`, and the focused map draws no
+  outline.
+- The HEAD 404 test dropped a `read() == b""` check that `http.client` makes unfalsifiable, and
+  explains that `Content-Length` is the signal.
+
+Fix commit: `664081938e639d1054f5ad92e22f0f0fbd5cdb51`.
+
 # Validation
 
 - `scripts/format --check --diff`, `scripts/lint`: pass.
-- `scripts/test`: 2134 tests, OK.
+- `scripts/test`: OK after each round (2134 tests in round 1).
 - New tests: a JSON `data-unmet` round trip with an ID containing a space; HEAD 404 with no body
   for both disabled scripts (confirmed failing against the unfixed `serve.py`); script checks that
   the filter parses JSON and that focus moves before the drawer hides.

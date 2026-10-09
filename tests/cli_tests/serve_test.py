@@ -312,6 +312,77 @@ _HTML_ROUTES = (
 )
 
 
+class TestStatusboardHtml(unittest.TestCase):
+    """The statusboard's band and card HTML, without a server."""
+
+    def _card(self, **fields: object) -> dict[str, object]:
+        card: dict[str, object] = {
+            "display_name": "Alpha",
+            "project_id": "alpha",
+            "registry_name": "alpha",
+            "source_state": "live",
+            "validation_status": "valid",
+        }
+        card.update(fields)
+        return card
+
+    def test_card_text_from_project_files_is_escaped(self) -> None:
+        hostile = '<b onmouseover="x">focus</b>'
+        page = serve._meta_card_html(
+            self._card(
+                display_name=hostile,
+                current_focus_summary=hostile,
+                validation_next_action=hostile,
+            )
+        )
+
+        self.assertNotIn("<b ", page)
+        # Name, focus, next action, and the next action again under Details.
+        self.assertEqual(page.count("&lt;b onmouseover=&quot;x&quot;&gt;"), 4)
+
+    def test_freshness_says_why_a_card_was_not_read(self) -> None:
+        unread = serve._meta_card_html(
+            self._card(source_state="needs_local_checkout"), "2026-10-09T05:00:00+00:00"
+        )
+        live = serve._meta_card_html(self._card(), "2026-10-09T05:00:00+00:00")
+
+        self.assertIn(
+            '<span class="lrh-chip">Not read: needs local checkout</span>', unread
+        )
+        self.assertIn("<dd>Set a local checkout path</dd>", unread)
+        self.assertIn(
+            '<span class="lrh-chip">Read live 2026-10-09 05:00:00 UTC</span>', live
+        )
+        self.assertIn('<span class="lrh-chip">Validation: passing</span>', live)
+
+    def test_html_bands_follow_the_payload_order_with_each_project_once(self) -> None:
+        payload_lanes = [
+            {
+                "status": status.value,
+                "label": serve.dashboard.status_label(status),
+                "description": "d",
+                "count": 1,
+                "projects": [
+                    self._card(
+                        display_name=f"P-{status.value}", project_id=status.value
+                    )
+                ],
+            }
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        page = "".join(serve._meta_lane_html(lane) for lane in payload_lanes)
+
+        positions = [
+            page.index(f'id="band-{status.value}"')
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        self.assertEqual(positions, sorted(positions))
+        self.assertTrue(page.startswith('<details class="lrh-band lrh-band--blocked"'))
+        for status in serve.dashboard.OPERATIONAL_LANE_ORDER:
+            with self.subTest(band=status):
+                self.assertEqual(page.count(f">P-{status.value}</a>"), 1)
+
+
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
         self,
@@ -1499,11 +1570,57 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("Meta Operational Triage", body)
-        self.assertIn("Total registered projects shown: 0", body)
+        self.assertIn("<title>Statusboard</title>", body)
         self.assertIn("No registered projects", body)
-        self.assertIn("Needs Attention (0)", body)
-        self.assertIn("Unknown (0)", body)
+        # Every band is shown even when empty, and Unknown says why it is empty.
+        for status in (
+            "blocked",
+            "needs_attention",
+            "active_work",
+            "awaiting_review",
+            "stable",
+            "unknown",
+        ):
+            with self.subTest(band=status):
+                self.assertIn(f'id="band-{status}"', body)
+        self.assertEqual(body.count("No projects in this band."), 5)
+        self.assertIn("No projects are currently classified as unknown.", body)
+        self.assertIn(
+            '0<span class="lrh-visually-hidden"> projects</span></span>', body
+        )
+        self.assertNotIn("<script", body)
+
+    def test_statusboard_shows_bands_first_with_card_facts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root / "repos" / "alpha")
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            _status, _type, body = self._read(base_url + "/meta")
+            _status, _type, api = self._read(base_url + "/api/meta")
+
+        payload = json.loads(api)
+        lane = next(lane for lane in payload["lanes"] if lane["count"])
+        band = body.split(f'id="band-{lane["status"]}"', 1)[1].split("</details>", 1)[0]
+        # A band with projects starts open; the empty ones start closed.
+        self.assertIn(f'id="band-{lane["status"]}" open>', body)
+        self.assertNotIn('id="band-unknown" open', body)
+        # Glyph, label, and count: never color alone.
+        self.assertIn('class="lrh-band-glyph" aria-hidden="true">', band)
+        self.assertIn(f'<span class="lrh-band-label">{lane["label"]}</span>', band)
+        self.assertIn('1<span class="lrh-visually-hidden"> project</span>', band)
+        self.assertIn(">Alpha</a></h3>", band)
+        self.assertIn("<dt>Focus:</dt>", band)
+        self.assertIn("<dt>Next:</dt>", band)
+        self.assertIn('<span class="lrh-chip">Validation: ', band)
+        self.assertIn('<span class="lrh-chip">Read live ', band)
+        self.assertIn('<details class="lrh-card-details"><summary>Details', band)
+        # The bands come before the explanatory text.
+        self.assertLess(body.index('class="lrh-bands"'), body.index("About this view"))
+        self.assertRegex(payload["read_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$")
+        self.assertNotIn("<script", body)
 
     def test_meta_route_renders_multiple_projects_in_lane_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1525,15 +1642,15 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(
             [lane["label"] for lane in payload["lanes"]],
             [
-                "Needs Attention",
-                "Active Work",
-                "Awaiting Review",
-                "Stable / No Action Needed",
                 "Blocked",
+                "Needs attention",
+                "Active work",
+                "Awaiting review",
+                "Stable",
                 "Unknown",
             ],
         )
-        active_lane = payload["lanes"][1]
+        active_lane = _meta_lane(payload, "active_work")
         self.assertEqual(active_lane["count"], 2)
         self.assertEqual(
             [card["display_name"] for card in active_lane["projects"]],
@@ -1579,7 +1696,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        needs_attention = payload["lanes"][0]
+        needs_attention = _meta_lane(payload, "needs_attention")
         self.assertEqual(needs_attention["count"], 1)
         broken = needs_attention["projects"][0]
         self.assertEqual(broken["display_name"], "broken")
@@ -1625,7 +1742,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        stable_lane = payload["lanes"][3]
+        stable_lane = _meta_lane(payload, "stable")
         self.assertEqual(stable_lane["count"], 1)
         custom = stable_lane["projects"][0]
         self.assertEqual(custom["display_name"], "Custom Dir")
@@ -1645,7 +1762,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        needs_attention = payload["lanes"][0]
+        needs_attention = _meta_lane(payload, "needs_attention")
         self.assertEqual(needs_attention["count"], 1)
         warned_card = needs_attention["projects"][0]
         self.assertEqual(warned_card["display_name"], "Warned")
@@ -1782,10 +1899,19 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        self.assertEqual(payload["lanes"][1]["projects"][0]["display_name"], "Active")
-        self.assertEqual(payload["lanes"][2]["projects"][0]["display_name"], "Review")
-        self.assertEqual(payload["lanes"][3]["projects"][0]["display_name"], "Stable")
-        self.assertEqual(payload["lanes"][4]["projects"][0]["display_name"], "Blocked")
+        self.assertEqual(
+            _meta_lane(payload, "active_work")["projects"][0]["display_name"], "Active"
+        )
+        self.assertEqual(
+            _meta_lane(payload, "awaiting_review")["projects"][0]["display_name"],
+            "Review",
+        )
+        self.assertEqual(
+            _meta_lane(payload, "stable")["projects"][0]["display_name"], "Stable"
+        )
+        self.assertEqual(
+            _meta_lane(payload, "blocked")["projects"][0]["display_name"], "Blocked"
+        )
 
     def test_meta_route_marks_local_path_without_project_missing_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1799,7 +1925,7 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        empty = payload["lanes"][0]["projects"][0]
+        empty = _meta_lane(payload, "needs_attention")["projects"][0]
         self.assertEqual(empty["display_name"], "Empty")
         self.assertEqual(empty["source_state"], "missing_project")
         self.assertIn("PROJECT_CONTROL_DIR_NOT_FOUND", empty["diagnostics"][0])
@@ -1947,7 +2073,7 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        card = payload["lanes"][5]["projects"][0]
+        card = _meta_lane(payload, "unknown")["projects"][0]
         self.assertEqual(
             card["detail_url"],
             "/project/name%20with%20%26%20hash%23",
@@ -2439,6 +2565,12 @@ def _find_meta_project(
             if project["display_name"] == display_name:
                 return project
     raise AssertionError(f"project {display_name!r} not found in meta payload")
+
+
+def _meta_lane(payload: dict, status: str) -> dict:
+    """The /api/meta band with this status, independent of band order."""
+
+    return next(lane for lane in payload["lanes"] if lane["status"] == status)
 
 
 def _write_project_record(

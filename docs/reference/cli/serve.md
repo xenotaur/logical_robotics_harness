@@ -95,6 +95,21 @@ lrh serve --desktop-protocol
   HTML detail route renders transcript bodies as escaped inert text after an
   explicit export selection.
 
+## Statusboard route
+
+- `/meta`: the statusboard, LRH Console's home view. It shows every project in the
+  Meta registry in exactly one band, by operational state: **Blocked**, **Needs
+  attention**, **Active work**, **Awaiting review**, **Stable**, and **Unknown**
+  (when LRH cannot establish a state). Each band has a symbol, label, count, and
+  description, so no band is told apart by color alone. Bands are `<details>`
+  elements: they collapse and expand without scripts, bands with projects start
+  open, and empty bands stay visible but closed.
+- Each project card shows its focus, next action, a validation chip, and a
+  freshness chip ("Read live" with the time, or why it was not read). The full
+  registry facts and diagnostics are under **Details**.
+- `/api/meta` returns the same bands as JSON, in the same order, with a
+  `read_at` timestamp. Each project's `triage_lane` is its band's `status`.
+
 ## Dependency-map routes
 
 - `/project/<project_id>/dependency-maps`: the project's declared views, or an

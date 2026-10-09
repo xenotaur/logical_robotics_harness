@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import html
 import http.server
@@ -701,8 +702,10 @@ def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
         _operational_card_from_load_result(workspace, result) for result in load_results
     ]
     meta_view = dashboard.build_meta_dashboard(cards)
+    read_at = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
     return {
         "mode": "safe-default-read-only-meta-triage",
+        "read_at": read_at.isoformat(),
         "workspace": workspace_payload,
         "total_projects": meta_view.total_projects,
         "lanes": [
@@ -722,65 +725,64 @@ def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
 
 
 def render_meta_dashboard(config: ServeConfig) -> str:
-    """Render the read-only registered-project swimlane dashboard."""
+    """Render the read-only statusboard: one band per operational state.
+
+    Bands come first; the workspace, guardrail, and API notes follow them.
+    Every band is a ``<details>`` element, so it collapses without scripts.
+    """
 
     payload = meta_dashboard_payload(config)
     workspace = payload["workspace"]
     workspace_note = "Meta workspace available."
     if isinstance(workspace, dict) and workspace.get("error"):
         workspace_note = f"Meta workspace unavailable: {workspace['error']}"
-    lane_html = "".join(_meta_lane_html(lane) for lane in payload["lanes"])
-    if payload["total_projects"] == 0:
-        empty_note = (
-            '<p class="lrh-muted">No registered projects are available in the '
-            "active meta workspace.</p>"
+    read_at = str(payload.get("read_at") or "")
+    band_html = "".join(_meta_lane_html(lane, read_at) for lane in payload["lanes"])
+    total = payload["total_projects"]
+    if total == 0:
+        summary = (
+            "No registered projects are available in the active meta workspace. "
+            "Register one with <code>lrh meta register</code>."
         )
     else:
-        empty_note = ""
-    return """<!doctype html>
-<html lang=\"en\">
+        noun = "project" if total == 1 else "projects"
+        summary = f"{html.escape(str(total))} registered {noun}, by operational state."
+    return f"""<!doctype html>
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\">
-  <title>LRH Meta Operational Triage</title>
-  {styles}
+  <meta charset="utf-8">
+  <title>Statusboard</title>
+  {_base_styles()}
+  <style>{STATUSBOARD_STYLES}</style>
 </head>
 <body>
-  <div class=\"lrh-app-shell\">
-    <header class=\"lrh-page-header\">
-      <p class=\"lrh-eyebrow\">LRH Console preview</p>
-      <h1>Meta Operational Triage</h1>
-      <p><a href=\"/\">Back to project viewer</a></p>
-      <aside class=\"lrh-guardrail-callout\" aria-label=\"Meta dashboard guardrails\">
-        This safe-default, read-only dashboard summarizes registered projects from
-        the LRH meta workspace. It does not inspect arbitrary files, expose secrets,
-        dispatch agents, create branches, commit, open pull requests, merge, release,
-        publish, or provide write routes. Meta workspace state is informative only;
-        project-local project/ control planes remain authoritative.
-      </aside>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header lrh-statusboard-header">
+      <h1>Statusboard</h1>
+      <p>{summary}</p>
     </header>
-    <main id=\"main-content\" class=\"lrh-main-content\">
-      <section class=\"lrh-console-region\" aria-labelledby=\"meta-summary-heading\">
-        <h2 id=\"meta-summary-heading\">Registered project swimlanes</h2>
-        <p>{workspace_note}</p>
-        <p>Total registered projects shown: {total_projects}</p>
-        {empty_note}
-      </section>
-      {lane_html}
-      <section class=\"lrh-console-region\" aria-labelledby=\"meta-api-heading\">
-        <h2 id=\"meta-api-heading\">Read-only API</h2>
-        <ul><li><a href=\"/api/meta\">/api/meta</a></li></ul>
+    <main id="main-content" class="lrh-main-content">
+      <div class="lrh-bands">{band_html}</div>
+      <section class="lrh-console-region lrh-statusboard-about"
+        aria-labelledby="meta-about-heading">
+        <h2 id="meta-about-heading">About this view</h2>
+        <p>{html.escape(workspace_note)}</p>
+        <p>Each project is in exactly one band, chosen from its control-plane
+        state: Blocked first, then Needs attention, Active work, Awaiting review,
+        Stable, and Unknown when LRH cannot tell.</p>
+        <p class="lrh-muted">This safe-default, read-only view summarizes registered
+        projects from the LRH meta workspace. It does not inspect arbitrary files,
+        expose secrets, dispatch agents, create branches, commit, open pull requests,
+        merge, release, publish, or provide write routes. Meta workspace state is
+        informative only; project-local project/ control planes remain
+        authoritative.</p>
+        <p>Read-only API: <a href="/api/meta">/api/meta</a></p>
       </section>
     </main>
   </div>
 </body>
 </html>
-""".format(
-        styles=_base_styles(),
-        workspace_note=html.escape(workspace_note),
-        total_projects=html.escape(str(payload["total_projects"])),
-        empty_note=empty_note,
-        lane_html=lane_html,
-    )
+"""
 
 
 def render_meta_project_placeholder(project_selector: str) -> str:
@@ -1720,28 +1722,180 @@ def _operational_card_payload(project: object) -> dict[str, object]:
     }
 
 
-def _meta_lane_html(lane: object) -> str:
+# Each band's glyph, so no band is told apart by color alone. The glyphs match
+# the dependency map's where the meaning is shared.
+_BAND_GLYPHS = {
+    "blocked": "✕",
+    "needs_attention": "!",
+    "active_work": "▶",
+    "awaiting_review": "◉",
+    "stable": "✓",
+    "unknown": "?",
+}
+
+STATUSBOARD_STYLES = """
+  .lrh-page-header.lrh-statusboard-header {
+    padding: 0.9rem 1.1rem; margin-bottom: 0.75rem;
+  }
+  .lrh-statusboard-header h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+  .lrh-statusboard-header p { margin: 0; }
+  .lrh-bands { display: grid; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .lrh-band {
+    border: 1px solid var(--lrh-band-line);
+    border-left: 6px solid var(--lrh-band-line);
+    border-radius: 8px;
+    background: var(--lrh-color-surface-panel);
+  }
+  .lrh-band > summary {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem;
+    padding: 0.6rem 0.9rem; cursor: pointer; list-style: none;
+    background: var(--lrh-band-bg); color: var(--lrh-band-fg);
+    border-radius: 2px 7px 7px 2px;
+  }
+  .lrh-band[open] > summary { border-radius: 2px 7px 0 0; }
+  .lrh-band > summary::-webkit-details-marker { display: none; }
+  .lrh-band > summary::before { content: "▸" / ""; width: 1em; }
+  .lrh-band[open] > summary::before { content: "▾" / ""; }
+  .lrh-band > summary:focus-visible {
+    outline: 3px solid var(--lrh-color-focus); outline-offset: 2px;
+  }
+  .lrh-band-glyph { font-weight: 700; width: 1.2em; text-align: center; }
+  .lrh-band-label { font-weight: 700; font-size: 1.05rem; }
+  .lrh-band-count {
+    font-weight: 700; min-width: 1.6em; text-align: center; padding: 0 0.4em;
+    border: 1px solid currentColor; border-radius: 999px;
+  }
+  .lrh-band-description { flex-basis: 100%; padding-left: 2.2em; }
+  .lrh-band-body {
+    display: grid; gap: 0.75rem; padding: 0.75rem 0.9rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+  .lrh-band-empty { margin: 0; padding: 0.6rem 0.9rem 0.75rem 3.1rem; }
+  .lrh-band--blocked { --lrh-band-fg: var(--lrh-color-band-blocked-fg);
+    --lrh-band-bg: var(--lrh-color-band-blocked-bg);
+    --lrh-band-line: var(--lrh-color-band-blocked-line); }
+  .lrh-band--needs_attention { --lrh-band-fg: var(--lrh-color-band-needs-attention-fg);
+    --lrh-band-bg: var(--lrh-color-band-needs-attention-bg);
+    --lrh-band-line: var(--lrh-color-band-needs-attention-line); }
+  .lrh-band--active_work { --lrh-band-fg: var(--lrh-color-band-active-work-fg);
+    --lrh-band-bg: var(--lrh-color-band-active-work-bg);
+    --lrh-band-line: var(--lrh-color-band-active-work-line); }
+  .lrh-band--awaiting_review { --lrh-band-fg: var(--lrh-color-band-awaiting-review-fg);
+    --lrh-band-bg: var(--lrh-color-band-awaiting-review-bg);
+    --lrh-band-line: var(--lrh-color-band-awaiting-review-line); }
+  .lrh-band--stable { --lrh-band-fg: var(--lrh-color-band-stable-fg);
+    --lrh-band-bg: var(--lrh-color-band-stable-bg);
+    --lrh-band-line: var(--lrh-color-band-stable-line); }
+  .lrh-band--unknown { --lrh-band-fg: var(--lrh-color-band-unknown-fg);
+    --lrh-band-bg: var(--lrh-color-band-unknown-bg);
+    --lrh-band-line: var(--lrh-color-band-unknown-line); }
+  .lrh-band .lrh-project-card {
+    margin: 0; min-width: 0; padding: 0.75rem;
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-radius: var(--lrh-radius-md);
+    background: var(--lrh-color-surface-page);
+  }
+  .lrh-card-facts dd, .lrh-chip { overflow-wrap: anywhere; }
+  .lrh-visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .lrh-project-card h3 { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+  .lrh-card-facts { margin: 0 0 0.5rem; display: grid; gap: 0.25rem; }
+  .lrh-card-facts dt { font-weight: 600; display: inline; }
+  .lrh-card-facts dd { display: inline; margin: 0; }
+  .lrh-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.5rem; }
+  .lrh-chip {
+    display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
+    border: 1px solid var(--lrh-color-border-subtle);
+    font-size: 0.85rem;
+  }
+  .lrh-card-details > summary { cursor: pointer; }
+"""
+
+
+def _meta_lane_html(lane: object, read_at: str = "") -> str:
     if not isinstance(lane, dict):
         return ""
     cards = lane.get("projects", [])
     card_html = "".join(
-        _meta_card_html(card) for card in cards if isinstance(card, dict)
+        _meta_card_html(card, read_at) for card in cards if isinstance(card, dict)
     )
-    if not card_html:
-        card_html = '<p class="lrh-muted">No projects in this lane.</p>'
+    status = str(lane["status"])
     label = html.escape(str(lane["label"]))
-    status = html.escape(str(lane["status"]), quote=True)
-    count = html.escape(str(lane["count"]))
+    count = int(lane["count"]) if isinstance(lane.get("count"), int) else 0
+    noun = "project" if count == 1 else "projects"
     description = html.escape(str(lane["description"]))
+    glyph = html.escape(_BAND_GLYPHS.get(status, "?"))
+    css = html.escape(status, quote=True)
+    if card_html:
+        body = f'<div class="lrh-band-body">{card_html}</div>'
+    else:
+        body = '<p class="lrh-band-empty lrh-muted">No projects in this band.</p>'
+        if status == "unknown":
+            body = (
+                # Neutral on purpose: an unreadable registry also leaves every
+                # band empty, without LRH having established anything.
+                '<p class="lrh-band-empty lrh-muted">No projects are currently '
+                "classified as unknown.</p>"
+            )
+    # Bands with projects start open; empty bands stay visible but closed.
+    is_open = " open" if card_html else ""
     return (
-        f'<section class="lrh-console-region lrh-meta-lane" '
-        f'aria-labelledby="meta-lane-{status}-heading">'
-        f'<h2 id="meta-lane-{status}-heading">{label} ({count})</h2>'
-        f"<p>{description}</p>{card_html}</section>"
+        f'<details class="lrh-band lrh-band--{css}" id="band-{css}"{is_open}>'
+        f'<summary><span class="lrh-band-glyph" aria-hidden="true">{glyph}</span>'
+        f'<span class="lrh-band-label">{label}</span>'
+        f'<span class="lrh-band-count">{count}'
+        f'<span class="lrh-visually-hidden"> {noun}</span></span>'
+        f'<span class="lrh-band-description">{description}</span></summary>'
+        f"{body}</details>"
     )
 
 
-def _meta_card_html(card: dict[str, object]) -> str:
+def _meta_evidence_chip(card: dict[str, object]) -> str:
+    """The control-plane validation result, as a short chip."""
+
+    status = str(card.get("validation_status") or "unknown")
+    errors = card.get("validation_error_count")
+    warnings = card.get("validation_warning_count")
+    if isinstance(errors, int) and errors > 0:
+        text = f"Validation: {errors} error" + ("" if errors == 1 else "s")
+    elif isinstance(warnings, int) and warnings > 0:
+        text = f"Validation: {warnings} warning" + ("" if warnings == 1 else "s")
+    elif status == "valid":
+        text = "Validation: passing"
+    else:
+        text = f"Validation: {status.replace('_', ' ')}"
+    return f'<span class="lrh-chip">{html.escape(text)}</span>'
+
+
+def _meta_freshness_chip(card: dict[str, object], read_at: str) -> str:
+    """When this card's facts were read, or why they were not."""
+
+    source = str(card.get("source_state") or "unknown")
+    if source == "live" and read_at:
+        stamp = read_at.replace("T", " ").replace("+00:00", " UTC")
+        text = f"Read live {stamp}"
+    elif source == "live":
+        text = "Read live"
+    else:
+        text = f"Not read: {source.replace('_', ' ')}"
+    return f'<span class="lrh-chip">{html.escape(text)}</span>'
+
+
+def _meta_next_action(card: dict[str, object]) -> str:
+    if card.get("source_state") == "needs_local_checkout":
+        return "Set a local checkout path"
+    next_action = card.get("validation_next_action")
+    if isinstance(next_action, str) and next_action.strip():
+        return next_action.strip()
+    ready = card.get("ready_leaf_count")
+    if isinstance(ready, int) and ready > 0:
+        return f"{ready} work item" + (" is" if ready == 1 else "s are") + " ready"
+    return ""
+
+
+def _meta_card_html(card: dict[str, object], read_at: str = "") -> str:
     name = html.escape(str(card["display_name"]))
     project_id = html.escape(str(card["project_id"]))
     detail_url = html.escape(str(card.get("detail_url") or "/meta/project"), quote=True)
@@ -1775,7 +1929,6 @@ def _meta_card_html(card: dict[str, object]) -> str:
         ("Locator", "locator"),
         ("Project source access", "source_state"),
         ("Control-plane validation", "validation_status"),
-        ("Current focus", "current_focus_summary"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
         ("Ready leaves", "ready_leaf_count"),
@@ -1788,16 +1941,33 @@ def _meta_card_html(card: dict[str, object]) -> str:
     field_html = "".join(
         _card_definition_html(card, label, key) for label, key in fields
     )
+    focus = card.get("current_focus_summary")
+    focus_html = (
+        html.escape(str(focus))
+        if isinstance(focus, str) and focus.strip()
+        else '<span class="lrh-muted">None recorded</span>'
+    )
+    next_action = _meta_next_action(card)
+    next_html = (
+        html.escape(next_action)
+        if next_action
+        else '<span class="lrh-muted">None recorded</span>'
+    )
     setup_guidance = _meta_card_setup_guidance_html(card)
     return (
         f'<article class="lrh-project-card" id="meta-project-{registry_anchor}">'
         f'<h3><a href="{detail_url}">{name}</a></h3>'
+        f'<dl class="lrh-card-facts"><div><dt>Focus:</dt> <dd>{focus_html}</dd></div>'
+        f"<div><dt>Next:</dt> <dd>{next_html}</dd></div></dl>"
+        f'<p class="lrh-chips">{_meta_evidence_chip(card)}'
+        f"{_meta_freshness_chip(card, read_at)}</p>"
+        f'<details class="lrh-card-details"><summary>Details</summary>'
         f'<dl class="lrh-summary-grid">{field_html}</dl>'
         f"{setup_guidance}"
         f"{validation_html}"
         f"{_meta_card_validation_next_action_html(card)}"
         f"<h4>LRH capability gaps</h4>{gap_html}"
-        f"<h4>Other diagnostics</h4>{diagnostic_html}</article>"
+        f"<h4>Other diagnostics</h4>{diagnostic_html}</details></article>"
     )
 
 

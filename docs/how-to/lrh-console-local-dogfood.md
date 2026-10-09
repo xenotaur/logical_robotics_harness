@@ -70,7 +70,9 @@ effect when the server restarts.
 | --- | --- |
 | Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, with Settings on the left and Server Details on the right. Choosing either again brings it to the front; **Server Details…** also scrolls to and briefly highlights the details. |
 | Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
-| Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). |
+| Go to the statusboard or the workspace page | LRH Console opens on the statusboard. **View > Statusboard** (⌘0) returns to it, and **View > Workspace** (⇧⌘0) opens the served project's workspace page. In a served page, the LRH icon in the top bar always goes home to the statusboard, and the sidebar switches between All projects and each registered project. |
+| Open Settings from a page | The gear in a served page's top bar opens the Settings window. In a browser it opens a read-only display and about page. |
+| Trace a dependency map | LRH Console runs Serve with `--interactive`. On a dependency map, point at a card to preview what it needs and what needs it; click to select it and open its details; press Escape to close. The **Show** checkboxes hide states without ever hiding something a shown item still needs. The top bar's Light / Dark / System switch appears when Settings > Appearance is System; it resets when LRH Console restarts, so use Appearance for a lasting choice. |
 | Reload | **View > Reload** (⌘R). |
 | Go back or forward | **View > Back** (⌘[) or **View > Forward** (⌘]). They move between pages of the running server only, never to a status page or a previous server's address, and are enabled only when there is a page to go to. A restart starts a fresh history. |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |
@@ -130,7 +132,7 @@ See [the toolchain how-to](project-setup/desktop-toolchain.md#build-and-run-the-
 
 | Interaction | In the app | In a browser |
 | --- | --- | --- |
-| Dashboard, Meta, project, work-item, and design pages | Works | Works (same origin, same project) |
+| Statusboard, workspace, project, work-item, and design pages | Works | Works (same origin, same project) |
 | Workbench prompt, run-packet, and run-report previews | Works | Works |
 | `?download=1` Markdown downloads | Handed to the chosen browser, which saves the file (the app never writes files) | Works |
 | JSON routes (`/api/...`) | Shown as text | Shown as text |
@@ -182,13 +184,13 @@ apps/desktop/scripts/run bundle
 Run these checks for each dogfood session. Record the results in
 `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md`.
 
-1. Open LRH Console from the Dock. The dashboard appears without any
+1. Open LRH Console from the Dock. The statusboard appears without any
    terminal.
 2. Choose **Server > Stop**. The page shows "Server stopped", and only
    **Start** is enabled.
-3. Choose **Server > Start**. The dashboard returns.
-4. Choose **Server > Restart**. The dashboard returns on a new port.
-5. Use **View > Meta**, **View > Dashboard**, and **View > Reload**. Open
+3. Choose **Server > Start**. The statusboard returns.
+4. Choose **Server > Restart**. The statusboard returns on a new port.
+5. Use **View > Statusboard**, **View > Workspace**, and **View > Reload**. Open
    `/health`, then use **View > Back** (⌘[) to return, and **View > Forward**
    (⌘]) to go there again.
 6. Click an internal link; it opens in the app. Click an external link; it
@@ -225,7 +227,7 @@ Run these checks for each dogfood session. Record the results in
     ```
 
     The page shows **Server failed** with `exited_unexpectedly`. Choose
-    **Server > Start Server**, and the dashboard returns.
+    **Server > Start Server**, and the statusboard returns.
 16. Crash the app. Find the PID of the app installed in `/Applications`.
     The anchored pattern leaves other builds alone, including a dev or bundle
     build running from a worktree:
@@ -242,7 +244,7 @@ Run these checks for each dogfood session. Record the results in
 
     Within a few seconds the server exits on its own, so
     `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH
-    Console from the Dock, and the dashboard returns.
+    Console from the Dock, and the statusboard returns.
 17. Note anything slow, confusing, or missing.
 
 Steps 12, 15, and 16 force failures deliberately. Run them at least once

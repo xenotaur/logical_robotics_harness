@@ -56,6 +56,13 @@ class SkillsVcsMergeWiringTest(unittest.TestCase):
         self.assertIn("host-level denial", content)
         self.assertIn("do\nnot retry it in another form", content)
 
+    def test_skills_say_exit_two_does_not_always_mean_nothing_merged(self) -> None:
+        for root in SKILL_ROOTS:
+            for skill in MERGE_SKILLS:
+                with self.subTest(root=str(root.relative_to(REPO_ROOT)), skill=skill):
+                    content = " ".join((root / skill / "SKILL.md").read_text().split())
+                    self.assertIn("does not always mean nothing merged", content)
+
     def test_claude_mirror_is_byte_identical_for_the_wired_files(self) -> None:
         for relative in WIRED_FILES:
             with self.subTest(file=relative):

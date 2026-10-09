@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import html
 import http.server
@@ -18,11 +19,16 @@ from pathlib import Path
 from typing import Any
 
 from lrh import core_state, desktop_protocol
+from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
+from lrh.dependency_maps import layout as dependency_map_layout
+from lrh.dependency_maps import render as dependency_map_render
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
+from lrh.dependency_maps import view as dependency_map_view
 from lrh.meta import workspace as meta_workspace
-from lrh.ux import dashboard, tokens
+from lrh.ux import dashboard, frame, tokens
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -48,14 +54,19 @@ _STATUS_ROUTES = (
     "/meta",
     "/meta/project",
     "/style",
+    "/settings",
+    "/static/<asset>",
     "/project/<project_id>",
     "/project/<project_id>/designs/<design_id>",
     "/project/<project_id>/workstreams/<workstream_id>",
     "/project/<project_id>/work-items/<work_item_id>",
+    "/project/<project_id>/dependency-maps",
+    "/project/<project_id>/dependency-maps/<view>",
     "/project/<project_id>/work-items/<work_item_id>/prompt",
     "/health",
     "/api/status",
     "/api/project",
+    "/api/project/<project_id>/dependency-maps/<view>",
     "/api/workbench",
     "/api/conversations/codex",
     "/api/conversations/codex/<export_id>",
@@ -76,6 +87,7 @@ class ServeConfig:
     allow_nonlocal_host: bool = False
     codex_archive_roots: tuple[Path, ...] = ()
     theme: str = DEFAULT_THEME
+    interactive: bool = False
 
     def resolved_project_root(self) -> Path:
         """Return the deterministic absolute project root used for status labels."""
@@ -88,6 +100,271 @@ class ServeConfig:
         if project_dir.name == "project":
             return project_dir.parent
         return project_dir
+
+
+_CONTENT_SECURITY_POLICY = (
+    "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+    "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+    "form-action 'none'"
+)
+# --interactive adds only same-origin scripts: never inline script or eval.
+_INTERACTIVE_CONTENT_SECURITY_POLICY = _CONTENT_SECURITY_POLICY + "; script-src 'self'"
+_INTERACTIVE_SCRIPT = "lrh-interactive.js"
+_THEME_EARLY_SCRIPT = "lrh-theme-early.js"
+_INTERACTIVE_SCRIPTS = frozenset({_INTERACTIVE_SCRIPT, _THEME_EARLY_SCRIPT})
+_INTERACTIVE_SCRIPT_TAG = f'<script src="/static/{_INTERACTIVE_SCRIPT}" defer></script>'
+# Runs before first paint so a stored theme does not flash; tiny and blocking.
+_THEME_EARLY_SCRIPT_TAG = f'<script src="/static/{_THEME_EARLY_SCRIPT}"></script>'
+
+
+def content_security_policy(config: ServeConfig) -> str:
+    """Return the policy for this server: script-free unless --interactive."""
+
+    if config.interactive:
+        return _INTERACTIVE_CONTENT_SECURITY_POLICY
+    return _CONTENT_SECURITY_POLICY
+
+
+def apply_interactive(page: str, interactive: bool) -> str:
+    """Add the packaged script to an HTML page's head under --interactive."""
+
+    if not interactive or "<head>" not in page or "</head>" not in page:
+        return page
+    page = page.replace("<head>", "<head>" + _THEME_EARLY_SCRIPT_TAG, 1)
+    return page.replace("</head>", _INTERACTIVE_SCRIPT_TAG + "</head>", 1)
+
+
+def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
+    """Return the registered projects for the scope switcher, or none."""
+
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        results = meta_workspace.list_registered_project_loads_in_workspace(workspace)
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+        OSError,
+        ValueError,
+    ):
+        # The frame is best-effort: a broken registry must not break pages.
+        return ()
+    # A record that fails to load is still listed, by its registry name, so
+    # the dashboard page for its unavailable card stays reachable.
+    return tuple(
+        frame.Project(
+            selector=result.registry_name,
+            label=(result.record and result.record.display_name)
+            or result.registry_name,
+        )
+        for result in results
+    )
+
+
+def dependency_map_payload(
+    config: ServeConfig, remainder: str
+) -> tuple[int, dict[str, object]]:
+    """Answer ``/api/project/<project_id>/dependency-maps/<view>`` read-only.
+
+    Like the other ``/project/<project_id>/`` routes, a ``project_id`` that the
+    Meta registry cannot resolve to a local checkout falls back to the served
+    project. Returns the versioned snapshot JSON, 404 for a malformed path or
+    an unknown view, 422 for an invalid view declaration, or 500 if the
+    project's control files cannot be loaded.
+    """
+
+    parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
+    if len(parts) != 3 or parts[1] != "dependency-maps":
+        return 404, {"error": "not_found"}
+    project_selector, _, view_id = parts
+    repo_root = _config_for_project_selector(
+        config, project_selector
+    ).resolved_project_root()
+    try:
+        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    except FileNotFoundError:
+        return 404, {"error": "not_found", "view": view_id}
+    except dependency_map_view.ViewDeclarationError as err:
+        return 422, {"error": "invalid_view", "problems": list(err.problems)}
+    except dependency_map_snapshot.SnapshotError as err:
+        return 500, {"error": "snapshot_failed", "message": str(err)}
+    return 200, snapshot.to_dict()
+
+
+def render_dependency_map_page(
+    config: ServeConfig,
+    project_selector: str,
+    view_id: str | None,
+    query: dict[str, str],
+) -> tuple[int, str]:
+    """Render a dependency-map view, or the project's list of views.
+
+    Returns 404 for an unknown view, 422 for an invalid declaration, and 500
+    if the sources cannot be read; the last two render an explanatory page.
+    """
+
+    repo_root = _config_for_project_selector(
+        config, project_selector
+    ).resolved_project_root()
+    base = f"/project/{_url_quote(project_selector)}/dependency-maps"
+    if view_id is None:
+        return 200, _dependency_map_document(
+            "Dependency maps", _dependency_map_index(repo_root, base)
+        )
+    try:
+        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    except FileNotFoundError:
+        return 404, ""
+    except dependency_map_view.ViewDeclarationError as err:
+        problems = "".join(
+            f"<li>{html.escape(problem)}</li>" for problem in err.problems
+        )
+        body = (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency map</p>'
+            f"<h1>{html.escape(view_id)}: invalid view</h1>"
+            f"<p>Fix <code>{html.escape(err.path)}</code>; "
+            "<code>lrh validate</code> reports the same problems.</p></header>"
+            f'<section class="lrh-console-region"><ul>{problems}</ul></section>'
+        )
+        return 422, _dependency_map_document(f"{view_id}: invalid view", body)
+    except dependency_map_snapshot.SnapshotError as err:
+        body = (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency map</p>'
+            f"<h1>{html.escape(view_id)}: unavailable</h1>"
+            f"<p>{html.escape(str(err))}</p></header>"
+        )
+        return 500, _dependency_map_document(f"{view_id}: unavailable", body)
+    selector = _url_quote(project_selector)
+    body = dependency_map_render.render_view(
+        snapshot,
+        dependency_map_layout.DEFAULT_LAYOUT,
+        tab=query.get("tab", "map"),
+        item=query.get("item"),
+        since=query.get("since"),
+        interactive=config.interactive,
+        full_page_href=lambda item_id: (
+            f"/project/{selector}/work-items/{_url_quote(item_id)}"
+        ),
+    )
+    return 200, _dependency_map_document(snapshot.view_title, body)
+
+
+def _dependency_map_index(repo_root: Path, base: str) -> str:
+    paths = dependency_map_view.discover_views(repo_root)
+    if not paths:
+        return (
+            '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency maps</p>'
+            "<h1>No dependency-map views</h1>"
+            "<p>This project declares none yet. Add one at "
+            "<code>project/views/dependency_maps/&lt;name&gt;.md</code>; see the "
+            "<code>lrh dependency-map</code> reference.</p></header>"
+        )
+    items = []
+    for path in paths:
+        try:
+            view = dependency_map_view.parse_view(path, repo_root)
+            label = html.escape(view.title)
+        except (dependency_map_view.ViewDeclarationError, OSError):
+            label = "Invalid declaration"
+        href = html.escape(base + "/" + _url_quote(path.stem), quote=True)
+        items.append(
+            f'<li><a href="{href}">'
+            f"{label}</a> <code>{html.escape(path.stem)}</code></li>"
+        )
+    return (
+        '<header class="lrh-page-header"><p class="lrh-eyebrow">Dependency maps</p>'
+        "<h1>Dependency maps</h1></header>"
+        f'<section class="lrh-console-region"><ul>{"".join(items)}</ul></section>'
+    )
+
+
+def _dependency_map_document(title: str, body: str) -> str:
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{html.escape(title)}</title>{_base_styles()}
+<style>{dependency_map_render.MAP_STYLES}</style></head>
+<body>
+  <div class="lrh-app-shell lrh-map-shell" data-lrh-own-drawer>
+{body}
+  </div>
+</body>
+</html>
+"""
+
+
+def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
+    """Return the status GET would give for a dependency-map path.
+
+    HEAD builds the snapshot exactly as GET does, so the two always agree,
+    including a 500 when another control file cannot be read.
+    """
+
+    parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
+    if len(parts) != 3 or parts[1] != "dependency-maps":
+        return 404
+    repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
+    try:
+        dependency_map_snapshot.build_snapshot(repo_root, parts[2])
+    except FileNotFoundError:
+        return 404
+    except dependency_map_view.ViewDeclarationError:
+        return 422
+    except dependency_map_snapshot.SnapshotError:
+        return 500
+    return 200
+
+
+def render_settings_page(config: ServeConfig) -> str:
+    """Render the read-only display and about page the gear opens in a browser.
+
+    LRH Console intercepts this path and opens its native Settings window.
+    """
+
+    theme = html.escape(config.theme)
+    version = html.escape(str(lrh_version.get_installed_version() or "unknown"))
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Display and about</title>{_base_styles()}</head>
+<body>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header">
+      <p class="lrh-eyebrow">LRH Console</p>
+      <h1>Display and about</h1>
+      <p class="lrh-muted">Read-only. In the LRH Console app, the gear opens
+      Settings instead.</p>
+    </header>
+    <main class="lrh-main-content">
+      <section class="lrh-console-region">
+        <h2>Theme</h2>
+        <p>This server uses the <strong>{theme}</strong> theme.
+        <code>system</code> follows your operating system's light or dark
+        appearance.</p>
+        <p>To choose, restart the server with
+        <code>lrh serve --theme light</code>, <code>--theme dark</code>, or
+        <code>--theme system</code>. In LRH Console, use
+        <strong>Settings &gt; Appearance</strong>.</p>
+      </section>
+      <section class="lrh-console-region">
+        <h2>About</h2>
+        <dl class="lrh-summary-grid">
+          <div><dt>lrh</dt><dd class="lrh-mono">{version}</dd></div>
+          <div><dt>Mode</dt><dd>Read-only local viewer</dd></div>
+        </dl>
+        <h3>Licenses</h3>
+        <ul>
+          <li>Montserrat, SIL Open Font License 1.1:
+            <a href="/static/fonts/OFL-montserrat.txt">license text</a></li>
+          <li>Lucide icons, ISC License:
+            <a href="/static/icons/LICENSE-lucide.txt">license text</a></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+"""
 
 
 def apply_theme(page: str, theme: str) -> str:
@@ -145,6 +422,7 @@ def status_payload(
             _codex_archive_root_label(root) for root in codex_archive_roots
         ],
         "theme": config.theme,
+        "interactive": config.interactive,
         "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
     }
@@ -424,8 +702,10 @@ def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
         _operational_card_from_load_result(workspace, result) for result in load_results
     ]
     meta_view = dashboard.build_meta_dashboard(cards)
+    read_at = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
     return {
         "mode": "safe-default-read-only-meta-triage",
+        "read_at": read_at.isoformat(),
         "workspace": workspace_payload,
         "total_projects": meta_view.total_projects,
         "lanes": [
@@ -445,65 +725,64 @@ def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
 
 
 def render_meta_dashboard(config: ServeConfig) -> str:
-    """Render the read-only registered-project swimlane dashboard."""
+    """Render the read-only statusboard: one band per operational state.
+
+    Bands come first; the workspace, guardrail, and API notes follow them.
+    Every band is a ``<details>`` element, so it collapses without scripts.
+    """
 
     payload = meta_dashboard_payload(config)
     workspace = payload["workspace"]
     workspace_note = "Meta workspace available."
     if isinstance(workspace, dict) and workspace.get("error"):
         workspace_note = f"Meta workspace unavailable: {workspace['error']}"
-    lane_html = "".join(_meta_lane_html(lane) for lane in payload["lanes"])
-    if payload["total_projects"] == 0:
-        empty_note = (
-            '<p class="lrh-muted">No registered projects are available in the '
-            "active meta workspace.</p>"
+    read_at = str(payload.get("read_at") or "")
+    band_html = "".join(_meta_lane_html(lane, read_at) for lane in payload["lanes"])
+    total = payload["total_projects"]
+    if total == 0:
+        summary = (
+            "No registered projects are available in the active meta workspace. "
+            "Register one with <code>lrh meta register</code>."
         )
     else:
-        empty_note = ""
-    return """<!doctype html>
-<html lang=\"en\">
+        noun = "project" if total == 1 else "projects"
+        summary = f"{html.escape(str(total))} registered {noun}, by operational state."
+    return f"""<!doctype html>
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\">
-  <title>LRH Meta Operational Triage</title>
-  {styles}
+  <meta charset="utf-8">
+  <title>Statusboard</title>
+  {_base_styles()}
+  <style>{STATUSBOARD_STYLES}</style>
 </head>
 <body>
-  <div class=\"lrh-app-shell\">
-    <header class=\"lrh-page-header\">
-      <p class=\"lrh-eyebrow\">LRH Console preview</p>
-      <h1>Meta Operational Triage</h1>
-      <p><a href=\"/\">Back to project viewer</a></p>
-      <aside class=\"lrh-guardrail-callout\" aria-label=\"Meta dashboard guardrails\">
-        This safe-default, read-only dashboard summarizes registered projects from
-        the LRH meta workspace. It does not inspect arbitrary files, expose secrets,
-        dispatch agents, create branches, commit, open pull requests, merge, release,
-        publish, or provide write routes. Meta workspace state is informative only;
-        project-local project/ control planes remain authoritative.
-      </aside>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header lrh-statusboard-header">
+      <h1>Statusboard</h1>
+      <p>{summary}</p>
     </header>
-    <main id=\"main-content\" class=\"lrh-main-content\">
-      <section class=\"lrh-console-region\" aria-labelledby=\"meta-summary-heading\">
-        <h2 id=\"meta-summary-heading\">Registered project swimlanes</h2>
-        <p>{workspace_note}</p>
-        <p>Total registered projects shown: {total_projects}</p>
-        {empty_note}
-      </section>
-      {lane_html}
-      <section class=\"lrh-console-region\" aria-labelledby=\"meta-api-heading\">
-        <h2 id=\"meta-api-heading\">Read-only API</h2>
-        <ul><li><a href=\"/api/meta\">/api/meta</a></li></ul>
+    <main id="main-content" class="lrh-main-content">
+      <div class="lrh-bands">{band_html}</div>
+      <section class="lrh-console-region lrh-statusboard-about"
+        aria-labelledby="meta-about-heading">
+        <h2 id="meta-about-heading">About this view</h2>
+        <p>{html.escape(workspace_note)}</p>
+        <p>Each project is in exactly one band, chosen from its control-plane
+        state: Blocked first, then Needs attention, Active work, Awaiting review,
+        Stable, and Unknown when LRH cannot tell.</p>
+        <p class="lrh-muted">This safe-default, read-only view summarizes registered
+        projects from the LRH meta workspace. It does not inspect arbitrary files,
+        expose secrets, dispatch agents, create branches, commit, open pull requests,
+        merge, release, publish, or provide write routes. Meta workspace state is
+        informative only; project-local project/ control planes remain
+        authoritative.</p>
+        <p>Read-only API: <a href="/api/meta">/api/meta</a></p>
       </section>
     </main>
   </div>
 </body>
 </html>
-""".format(
-        styles=_base_styles(),
-        workspace_note=html.escape(workspace_note),
-        total_projects=html.escape(str(payload["total_projects"])),
-        empty_note=empty_note,
-        lane_html=lane_html,
-    )
+"""
 
 
 def render_meta_project_placeholder(project_selector: str) -> str:
@@ -850,11 +1129,20 @@ def render_project_operational_dashboard(
 def _project_from_meta_selector(
     config: ServeConfig, project_selector: str
 ) -> tuple[meta_workspace.MetaProjectRecord | None, Path | None]:
-    workspace = meta_workspace.resolve_meta_workspace(
-        cwd=config.resolved_project_root(),
-        options=meta_workspace.MetaWorkspaceResolveOptions(),
-    )
-    for result in meta_workspace.list_registered_project_loads_in_workspace(workspace):
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        load_results = meta_workspace.list_registered_project_loads_in_workspace(
+            workspace
+        )
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ):
+        return None, None
+    for result in load_results:
         if result.record is None:
             continue
         if project_selector in {result.registry_name, result.record.project_id}:
@@ -870,7 +1158,10 @@ def _project_design_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError):
+        return []
     return [
         {"id": item.id, "title": item.title or "Untitled"}
         for item in loaded.design_proposals
@@ -883,7 +1174,10 @@ def _project_workstream_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError):
+        return []
     return [{"id": item.id, "title": item.title} for item in loaded.workstreams]
 
 
@@ -895,7 +1189,10 @@ def render_design_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, json.dumps({"error": "not_found", "message": str(error)})
     proposal = loaded.design_proposals_by_id.get(design_id)
     if proposal is None:
         return 404, json.dumps({"error": "not_found", "design": design_id}, indent=2)
@@ -962,7 +1259,10 @@ def render_workstream_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, json.dumps({"error": "not_found", "message": str(error)})
     workstream = loaded.workstreams_by_id.get(workstream_id)
     if workstream is None:
         return 404, json.dumps(
@@ -1422,28 +1722,180 @@ def _operational_card_payload(project: object) -> dict[str, object]:
     }
 
 
-def _meta_lane_html(lane: object) -> str:
+# Each band's glyph, so no band is told apart by color alone. The glyphs match
+# the dependency map's where the meaning is shared.
+_BAND_GLYPHS = {
+    "blocked": "✕",
+    "needs_attention": "!",
+    "active_work": "▶",
+    "awaiting_review": "◉",
+    "stable": "✓",
+    "unknown": "?",
+}
+
+STATUSBOARD_STYLES = """
+  .lrh-page-header.lrh-statusboard-header {
+    padding: 0.9rem 1.1rem; margin-bottom: 0.75rem;
+  }
+  .lrh-statusboard-header h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+  .lrh-statusboard-header p { margin: 0; }
+  .lrh-bands { display: grid; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .lrh-band {
+    border: 1px solid var(--lrh-band-line);
+    border-left: 6px solid var(--lrh-band-line);
+    border-radius: 8px;
+    background: var(--lrh-color-surface-panel);
+  }
+  .lrh-band > summary {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem;
+    padding: 0.6rem 0.9rem; cursor: pointer; list-style: none;
+    background: var(--lrh-band-bg); color: var(--lrh-band-fg);
+    border-radius: 2px 7px 7px 2px;
+  }
+  .lrh-band[open] > summary { border-radius: 2px 7px 0 0; }
+  .lrh-band > summary::-webkit-details-marker { display: none; }
+  .lrh-band > summary::before { content: "▸" / ""; width: 1em; }
+  .lrh-band[open] > summary::before { content: "▾" / ""; }
+  .lrh-band > summary:focus-visible {
+    outline: 3px solid var(--lrh-color-focus); outline-offset: 2px;
+  }
+  .lrh-band-glyph { font-weight: 700; width: 1.2em; text-align: center; }
+  .lrh-band-label { font-weight: 700; font-size: 1.05rem; }
+  .lrh-band-count {
+    font-weight: 700; min-width: 1.6em; text-align: center; padding: 0 0.4em;
+    border: 1px solid currentColor; border-radius: 999px;
+  }
+  .lrh-band-description { flex-basis: 100%; padding-left: 2.2em; }
+  .lrh-band-body {
+    display: grid; gap: 0.75rem; padding: 0.75rem 0.9rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+  .lrh-band-empty { margin: 0; padding: 0.6rem 0.9rem 0.75rem 3.1rem; }
+  .lrh-band--blocked { --lrh-band-fg: var(--lrh-color-band-blocked-fg);
+    --lrh-band-bg: var(--lrh-color-band-blocked-bg);
+    --lrh-band-line: var(--lrh-color-band-blocked-line); }
+  .lrh-band--needs_attention { --lrh-band-fg: var(--lrh-color-band-needs-attention-fg);
+    --lrh-band-bg: var(--lrh-color-band-needs-attention-bg);
+    --lrh-band-line: var(--lrh-color-band-needs-attention-line); }
+  .lrh-band--active_work { --lrh-band-fg: var(--lrh-color-band-active-work-fg);
+    --lrh-band-bg: var(--lrh-color-band-active-work-bg);
+    --lrh-band-line: var(--lrh-color-band-active-work-line); }
+  .lrh-band--awaiting_review { --lrh-band-fg: var(--lrh-color-band-awaiting-review-fg);
+    --lrh-band-bg: var(--lrh-color-band-awaiting-review-bg);
+    --lrh-band-line: var(--lrh-color-band-awaiting-review-line); }
+  .lrh-band--stable { --lrh-band-fg: var(--lrh-color-band-stable-fg);
+    --lrh-band-bg: var(--lrh-color-band-stable-bg);
+    --lrh-band-line: var(--lrh-color-band-stable-line); }
+  .lrh-band--unknown { --lrh-band-fg: var(--lrh-color-band-unknown-fg);
+    --lrh-band-bg: var(--lrh-color-band-unknown-bg);
+    --lrh-band-line: var(--lrh-color-band-unknown-line); }
+  .lrh-band .lrh-project-card {
+    margin: 0; min-width: 0; padding: 0.75rem;
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-radius: var(--lrh-radius-md);
+    background: var(--lrh-color-surface-page);
+  }
+  .lrh-card-facts dd, .lrh-chip { overflow-wrap: anywhere; }
+  .lrh-visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .lrh-project-card h3 { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+  .lrh-card-facts { margin: 0 0 0.5rem; display: grid; gap: 0.25rem; }
+  .lrh-card-facts dt { font-weight: 600; display: inline; }
+  .lrh-card-facts dd { display: inline; margin: 0; }
+  .lrh-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.5rem; }
+  .lrh-chip {
+    display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
+    border: 1px solid var(--lrh-color-border-subtle);
+    font-size: 0.85rem;
+  }
+  .lrh-card-details > summary { cursor: pointer; }
+"""
+
+
+def _meta_lane_html(lane: object, read_at: str = "") -> str:
     if not isinstance(lane, dict):
         return ""
     cards = lane.get("projects", [])
     card_html = "".join(
-        _meta_card_html(card) for card in cards if isinstance(card, dict)
+        _meta_card_html(card, read_at) for card in cards if isinstance(card, dict)
     )
-    if not card_html:
-        card_html = '<p class="lrh-muted">No projects in this lane.</p>'
+    status = str(lane["status"])
     label = html.escape(str(lane["label"]))
-    status = html.escape(str(lane["status"]), quote=True)
-    count = html.escape(str(lane["count"]))
+    count = int(lane["count"]) if isinstance(lane.get("count"), int) else 0
+    noun = "project" if count == 1 else "projects"
     description = html.escape(str(lane["description"]))
+    glyph = html.escape(_BAND_GLYPHS.get(status, "?"))
+    css = html.escape(status, quote=True)
+    if card_html:
+        body = f'<div class="lrh-band-body">{card_html}</div>'
+    else:
+        body = '<p class="lrh-band-empty lrh-muted">No projects in this band.</p>'
+        if status == "unknown":
+            body = (
+                # Neutral on purpose: an unreadable registry also leaves every
+                # band empty, without LRH having established anything.
+                '<p class="lrh-band-empty lrh-muted">No projects are currently '
+                "classified as unknown.</p>"
+            )
+    # Bands with projects start open; empty bands stay visible but closed.
+    is_open = " open" if card_html else ""
     return (
-        f'<section class="lrh-console-region lrh-meta-lane" '
-        f'aria-labelledby="meta-lane-{status}-heading">'
-        f'<h2 id="meta-lane-{status}-heading">{label} ({count})</h2>'
-        f"<p>{description}</p>{card_html}</section>"
+        f'<details class="lrh-band lrh-band--{css}" id="band-{css}"{is_open}>'
+        f'<summary><span class="lrh-band-glyph" aria-hidden="true">{glyph}</span>'
+        f'<span class="lrh-band-label">{label}</span>'
+        f'<span class="lrh-band-count">{count}'
+        f'<span class="lrh-visually-hidden"> {noun}</span></span>'
+        f'<span class="lrh-band-description">{description}</span></summary>'
+        f"{body}</details>"
     )
 
 
-def _meta_card_html(card: dict[str, object]) -> str:
+def _meta_evidence_chip(card: dict[str, object]) -> str:
+    """The control-plane validation result, as a short chip."""
+
+    status = str(card.get("validation_status") or "unknown")
+    errors = card.get("validation_error_count")
+    warnings = card.get("validation_warning_count")
+    if isinstance(errors, int) and errors > 0:
+        text = f"Validation: {errors} error" + ("" if errors == 1 else "s")
+    elif isinstance(warnings, int) and warnings > 0:
+        text = f"Validation: {warnings} warning" + ("" if warnings == 1 else "s")
+    elif status == "valid":
+        text = "Validation: passing"
+    else:
+        text = f"Validation: {status.replace('_', ' ')}"
+    return f'<span class="lrh-chip">{html.escape(text)}</span>'
+
+
+def _meta_freshness_chip(card: dict[str, object], read_at: str) -> str:
+    """When this card's facts were read, or why they were not."""
+
+    source = str(card.get("source_state") or "unknown")
+    if source == "live" and read_at:
+        stamp = read_at.replace("T", " ").replace("+00:00", " UTC")
+        text = f"Read live {stamp}"
+    elif source == "live":
+        text = "Read live"
+    else:
+        text = f"Not read: {source.replace('_', ' ')}"
+    return f'<span class="lrh-chip">{html.escape(text)}</span>'
+
+
+def _meta_next_action(card: dict[str, object]) -> str:
+    if card.get("source_state") == "needs_local_checkout":
+        return "Set a local checkout path"
+    next_action = card.get("validation_next_action")
+    if isinstance(next_action, str) and next_action.strip():
+        return next_action.strip()
+    ready = card.get("ready_leaf_count")
+    if isinstance(ready, int) and ready > 0:
+        return f"{ready} work item" + (" is" if ready == 1 else "s are") + " ready"
+    return ""
+
+
+def _meta_card_html(card: dict[str, object], read_at: str = "") -> str:
     name = html.escape(str(card["display_name"]))
     project_id = html.escape(str(card["project_id"]))
     detail_url = html.escape(str(card.get("detail_url") or "/meta/project"), quote=True)
@@ -1477,7 +1929,6 @@ def _meta_card_html(card: dict[str, object]) -> str:
         ("Locator", "locator"),
         ("Project source access", "source_state"),
         ("Control-plane validation", "validation_status"),
-        ("Current focus", "current_focus_summary"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
         ("Ready leaves", "ready_leaf_count"),
@@ -1490,16 +1941,33 @@ def _meta_card_html(card: dict[str, object]) -> str:
     field_html = "".join(
         _card_definition_html(card, label, key) for label, key in fields
     )
+    focus = card.get("current_focus_summary")
+    focus_html = (
+        html.escape(str(focus))
+        if isinstance(focus, str) and focus.strip()
+        else '<span class="lrh-muted">None recorded</span>'
+    )
+    next_action = _meta_next_action(card)
+    next_html = (
+        html.escape(next_action)
+        if next_action
+        else '<span class="lrh-muted">None recorded</span>'
+    )
     setup_guidance = _meta_card_setup_guidance_html(card)
     return (
         f'<article class="lrh-project-card" id="meta-project-{registry_anchor}">'
         f'<h3><a href="{detail_url}">{name}</a></h3>'
+        f'<dl class="lrh-card-facts"><div><dt>Focus:</dt> <dd>{focus_html}</dd></div>'
+        f"<div><dt>Next:</dt> <dd>{next_html}</dd></div></dl>"
+        f'<p class="lrh-chips">{_meta_evidence_chip(card)}'
+        f"{_meta_freshness_chip(card, read_at)}</p>"
+        f'<details class="lrh-card-details"><summary>Details</summary>'
         f'<dl class="lrh-summary-grid">{field_html}</dl>'
         f"{setup_guidance}"
         f"{validation_html}"
         f"{_meta_card_validation_next_action_html(card)}"
         f"<h4>LRH capability gaps</h4>{gap_html}"
-        f"<h4>Other diagnostics</h4>{diagnostic_html}</article>"
+        f"<h4>Other diagnostics</h4>{diagnostic_html}</details></article>"
     )
 
 
@@ -2334,9 +2802,12 @@ def _is_path_within(path: Path, root: Path) -> bool:
 
 
 def _base_styles() -> str:
-    """Return the shared tokens plus page styles for package-owned serve pages."""
+    """Return the viewport tag, shared tokens, and page styles for every page."""
 
-    return "<style>\n" + tokens.token_css() + _PAGE_STYLES
+    return (
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<style>\n" + tokens.token_css() + frame.FRAME_STYLES + _PAGE_STYLES
+    )
 
 
 _PAGE_STYLES = """
@@ -2887,6 +3358,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     render_meta_dashboard(config),
                 )
                 return
+            if route == frame.SETTINGS_PATH:
+                self._write_text(
+                    200, "text/html; charset=utf-8", render_settings_page(config)
+                )
+                return
+            if route.startswith(frame.STATIC_PREFIX):
+                self._write_static(route.removeprefix(frame.STATIC_PREFIX))
+                return
             if route == "/style":
                 self._write_text(
                     200, "text/html; charset=utf-8", render_style_specimen()
@@ -2906,6 +3385,18 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 parts = [
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
+                if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    status_code, body = render_dependency_map_page(
+                        config,
+                        parts[0],
+                        parts[2] if len(parts) == 3 else None,
+                        self._query_values(),
+                    )
+                    if status_code == 404:
+                        self._write_json(404, {"error": "not_found"})
+                    else:
+                        self._write_text(status_code, "text/html; charset=utf-8", body)
+                    return
                 if len(parts) == 3 and parts[1] == "designs":
                     status_code, body = render_design_detail_page(
                         config, parts[0], parts[2]
@@ -2978,6 +3469,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route == "/api/project":
                 self._write_json(200, project_viewer_payload(config))
                 return
+            if route.startswith("/api/project/"):
+                status_code, payload = dependency_map_payload(
+                    config, route.removeprefix("/api/project/")
+                )
+                self._write_json(status_code, payload)
+                return
             if route == "/api/workbench":
                 self._write_json(200, workbench_payload(config))
                 return
@@ -3015,6 +3512,21 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 parts = [
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
+                if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    status_code = (
+                        dependency_map_head_status(config, remainder)
+                        if len(parts) == 3
+                        else 200
+                    )
+                    self._write_head(
+                        status_code,
+                        (
+                            "application/json; charset=utf-8"
+                            if status_code == 404
+                            else "text/html; charset=utf-8"
+                        ),
+                    )
+                    return
                 if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
                     if parts[1] == "designs":
                         status_code, _body = render_design_detail_page(
@@ -3037,6 +3549,13 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     self._write_head(200, "text/html; charset=utf-8")
                 else:
                     self._write_head(status_code, "application/json; charset=utf-8")
+                return
+            if route.startswith(frame.STATIC_PREFIX):
+                name = route.removeprefix(frame.STATIC_PREFIX)
+                if frame.read_static(name) is None:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_static(name, head=True)
                 return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact_head(route)
@@ -3063,6 +3582,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 )
                 self._write_head(status_code, content_type)
                 return
+            if route.startswith("/api/project/"):
+                status_code = dependency_map_head_status(
+                    config, route.removeprefix("/api/project/")
+                )
+                self._write_head(status_code, "application/json; charset=utf-8")
+                return
             if route.startswith("/api/conversations/codex/"):
                 export_id = urllib.parse.unquote(
                     route.removeprefix("/api/conversations/codex/")
@@ -3081,6 +3606,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/meta",
                 "/meta/project",
                 "/style",
+                "/settings",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -3096,6 +3622,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     "/meta",
                     "/meta/project",
                     "/style",
+                    "/settings",
                 }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)
@@ -3179,8 +3706,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_header("X-Frame-Options", "DENY")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'none'; style-src 'unsafe-inline'; "
-                "base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+                content_security_policy(config),
             )
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
@@ -3233,6 +3759,33 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 return address
             return None
 
+        def _write_static(self, name: str, *, head: bool = False) -> None:
+            # The script exists only for --interactive servers.
+            body = (
+                None
+                if name in _INTERACTIVE_SCRIPTS and not config.interactive
+                else frame.read_static(name)
+            )
+            if body is None:
+                if head:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_json(404, {"error": "not_found"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", frame.STATIC_FILES[name])
+            # Assets ship with the package, so an hour of caching is safe.
+            # Scripts must not outlive an upgrade; fonts and images may.
+            self.send_header(
+                "Cache-Control",
+                "no-cache" if name.endswith(".js") else "max-age=3600",
+            )
+            self._add_security_headers()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if not head:
+                self.wfile.write(body)
+
         def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
             self.send_response(status_code)
@@ -3250,7 +3803,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             text: str,
         ) -> None:
             if content_type.startswith("text/html"):
+                text = frame.apply_frame(
+                    text,
+                    frame.FrameContext(
+                        path=self._route_path(),
+                        query=self._query_values(),
+                        projects=_frame_projects(config),
+                    ),
+                )
                 text = apply_theme(text, config.theme)
+                text = apply_interactive(text, config.interactive)
             body = text.encode("utf-8")
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
@@ -3326,6 +3888,15 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help=(
+            "add packaged same-origin scripts for tracing, filters, and the "
+            "in-page theme switch (CSP script-src 'self'); pages still work "
+            "without them"
+        ),
+    )
+    parser.add_argument(
         "--show-config",
         action="store_true",
         help="validate and print deterministic JSON configuration without serving",
@@ -3338,7 +3909,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
             "request on stdin, bind 127.0.0.1 on an OS-assigned port, and "
             "report ready/failed as JSON on stdout (see "
             "docs/reference/desktop-server-protocol.md); cannot be combined "
-            "with other serve options except --theme"
+            "with other serve options except --theme and --interactive"
         ),
     )
     parser.add_argument(
@@ -3362,6 +3933,7 @@ def config_from_args(args: argparse.Namespace) -> ServeConfig:
         allow_nonlocal_host=args.allow_nonlocal_host,
         codex_archive_roots=tuple(Path(root) for root in args.codex_archive_root),
         theme=args.theme,
+        interactive=args.interactive,
     )
 
 
@@ -3393,7 +3965,7 @@ def _desktop_protocol_conflicts(prog: str, argv: list[str] | None) -> list[str]:
 
 
 def _desktop_server_factory(
-    project_root: Path, theme: str = DEFAULT_THEME
+    project_root: Path, theme: str = DEFAULT_THEME, interactive: bool = False
 ) -> ThreadingHTTPServer:
     """Create a loopback server on an OS-assigned port for desktop mode."""
 
@@ -3403,6 +3975,7 @@ def _desktop_server_factory(
             port=0,
             project_root=project_root,
             theme=theme,
+            interactive=interactive,
         )
     )
 
@@ -3433,7 +4006,9 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
     return desktop_protocol.run_desktop_protocol(
-        lambda project_root: _desktop_server_factory(project_root, theme=args.theme),
+        lambda project_root: _desktop_server_factory(
+            project_root, theme=args.theme, interactive=args.interactive
+        ),
         start_request_timeout=timeout,
     )
 

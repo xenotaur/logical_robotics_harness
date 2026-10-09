@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Console Visual Language
 status: proposed
 created_on: 2026-05-16
-updated_on: 2026-10-07
+updated_on: 2026-10-09
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -511,8 +511,14 @@ That proposal also differs on the bands themselves, and the two need reconciling
 - **Its precedence** puts Blocked first.
 - **Its UI labels** are Title Case (`:120`), while this proposal uses sentence case.
 
-For now the statusboard follows this proposal's operational vocabulary. Reconciling the two band
-sets is listed under Open questions.
+**Owner decision (2026-10-09, `WI-LRH-CONSOLE-STATUSBOARD`):** the statusboard keeps the six
+states LRH already computes, in this display order, with Blocked first: **Blocked, Needs
+attention, Active work, Awaiting review, Stable, Unknown**. (This is a display order, not the
+precedence `derive_operational_status` uses to choose a band.) Labels
+use sentence case, like the rest of LRH Console. Each `triage_lane` value maps to exactly one band
+of the same name, so no new triage logic is added, and the internal field keeps its name.
+Ready for Work and Archived, from the triage-semantics target set, are later work there: Archived
+needs explicit portfolio metadata, and Ready for Work needs a defined readiness rule.
 
 ### Status model (Q3)
 
@@ -741,8 +747,9 @@ Still open:
 - Final token names and color values. The mock's `:root` block is the draft.
 - Large project registry scaling: filtering, search, collapsed bands, and the table fallback.
 - Whether to rename the internal `triage_lane` field to match the "band" vocabulary.
-- Reconciling the statusboard bands with the lane set, precedence, and label case in
-  `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS` (see [Vocabulary](#vocabulary-q2)).
+- *(Resolved 2026-10-09.)* Reconciling the statusboard bands with
+  `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS`: see the owner decision under
+  [Vocabulary](#vocabulary-q2).
 
 ## Mockup assets
 

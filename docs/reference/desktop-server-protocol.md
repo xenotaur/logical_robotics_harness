@@ -32,9 +32,10 @@ The supervisor runs one explicitly configured executable, never a name looked
 up through an interactive shell, and appends exactly these arguments. The
 theme comes from its **Appearance** setting; a session started with the
 `LRH_CONSOLE_*` developer variables omits `--theme`, which means `system`.
+LRH Console always passes `--interactive`.
 
 ```bash
-/absolute/path/to/lrh serve --desktop-protocol --theme system
+/absolute/path/to/lrh serve --desktop-protocol --theme system --interactive
 ```
 
 `python -m lrh.cli.main serve --desktop-protocol` is equivalent when the
@@ -46,6 +47,8 @@ supervisor is configured with a Python interpreter instead of the `lrh` script.
   with code 2 and a usage message on stderr, before any machine message.
 - `--theme light|dark|system` (default `system`) sets the page theme, as in
   plain `lrh serve`. It does not change any protocol message.
+- `--interactive` turns on Serve's packaged scripts, as in plain `lrh serve`.
+  It does not change any protocol message.
 - `--desktop-start-timeout SECONDS` (0.1–120, default 10) bounds how long the
   child waits for the `start` request. It is only valid with `--desktop-protocol`.
 - Configure the real executable. A wrapper that spawns `lrh` as a grandchild

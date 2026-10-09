@@ -17,6 +17,9 @@ def _init_repo(root: pathlib.Path) -> None:
     _run(["git", "config", "user.name", "Test"], root)
 
 
+_AT = "2026-01-01T00:00:00Z"
+
+
 def _commit(root: pathlib.Path, message: str) -> str:
     _run(["git", "add", "-A"], root)
     _run(["git", "commit", "-q", "-m", message], root)
@@ -366,10 +369,12 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
 
             with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
                 targets = gate_staleness.resolve_watch_targets(root)
-                gate_staleness.record_fingerprints(root, targets)
+                gate_staleness.record_fingerprints(root, targets, confirmed_commit, _AT)
 
                 result = gate_staleness.check_gate_staleness(
-                    project_root=root, confirmed_commit=confirmed_commit
+                    project_root=root,
+                    confirmed_commit=confirmed_commit,
+                    confirmed_at=_AT,
                 )
             self.assertFalse(result.stale)
 
@@ -389,7 +394,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
 
             with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
                 targets = gate_staleness.resolve_watch_targets(root)
-                gate_staleness.record_fingerprints(root, targets)
+                gate_staleness.record_fingerprints(root, targets, confirmed_commit, _AT)
 
                 one_name = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
                 self._write_gate_file(
@@ -398,7 +403,9 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 )
 
                 result = gate_staleness.check_gate_staleness(
-                    project_root=root, confirmed_commit=confirmed_commit
+                    project_root=root,
+                    confirmed_commit=confirmed_commit,
+                    confirmed_at=_AT,
                 )
             self.assertTrue(result.stale)
             stale_names = {f.path for f in result.stale_files}
@@ -462,7 +469,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             root = pathlib.Path(tmp)
             _init_repo(root)
             (root / "README.md").write_text("placeholder\n")
-            _commit(root, "initial")
+            commit = _commit(root, "initial")
 
             fake_home = pathlib.Path(home)
             for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
@@ -470,10 +477,10 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
 
             with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
                 targets = gate_staleness.resolve_watch_targets(root)
-                fingerprints = gate_staleness.record_fingerprints(root, targets)
+                plan = gate_staleness.record_fingerprints(root, targets, commit, _AT)
 
             self.assertEqual(
-                set(fingerprints),
+                set(plan.fingerprints),
                 {
                     f"claude:{name}"
                     for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES
@@ -490,7 +497,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 absolute_path=missing_path,
             )
             with self.assertRaises(gate_staleness.GateStalenessError) as ctx:
-                gate_staleness.record_fingerprints(root, (target,))
+                gate_staleness.record_fingerprints(root, (target,), "abc", _AT)
             self.assertIn("some/skill.md", str(ctx.exception))
 
     def test_multi_target_config_watches_every_configured_target(self) -> None:
@@ -520,7 +527,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 qualifiers = {t.canonical_name.split(":", 1)[0] for t in targets}
                 self.assertEqual(qualifiers, {"claude", "codex"})
 
-                gate_staleness.record_fingerprints(root, targets)
+                gate_staleness.record_fingerprints(root, targets, confirmed_commit, _AT)
 
                 one_name = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
                 self._write_gate_file(
@@ -529,7 +536,9 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 )
 
                 result = gate_staleness.check_gate_staleness(
-                    project_root=root, confirmed_commit=confirmed_commit
+                    project_root=root,
+                    confirmed_commit=confirmed_commit,
+                    confirmed_at=_AT,
                 )
             self.assertTrue(result.stale)
             stale_names = {f.path for f in result.stale_files}
@@ -545,6 +554,288 @@ class ResolveWatchTargetsHarnessSelfCheckTest(unittest.TestCase):
                 gate_staleness.resolve_watch_targets(
                     root, canonical_names=("only-one-name.md",)
                 )
+
+
+def _gate_text(body_line: str = "Wait for explicit confirmation.") -> str:
+    return (
+        "# Some Skill\n\n"
+        "<!-- GATE-DEFINITION -->\n"
+        f"{body_line}\n"
+        "<!-- /GATE-DEFINITION -->\n"
+    )
+
+
+def _install_all(skills_dir: pathlib.Path) -> None:
+    for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+        path = skills_dir / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_gate_text())
+
+
+def _git_out(args: list[str], cwd: pathlib.Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+class CanonicalConfirmedAtTest(unittest.TestCase):
+    def test_equivalent_spellings_normalize_to_one_form(self) -> None:
+        import datetime
+
+        expected = "2026-09-22T03:50:48Z"
+        for value in (
+            "2026-09-22T03:50:48Z",
+            " 2026-09-22T03:50:48Z ",
+            "2026-09-22T03:50:48+00:00",
+            "2026-09-22T05:50:48+02:00",
+            datetime.datetime(2026, 9, 22, 3, 50, 48, tzinfo=datetime.timezone.utc),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(gate_staleness.canonical_confirmed_at(value), expected)
+
+    def test_ambiguous_values_raise(self) -> None:
+        for value in (
+            "2026-09-22T03:50:48",
+            "2026-09-22T03:50:48.5Z",
+            "not a timestamp",
+            None,
+            12345,
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(gate_staleness.GateStalenessError):
+                    gate_staleness.canonical_confirmed_at(value)
+
+
+class PlanFingerprintsTest(unittest.TestCase):
+    def test_comparisons_new_unchanged_changed_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            same = root / "same.md"
+            same.write_text("same")
+            changed = root / "changed.md"
+            changed.write_text("after")
+            fresh = root / "fresh.md"
+            fresh.write_text("fresh")
+            targets = tuple(
+                gate_staleness.WatchTarget(
+                    canonical_name=name, kind="fingerprint", absolute_path=path
+                )
+                for name, path in (("same", same), ("changed", changed), ("new", fresh))
+            )
+            stored = {
+                "same": gate_staleness.compute_fingerprint(b"same"),
+                "changed": gate_staleness.compute_fingerprint(b"before"),
+                "gone": "0" * 64,
+            }
+            plan = gate_staleness.plan_fingerprints(targets, stored)
+            self.assertEqual(
+                {e.name: e.comparison for e in plan.entries},
+                {
+                    "same": "unchanged",
+                    "changed": "changed",
+                    "new": "new",
+                    "gone": "removed",
+                },
+            )
+            self.assertEqual(set(plan.fingerprints), {"same", "changed", "new"})
+            self.assertFalse(plan.nothing_to_do)
+
+    def test_any_unresolved_target_refuses(self) -> None:
+        unresolved = gate_staleness.WatchTarget(canonical_name="x", kind="unresolved")
+        with tempfile.TemporaryDirectory() as tmp:
+            ok = pathlib.Path(tmp) / "ok.md"
+            ok.write_text("ok")
+            fine = gate_staleness.WatchTarget(
+                canonical_name="ok", kind="fingerprint", absolute_path=ok
+            )
+            for targets in ((unresolved,), (fine, unresolved)):
+                with self.subTest(targets=targets):
+                    with self.assertRaises(gate_staleness.GateStalenessError):
+                        gate_staleness.plan_fingerprints(targets, None)
+
+    def test_no_targets_and_no_stored_entries_is_nothing_to_do(self) -> None:
+        git_only = gate_staleness.WatchTarget(
+            canonical_name="g", kind="git", relative_path="g.md"
+        )
+        plan = gate_staleness.plan_fingerprints((git_only,), None)
+        self.assertTrue(plan.nothing_to_do)
+        plan = gate_staleness.plan_fingerprints((git_only,), {"old": "0" * 64})
+        self.assertFalse(plan.nothing_to_do)
+        self.assertEqual(plan.fingerprints, {})
+
+
+class StampBoundFingerprintStoreTest(unittest.TestCase):
+    """The store lives in the clone's common git dir and is accepted only
+    for the exact `(confirmed_commit, confirmed_at)` stamp it was written
+    for. Fixtures make every watch target fingerprint-kind (no agent_skills
+    config, so the default user-scope Claude install under a fake HOME),
+    which is the client-repo case where a write-order-only design leaked."""
+
+    def _repo(self, root: pathlib.Path) -> str:
+        _init_repo(root)
+        (root / "README.md").write_text("placeholder\n")
+        return _commit(root, "initial")
+
+    def _record(self, root: pathlib.Path, commit: str, at: str = _AT) -> None:
+        targets = gate_staleness.resolve_watch_targets(root)
+        gate_staleness.record_fingerprints(root, targets, commit, at)
+
+    def test_store_lives_in_common_git_dir_not_working_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp).resolve()
+            commit = self._repo(root)
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                self._record(root, commit)
+            path = gate_staleness.fingerprint_store_path(root)
+            self.assertEqual(
+                path, root / ".git" / "lrh" / "chain-defaults-fingerprints.json"
+            )
+            self.assertTrue(path.is_file())
+            self.assertFalse((root / "project" / "config").exists())
+            self.assertEqual(_git_out(["status", "--porcelain"], root), "")
+
+    def test_matching_stamp_reads_fresh_short_sha_and_spellings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            commit = self._repo(root)
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                self._record(root, commit)
+                for given_commit, given_at in (
+                    (commit, _AT),
+                    (commit[:8], _AT),
+                    (commit, "2026-01-01T00:00:00+00:00"),
+                ):
+                    with self.subTest(commit=given_commit, at=given_at):
+                        result = gate_staleness.check_gate_staleness(
+                            project_root=root,
+                            confirmed_commit=given_commit,
+                            confirmed_at=given_at,
+                        )
+                        self.assertFalse(result.stale)
+
+    def test_mismatched_or_missing_stamp_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            first = self._repo(root)
+            (root / "README.md").write_text("v2\n")
+            second = _commit(root, "second")
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                # Store recorded for a stamp no profile carries yet.
+                self._record(root, second)
+                cases = (
+                    (first, _AT, "different confirmation stamp"),
+                    (second, "2026-01-02T00:00:00Z", "different confirmation stamp"),
+                    (second, None, "no confirmed_at supplied"),
+                    (second, "2026-01-01T00:00:00", "no timezone"),
+                )
+                for commit, at, reason in cases:
+                    with self.subTest(commit=commit, at=at):
+                        result = gate_staleness.check_gate_staleness(
+                            project_root=root, confirmed_commit=commit, confirmed_at=at
+                        )
+                        self.assertTrue(result.stale)
+                        self.assertEqual(len(result.stale_files), len(result.files))
+                        for stale_file in result.stale_files:
+                            self.assertIn(reason, stale_file.reason)
+
+    def test_old_bare_map_and_malformed_store_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            commit = self._repo(root)
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            path = gate_staleness.fingerprint_store_path(root)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                bare = {
+                    t.canonical_name: gate_staleness.compute_fingerprint(
+                        t.absolute_path.read_bytes()
+                    )
+                    for t in gate_staleness.resolve_watch_targets(root)
+                }
+                import json
+
+                for payload in (json.dumps(bare), "{not json", "[]"):
+                    with self.subTest(payload=payload[:20]):
+                        path.write_text(payload)
+                        result = gate_staleness.check_gate_staleness(
+                            project_root=root, confirmed_commit=commit, confirmed_at=_AT
+                        )
+                        self.assertTrue(result.stale)
+                        for stale_file in result.stale_files:
+                            self.assertIn(
+                                "no persisted content fingerprint", stale_file.reason
+                            )
+
+    def test_refused_record_leaves_existing_store_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            commit = self._repo(root)
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                self._record(root, commit)
+                before = gate_staleness.fingerprint_store_path(root).read_text()
+                one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+                (fake_home / ".claude" / "skills" / one).unlink()
+                with self.assertRaises(gate_staleness.GateStalenessError):
+                    self._record(root, commit, "2026-02-02T00:00:00Z")
+            after = gate_staleness.fingerprint_store_path(root).read_text()
+            self.assertEqual(before, after)
+
+    def test_stored_entries_with_no_remaining_targets_writes_empty_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            commit = self._repo(root)
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                self._record(root, commit)
+            git_only = (
+                gate_staleness.WatchTarget(
+                    canonical_name="g", kind="git", relative_path="README.md"
+                ),
+            )
+            plan = gate_staleness.record_fingerprints(root, git_only, commit, _AT)
+            self.assertEqual({e.comparison for e in plan.entries}, {"removed"})
+            store = gate_staleness.load_fingerprint_store(root)
+            self.assertIsNotNone(store)
+            self.assertEqual(store.fingerprints, {})
+
+    def test_worktrees_share_store_independent_clone_does_not(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as other,
+            tempfile.TemporaryDirectory() as h,
+        ):
+            root = pathlib.Path(tmp)
+            commit = self._repo(root)
+            worktree = pathlib.Path(other) / "wt"
+            _run(["git", "worktree", "add", "-q", str(worktree)], root)
+            clone = pathlib.Path(other) / "clone"
+            _run(["git", "clone", "-q", str(root), str(clone)], pathlib.Path(other))
+            fake_home = pathlib.Path(h)
+            _install_all(fake_home / ".claude" / "skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                self._record(root, commit)
+                for where, expect_stale in ((worktree, False), (clone, True)):
+                    with self.subTest(where=where.name):
+                        result = gate_staleness.check_gate_staleness(
+                            project_root=where,
+                            confirmed_commit=commit,
+                            confirmed_at=_AT,
+                        )
+                        self.assertEqual(result.stale, expect_stale)
+            self.assertEqual(
+                gate_staleness.fingerprint_store_path(worktree),
+                gate_staleness.fingerprint_store_path(root),
+            )
 
 
 if __name__ == "__main__":

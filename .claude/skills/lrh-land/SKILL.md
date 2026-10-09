@@ -514,7 +514,10 @@ and in-session, given after this summary was presented.
 not treat command success as merge confirmation.** On a repository using a
 merge queue, the merge command succeeding only means the PR was accepted into
 the queue, not that it merged — `gh pr merge` documents this, and
-`lrh vcs merge` reports it as exit `1`. This applies
+`lrh vcs merge` reports it as exit `1`. Exit `2` from `lrh vcs merge` does not
+always mean nothing merged either: after a failed merge call its message reports
+the PR's state, and a merge issued but unconfirmed says so. Read the message,
+and treat the query below as the authority. This applies
 whether the agent ran the command or the human reports having run it: query
 the PR until its state is actually `MERGED` and capture the merge commit
 before any closeout action touches `main`.

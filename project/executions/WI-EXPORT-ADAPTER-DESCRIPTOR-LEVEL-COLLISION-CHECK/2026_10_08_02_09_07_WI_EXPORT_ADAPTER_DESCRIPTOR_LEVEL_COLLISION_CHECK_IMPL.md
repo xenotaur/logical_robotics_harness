@@ -1,0 +1,54 @@
+---
+execution_id: 2026_10_08_02_09_07_WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL
+prompt_id: PROMPT(WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK:WI_EXPORT_ADAPTER_DESCRIPTOR_LEVEL_COLLISION_CHECK_IMPL)[2026-10-07T23:05:34+00:00]
+work_item: WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK
+status: landed
+rerun_of:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/787
+commit: 2b8c61f9585f7d97e6a490fa5087768bffdbda5d
+agent: claude_app
+instruction_source: project/work_items/proposed/WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK.md
+session_transcript: claude-app:78db4193-892e-4bf8-be13-f7e614cc2c2f
+created_at: 2026-10-08T02:09:07+00:00
+---
+
+# Summary
+
+Implement WI-EXPORT-ADAPTER-DESCRIPTOR-LEVEL-COLLISION-CHECK: add a
+descriptor-level source/output identity check to the Claude and Codex file
+exporters, mirroring the antigravity fix from PR #672.
+
+# Result
+
+Opened PR #787. `claude_export._write_private_text` and a new
+`codex_file_export._write_private_bytes` open the output without `O_TRUNC`,
+compare `fstat` to the source with `os.path.samestat`, and only then
+`ftruncate` and write (Claude's `fchmod` also follows the check). A link to the
+source created after the path check now raises `ClaudeExportError` /
+`CodexFileExportError` and leaves the source untouched. Newly created Codex
+file exports are now `0600` (behavior change, documented). Added a race test
+per adapter, force-overwrite-truncates tests, and a Codex 0600 test; with the
+identity check disabled both race tests fail. Docs updated in
+`docs/reference/cli/conversation.md`. Diff-mode self-review: 0 defects, 3 nits
+(see the `_IMPL_SELFREVIEW` record).
+
+Update after review round 1 (see the `_IMPL_REVIEW` record): the original
+version compared against `source.stat()` by pathname at write time, which review
+showed can be defeated by renaming or replacing the source after the read. The
+shipped design instead captures the source's identity from the descriptor it is
+read through (`source_identity.read_bytes_with_identity`) and compares the
+output descriptor against it. At the user's direction the antigravity adapter
+was brought into scope and fixed the same way, and the work item was revised.
+
+# Validation
+
+`scripts/format --check --diff`, `scripts/lint`, `scripts/test` (1957 tests OK)
+with the LRH conda env (ruff 0.15.12, black 26.3.1, Python 3.11); `lrh validate`
+0 errors. Touched-module tests, lint and validate re-run after merging
+origin/main.
+
+# Follow-up
+
+Audit `codex_app_server_export.py` and `codex_archive.py` for the same pattern;
+`O_EXCL` for the no-`--force` create race. (The shared-helper follow-up listed
+earlier was done in review round 1.)

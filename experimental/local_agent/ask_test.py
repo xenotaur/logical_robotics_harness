@@ -1,5 +1,6 @@
 import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 
@@ -247,6 +248,262 @@ class _StreamThenFail:
         raise self.error
 
 
+class AllowFlaggedTest(AskTestBase):
+    """The owner's --allow-flagged override (proposal Decision 3)."""
+
+    ANNOTATED = "annotated.py"
+
+    def setUp(self) -> None:
+        super().setUp()
+        files = {
+            self.ANNOTATED: "def f(\n    token: Callable[[], str] = make_token,\n):\n"
+            "    if secret:\n        keep(secret)\n",
+            "mixed.py": 'api_key = "sk-live-abcdef0123456789abcdef"\n',
+            "notes/token=abcd1234efgh.py": "token: Callable[[], str] = x\n",
+            "plain.py": "print('hello')\n",
+        }
+        for name, text in files.items():
+            path = self.repo / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "flagged")
+
+    def _build(self, files: list[str], allow: dict[str, set[str]]) -> ask.AskContext:
+        return ask.build_context(
+            repo=self.repo,
+            files=files,
+            allow_flagged={path: frozenset(cats) for path, cats in allow.items()},
+        )
+
+    def test_without_override_the_file_is_excluded(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=[self.ANNOTATED])
+        self.assertEqual(ctx.source_refs, [])
+        self.assertIn("sensitivity scan (secret)", ctx.excluded[0]["reason"])
+
+    def test_allowed_file_is_sent_with_each_finding_listed(self) -> None:
+        ctx = self._build([self.ANNOTATED], {self.ANNOTATED: {"secret"}})
+        self.assertIn("token: Callable", ctx.text)
+        self.assertEqual(
+            [(f["start_line"], f["end_line"]) for f in ctx.allowed_flagged],
+            [(2, 2), (4, 5)],
+        )
+        summary = ask.source_summary(ctx)
+        self.assertIn(
+            "ALLOWED DESPITE secret: secret.keyword_assignment at L2", summary
+        )
+        self.assertIn("at L4-L5", summary)
+        self.assertNotIn("make_token", summary)
+        # The final scan skips the body but keeps the header.
+        self.assertNotIn("token: Callable", ctx.scan_text)
+        self.assertIn(f"### [S1] {self.ANNOTATED}", ctx.scan_text)
+
+    def test_other_files_are_still_fully_scanned(self) -> None:
+        ctx = self._build([self.ANNOTATED, "plain.py"], {self.ANNOTATED: {"secret"}})
+        self.assertIn("print('hello')", ctx.scan_text)
+        self.assertIn("secret", ctx.context_warnings)
+
+    def test_findings_beyond_the_budget_are_not_listed(self) -> None:
+        ctx = ask.build_context(
+            repo=self.repo,
+            files=[self.ANNOTATED],
+            allow_flagged={self.ANNOTATED: frozenset({"secret"})},
+            budgets=settings.Budgets(max_packet_bytes=60),
+        )
+        self.assertEqual([f["start_line"] for f in ctx.allowed_flagged], [2])
+
+    def test_override_never_degrades_into_an_exclusion(self) -> None:
+        private = "project/executions/AD_HOC/private.md"
+        (self.repo / "untracked.py").write_text("token: Callable[[], str] = x\n")
+        cases = {
+            "extra category": (
+                [self.ANNOTATED],
+                {self.ANNOTATED: {"secret", "token"}},
+            ),
+            "untracked": (["untracked.py"], {"untracked.py": {"secret"}}),
+            "private path": ([private], {private: {"secret"}}),
+        }
+        for label, (files, allow) in cases.items():
+            with self.subTest(label):
+                with self.assertRaisesRegex(sources.SourceError, "--allow-flagged"):
+                    self._build(files, allow)
+        with self.assertRaisesRegex(sources.SourceError, "budget"):
+            ask.build_context(
+                repo=self.repo,
+                files=["plain.py", self.ANNOTATED],
+                allow_flagged={self.ANNOTATED: frozenset({"secret"})},
+                budgets=settings.Budgets(max_packet_bytes=16),
+            )
+
+    def test_duplicate_override_entries_merge(self) -> None:
+        ctx = ask.build_context(
+            repo=self.repo,
+            files=["mixed.py"],
+            allow_flagged={
+                "mixed.py": frozenset({"secret"}),
+                "./mixed.py": frozenset({"token"}),
+            },
+        )
+        self.assertEqual(
+            {f["category"] for f in ctx.allowed_flagged}, {"secret", "token"}
+        )
+
+    def test_override_refused_when_budget_cuts_every_flagged_line(self) -> None:
+        late = "late.py"
+        (self.repo / late).write_text(
+            "x = 1\n" * 20 + "token: Callable[[], str] = make_token\n",
+            encoding="utf-8",
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "late")
+        with self.assertRaisesRegex(sources.SourceError, "nothing to confirm"):
+            ask.build_context(
+                repo=self.repo,
+                files=[late],
+                allow_flagged={late: frozenset({"secret"})},
+                budgets=settings.Budgets(max_packet_bytes=30),
+            )
+
+    def test_newline_in_a_requested_path_is_refused(self) -> None:
+        odd = "safe\ntoken: abcdef123.py"
+        try:
+            (self.repo / odd).write_text("token: Callable[[], str] = x\n")
+        except OSError:
+            self.skipTest("filesystem rejects newlines in names")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "odd")
+        with self.assertRaisesRegex(
+            sources.SourceError, "control or invisible"
+        ) as caught:
+            self._build([odd], {odd: {"secret"}})
+        # The refusal quotes the path rather than printing a raw newline.
+        self.assertNotIn("\n", str(caught.exception))
+        self.assertIn("\\n", str(caught.exception))
+        # Without the override, the excluded path is quoted in the prompt and
+        # summary too, so it cannot forge a line in either.
+        plain = ask.build_context(repo=self.repo, files=[odd, "plain.py"])
+        for shown in (plain.text, ask.source_summary(plain)):
+            self.assertNotIn("\ntoken: abcdef123", shown)
+            self.assertIn("safe\\ntoken", shown)
+        # The listing returns the real, unquoted name, which path checks reject.
+        commit = sources.resolve_commit(self.repo, "HEAD")
+        self.assertIn(odd, sources.list_tracked_files(self.repo, commit))
+
+    def test_context_warning_label_covers_any_severity(self) -> None:
+        ctx = self._build([self.ANNOTATED], {self.ANNOTATED: {"secret"}})
+        self.assertIn(
+            "context WARN: secret (sensitivity categories anywhere",
+            ask.source_summary(ctx),
+        )
+
+    def test_another_high_category_is_refused(self) -> None:
+        with self.assertRaisesRegex(
+            sources.SourceError, r"cannot send mixed.py.*token"
+        ):
+            self._build(["mixed.py"], {"mixed.py": {"secret"}})
+
+    def test_override_refusals(self) -> None:
+        cases = {
+            "not requested": ([self.ANNOTATED], {"plain.py": {"secret"}}),
+            "no high-severity finding": (["plain.py"], {"plain.py": {"secret"}}),
+            "credential-like path": ([".env"], {".env": {"secret"}}),
+        }
+        for label, (files, allow) in cases.items():
+            with self.subTest(label):
+                with self.assertRaises(sources.SourceError):
+                    self._build(files, allow)
+        for scope in ({"work_item": "WI-T-1"}, {}):
+            with self.subTest(scope=scope):
+                with self.assertRaisesRegex(sources.SourceError, "only to --files"):
+                    ask.build_context(
+                        repo=self.repo,
+                        allow_flagged={self.ANNOTATED: frozenset({"secret"})},
+                        **scope,
+                    )
+
+    def test_header_path_is_still_scanned(self) -> None:
+        name = "notes/token=abcd1234efgh.py"
+        with self.assertRaisesRegex(sources.SourceError, "assembled context"):
+            self._build([name], {name: {"secret"}})
+
+    def test_run_record_holds_structured_fields_only(self) -> None:
+        ctx = self._build([self.ANNOTATED], {self.ANNOTATED: {"secret"}})
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=ctx,
+            adapter=model.FakeModel([_response("See S1:L2.")]),
+            budgets=settings.Budgets(),
+        )
+        run = self.store.load_run(run_id)
+        self.assertEqual(
+            run["allowed_flagged"][0],
+            {
+                "path": self.ANNOTATED,
+                "category": "secret",
+                "rule_id": "secret.keyword_assignment",
+                "start_line": 2,
+                "end_line": 2,
+            },
+        )
+        self.assertNotIn("scan_text", run)
+        self.assertNotIn("make_token", json.dumps(run))
+
+
+class WorkItemOmissionQuotingTest(AskTestBase):
+    def test_omitted_related_path_cannot_forge_lines(self) -> None:
+        odd = "project/design/a\nINJECTED: yes.md"
+        try:
+            (self.repo / odd).write_text("# design\n", encoding="utf-8")
+        except OSError:
+            self.skipTest("filesystem rejects newlines in names")
+        item = testing_support.READY_ITEM.replace("WI-T-1", "WI-T-8").replace(
+            "  - project/design/demo.md",
+            '  - "project/design/a\\nINJECTED: yes.md"',
+        )
+        (self.repo / "project/work_items/proposed/WI-T-8.md").write_text(
+            item, encoding="utf-8"
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "odd related")
+        ctx = ask.build_context(repo=self.repo, work_item="WI-T-8")
+        omitted = [e for e in ctx.excluded if "INJECTED" in e["path"]]
+        self.assertEqual(len(omitted), 1, ctx.excluded)
+        for shown in (ctx.text, ask.source_summary(ctx)):
+            self.assertNotIn("\nINJECTED", shown)
+            self.assertIn("a\\nINJECTED", shown)
+
+
+class NonUtf8NameTest(AskTestBase):
+    def test_overview_survives_a_non_utf8_tracked_name(self) -> None:
+        (self.repo / "content.tmp").write_text("hello\n", encoding="utf-8")
+        blob = testing_support.run_git(self.repo, "hash-object", "-w", "content.tmp")
+        (self.repo / "content.tmp").unlink()
+        # Stage a name whose bytes are not valid UTF-8 via git plumbing.
+        subprocess.run(
+            [
+                b"git",
+                b"-C",
+                str(self.repo).encode(),
+                b"update-index",
+                b"--add",
+                b"--cacheinfo",
+                b"100644," + blob.encode() + b",caf\xe9.md",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "latin-1 name")
+        commit = sources.resolve_commit(self.repo, "HEAD")
+        names = sources.list_tracked_files(self.repo, commit)
+        bad = [name for name in names if name.startswith("caf")]
+        self.assertEqual(len(bad), 1)
+        with self.assertRaisesRegex(sources.SourceError, "not valid UTF-8"):
+            sources.check_path_allowed(bad[0])
+        ctx = ask.build_context(repo=self.repo)
+        self.assertNotIn("caf", ctx.text)
+
+
 class RunAskTest(AskTestBase):
     def _ask(self, adapter: model.ModelAdapter, **kwargs: object) -> dict:
         ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
@@ -285,7 +542,12 @@ class RunAskTest(AskTestBase):
         run = self._ask(model.FakeModel([_response("partial", done_reason="length")]))
         self.assertEqual(run["outcome"], "budget_exhausted")
         output = self.store.read_json(run["run_id"], "output.json")
-        self.assertEqual(output["answer"], "partial")
+        self.assertEqual(output, {"answer": "partial", "partial": True})
+
+    def test_complete_answer_is_not_marked_partial(self) -> None:
+        run = self._ask(model.FakeModel([_response(ANSWER)]))
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output, {"answer": ANSWER})
 
     def test_backend_failures_are_recorded(self) -> None:
         cases = (

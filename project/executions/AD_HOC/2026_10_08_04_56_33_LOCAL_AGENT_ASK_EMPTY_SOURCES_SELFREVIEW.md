@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_04_56_33_LOCAL_AGENT_ASK_EMPTY_SOURCES_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_ASK_EMPTY_SOURCES_SELFREVIEW)[2026-10-08T04:56:33+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/788
+commit: f95464c38e0a9a6961e7567d6afd4c7034fa63f9
 created_at: 2026-10-08T04:56:33+00:00
 agent: claude_app
 instruction_source: lrh-implement Step 7.5 diff-mode self-review for PROMPT(AD_HOC:LOCAL_AGENT_ASK_EMPTY_SOURCES)[2026-10-08T02:23:22+00:00]

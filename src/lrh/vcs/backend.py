@@ -36,7 +36,10 @@ class MergeRefusedError(VcsError):
 
 
 class MergeVerificationError(VcsError):
-    """The merge command was issued but its final state could not be read."""
+    """A merge was issued but its final state is unconfirmed.
+
+    Either the read-back failed, or it showed a state other than MERGED or OPEN.
+    """
 
 
 @dataclasses.dataclass(frozen=True)
@@ -93,7 +96,14 @@ def merge_pull_request_locked(
             "--match-head-commit must be a full 40-character lowercase hex SHA"
         )
 
-    before = backend.get_pull_request(pr)
+    try:
+        before = backend.get_pull_request(pr)
+    except VcsError:
+        raise
+    except Exception as err:
+        raise VcsError(
+            f"could not read the pull request, so no merge was issued: {_describe(err)}"
+        ) from err
     if before.state != "OPEN":
         raise MergeRefusedError(f"pull request is {before.state}, not OPEN")
     if before.head_sha != match_head_commit:
@@ -104,15 +114,17 @@ def merge_pull_request_locked(
 
     try:
         backend.merge_pull_request(pr, mode=mode, match_head_commit=match_head_commit)
-    except VcsError as err:
-        raise VcsError(f"{err}; {_state_after_failure(backend, pr)}") from err
+    except Exception as err:
+        raise VcsError(
+            f"{_describe(err)}; {_state_after_failure(backend, pr)}"
+        ) from err
 
     try:
         after = backend.get_pull_request(pr)
-    except VcsError as err:
+    except Exception as err:
         raise MergeVerificationError(
             f"merge command was issued but the final state could not be read "
-            f"({err}); check the pull request's state before proceeding"
+            f"({_describe(err)}); check the pull request's state before proceeding"
         ) from err
     if after.state == "MERGED":
         return MergeOutcome("merged", after.state, after.merge_commit)
@@ -132,9 +144,17 @@ def _state_after_failure(backend: VcsBackend, pr: str) -> str:
     """
     try:
         info = backend.get_pull_request(pr)
-    except VcsError as read_err:
+    except Exception as read_err:
         return (
-            f"its state could not be read afterwards either ({read_err}); "
+            f"its state could not be read afterwards either ({_describe(read_err)}); "
             "check the pull request before proceeding"
         )
     return f"the pull request is now {info.state}"
+
+
+def _describe(err: Exception) -> str:
+    # Backends are pluggable, so any exception type must be reported as a backend
+    # error: an unhandled one would exit 1, which the CLI documents as "queued".
+    if isinstance(err, VcsError):
+        return str(err)
+    return f"{type(err).__name__}: {err}"

@@ -38,7 +38,7 @@ acceptance:
   - "`ask` answers a free-form question about the current checkout from tracked files, streaming readable Markdown with source references, with no agent tools."
   - "`brief` produces a work-item briefing that carries LRH readiness diagnostics and flags claims that contradict them."
   - "Every run is logged automatically and privately, including failures, with a one-key rating and a `log` summary; no manual bookkeeping is required."
-  - "Sources matching the listed credential-like patterns, or with a high-severity sensitivity-scanner finding, are never sent to the model or logged, while medium-only sources are still sent with category-only warnings, shown by boundary tests on both sides (a best-effort guard, per proposal Decision 3); `export` and `report` withhold text on any finding; logs can be deleted and pruned."
+  - "Sources matching the listed credential-like patterns, or with a high-severity sensitivity-scanner finding, are never sent to the model or logged unless the owner names a scanner-flagged file and its categories in an explicit, logged `--allow-flagged` override, confirms each finding by rule and line with a typed `yes`, and does not pass `--yes`; medium-only sources are still sent with warnings by category, never by value; boundary tests show both sides (a best-effort guard, per proposal Decision 3); `export` and, if implemented, `report` withhold text on any finding; logs can be deleted and pruned."
   - "Fake-model tests cover the commands, logging, and local-only checks without model or network access."
   - "The owner has used both toys on real work and recorded a stop, revise, or proceed decision; production behavior is unchanged."
 required_evidence:
@@ -114,7 +114,28 @@ network tools and cannot modify repository files or project state.
    - any source with a high-severity finding from the sensitivity scanner
      (`lrh.conversations.sensitivity`), which is dropped and listed as
      excluded in the source summary. Medium-severity findings (email, IP
-     address, phone) are listed as warnings instead, per Decision 3.
+     address, phone) are listed as warnings instead, by category and never
+     by value, per Decision 3.
+
+   `--allow-flagged <path>=<category>[,<category>...]` (repeatable) sends a
+   file named in the same command's `--files` despite a high-severity scanner
+   finding, per Decision 3's explicit owner override. It lifts only the named
+   categories and is refused if the file has another high-severity category,
+   none at all, was not requested, or is excluded by path. It never applies
+   to `--wi`, `brief`, or overview questions, and never lifts private,
+   untracked, binary, or credential-like exclusions. An override run always
+   stops at a confirmation listing every finding it would let through by
+   rule and line, never by value (`ALLOWED DESPITE <category>: <rule> at
+   L<n>`, where `L<n>` is the match's start line, `L<a>-L<b>` if it spans
+   lines, or `L?` if unknown). The confirmation comes before the adapter is
+   built or the model is called; only a typed `yes` sends, a bare Enter or
+   anything else declines, and a decline is logged as `cancelled`.
+   `--allow-flagged` is refused with `--yes` or without an interactive
+   terminal. The final assembled-context scan skips only the allowed file's
+   own rendered section (scanned once, on raw text, for the confirmation)
+   and still refuses any high-severity finding elsewhere. The run record
+   notes the override and the confirmed findings as structured fields (path,
+   category, rule ID, start and end line), never by value.
 
    Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
@@ -134,18 +155,35 @@ network tools and cannot modify repository files or project state.
 6. **`log` summary.** Show recent runs and computed statistics: counts, outcome
    mix, latency and token distributions, ratings, citation-resolution rate, and
    flagged runs. An optional `report` writes a sanitized summary suitable for
-   committing to `experiments/`. Like `export`, it withholds any question,
-   rating note, or generated text in which the sensitivity scanner reports any
-   finding, medium-severity (email, IP address, phone) included.
+   committing to `experiments/`. If implemented, it withholds, like `export`,
+   any question, rating note, or generated text in which the sensitivity
+   scanner reports any finding, medium-severity (email, IP address, phone)
+   included.
 7. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
    commands, logging, rating capture, flags, and deletion. Boundary tests must
    cover both sides of the severity boundary:
    - credential-like paths and sources with high-severity scanner findings are
-     never sent or logged;
+     never sent or logged, except under a valid `--allow-flagged` override;
    - medium-only sources are still sent, and their warnings name categories but
      never the matched values;
-   - `export` and `report` withhold text with any finding, including a
-     medium-only finding in a question, rating note, or answer.
+   - `export` and, if implemented, `report` withhold text with any finding,
+     including a medium-only finding in a question, rating note, or answer;
+   - `--allow-flagged` sends only a requested file whose high-severity
+     categories are exactly covered by the override; it is refused
+     otherwise, never lifts private, untracked, binary, or credential-like
+     exclusions, and the override is recorded by path, category, rule, and
+     line, never by value;
+   - an override run lists every allowed finding by rule and line (never by
+     value) before any model call; only a typed `yes` sends, a bare Enter
+     declines and is logged as `cancelled`; it is refused with `--yes` or
+     without an interactive terminal; and a second finding of an allowed
+     category appears as its own line;
+   - the final assembled-context scan skips only the allowed file's own
+     section: an allowed file is sent, including one with a multi-line
+     finding, while any high-severity finding in another file, the
+     diagnostics, or the listing still refuses the request;
+   - an override run exports cleanly: its structured override record does
+     not itself trip the export scan.
 
    Update `experimental/local_agent/README.md` to describe the toys; the pilot
    runbook material is retired. Do not add live model or network calls to
@@ -170,11 +208,15 @@ comparative study. Do not modify the default serve surface.
 - Every run is logged automatically and privately, including failures, with a
   one-key rating and a `log` summary; no manual bookkeeping is required.
 - Sources matching the listed credential-like patterns, or with a high-severity
-  sensitivity-scanner finding, are never sent to the model or logged.
-  Medium-only sources are still sent, with warnings that name categories but
-  never values. `export` and `report` withhold text with any finding. Boundary
-  tests show both sides. This is a best-effort guard (proposal Decision 3), not
-  a guarantee against every secret. Logs can be deleted and pruned.
+  sensitivity-scanner finding, are never sent to the model or logged, except a
+  scanner-flagged file the owner names, with its categories, in an explicit,
+  logged `--allow-flagged` override, confirmed per finding by rule and line
+  with a typed `yes` and refused with `--yes` or without an interactive
+  terminal. Medium-only sources are still sent, with warnings that name
+  categories but never values. `export` and, if implemented, `report`
+  withhold text with any finding. Boundary tests show both sides. This is a
+  best-effort guard (proposal Decision 3), not a guarantee against every
+  secret. Logs can be deleted and pruned.
 - Fake-model tests cover the commands, logging, and local-only checks without a
   live inference service or network access.
 - The owner has used both toys on real work and recorded stop, revise, or

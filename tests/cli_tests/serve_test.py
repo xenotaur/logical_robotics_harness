@@ -1,6 +1,10 @@
+import http.client
 import io
 import json
+import os
 import pathlib
+import re
+import shutil
 import socket
 import struct
 import sys
@@ -9,11 +13,13 @@ import threading
 import unittest
 import unittest.mock
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from lrh import serve
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
 from lrh.ux import tokens
 from tests import testing_support
 
@@ -96,6 +102,22 @@ class TestLrhServeCli(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(json.loads(captured.stdout.getvalue())["theme"], "dark")
+
+    def test_interactive_is_off_by_default_and_reported(self) -> None:
+        parser = serve.build_parser("lrh serve")
+        self.assertFalse(serve.config_from_args(parser.parse_args([])).interactive)
+        self.assertTrue(
+            serve.config_from_args(parser.parse_args(["--interactive"])).interactive
+        )
+        with testing_support.capture_output() as captured:
+            serve.run_serve_cli(["--interactive", "--show-config"])
+        self.assertTrue(json.loads(captured.stdout.getvalue())["interactive"])
+        self.assertEqual(
+            serve._desktop_protocol_conflicts(
+                "lrh serve", ["--desktop-protocol", "--interactive"]
+            ),
+            [],
+        )
 
     def test_unknown_theme_is_rejected(self) -> None:
         with testing_support.capture_output(capture_stderr=True) as captured:
@@ -232,6 +254,53 @@ class TestBlockedWorkItemCount(unittest.TestCase):
         self.assertEqual(serve._blocked_work_item_count(work_items), 0)
 
 
+class TestDependencyMapViewErrorsStayScoped(unittest.TestCase):
+    """A bad dependency-map view fails ``lrh validate`` and its own map page
+    without blanking the unrelated work-item and workbench pages."""
+
+    def _project_with_broken_view(self) -> pathlib.Path:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        return root
+
+    def test_work_item_and_workbench_pages_still_render(self) -> None:
+        config = serve.ServeConfig(project_root=self._project_with_broken_view())
+
+        status, body = serve.render_project_work_item_page(config, "main", "WI-A")
+        artifact = serve.render_workbench_artifact(config, "prompt", "WI-A")
+
+        self.assertEqual(status, 200)
+        self.assertIn("WI-A", body)
+        self.assertEqual(artifact.work_item_id, "WI-A")
+        self.assertIn("WI-A", artifact.markdown)
+
+    def test_map_page_still_explains_the_invalid_view(self) -> None:
+        config = serve.ServeConfig(project_root=self._project_with_broken_view())
+
+        status, body = serve.render_dependency_map_page(config, "main", "broken", {})
+
+        self.assertEqual(status, 422)
+        self.assertIn("invalid view", body)
+
+    def test_lrh_validate_still_fails(self) -> None:
+        root = self._project_with_broken_view()
+        argv = ["lrh", "validate", "--project-dir", str(root / "project")]
+
+        with unittest.mock.patch("sys.argv", argv):
+            with testing_support.capture_output() as captured:
+                with self.assertRaises(SystemExit) as exit_ctx:
+                    cli_main.main()
+
+        self.assertEqual(exit_ctx.exception.code, 1)
+        self.assertIn("DEPENDENCY_MAP_VIEW_INVALID", captured.stdout.getvalue())
+
+
 # HTML routes that render with no project fixtures.
 _HTML_ROUTES = (
     "/",
@@ -241,6 +310,77 @@ _HTML_ROUTES = (
     "/workbench",
     "/conversations/codex",
 )
+
+
+class TestStatusboardHtml(unittest.TestCase):
+    """The statusboard's band and card HTML, without a server."""
+
+    def _card(self, **fields: object) -> dict[str, object]:
+        card: dict[str, object] = {
+            "display_name": "Alpha",
+            "project_id": "alpha",
+            "registry_name": "alpha",
+            "source_state": "live",
+            "validation_status": "valid",
+        }
+        card.update(fields)
+        return card
+
+    def test_card_text_from_project_files_is_escaped(self) -> None:
+        hostile = '<b onmouseover="x">focus</b>'
+        page = serve._meta_card_html(
+            self._card(
+                display_name=hostile,
+                current_focus_summary=hostile,
+                validation_next_action=hostile,
+            )
+        )
+
+        self.assertNotIn("<b ", page)
+        # Name, focus, next action, and the next action again under Details.
+        self.assertEqual(page.count("&lt;b onmouseover=&quot;x&quot;&gt;"), 4)
+
+    def test_freshness_says_why_a_card_was_not_read(self) -> None:
+        unread = serve._meta_card_html(
+            self._card(source_state="needs_local_checkout"), "2026-10-09T05:00:00+00:00"
+        )
+        live = serve._meta_card_html(self._card(), "2026-10-09T05:00:00+00:00")
+
+        self.assertIn(
+            '<span class="lrh-chip">Not read: needs local checkout</span>', unread
+        )
+        self.assertIn("<dd>Set a local checkout path</dd>", unread)
+        self.assertIn(
+            '<span class="lrh-chip">Read live 2026-10-09 05:00:00 UTC</span>', live
+        )
+        self.assertIn('<span class="lrh-chip">Validation: passing</span>', live)
+
+    def test_html_bands_follow_the_payload_order_with_each_project_once(self) -> None:
+        payload_lanes = [
+            {
+                "status": status.value,
+                "label": serve.dashboard.status_label(status),
+                "description": "d",
+                "count": 1,
+                "projects": [
+                    self._card(
+                        display_name=f"P-{status.value}", project_id=status.value
+                    )
+                ],
+            }
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        page = "".join(serve._meta_lane_html(lane) for lane in payload_lanes)
+
+        positions = [
+            page.index(f'id="band-{status.value}"')
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        self.assertEqual(positions, sorted(positions))
+        self.assertTrue(page.startswith('<details class="lrh-band lrh-band--blocked"'))
+        for status in serve.dashboard.OPERATIONAL_LANE_ORDER:
+            with self.subTest(band=status):
+                self.assertEqual(page.count(f">P-{status.value}</a>"), 1)
 
 
 class TestLrhServeRoutes(unittest.TestCase):
@@ -348,6 +488,467 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertIn('<html lang="en" data-theme="light">', body)
 
+    def _isolated_server(self) -> str:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        _httpd, base_url = self._start_server(root)
+        return base_url
+
+    def test_every_html_page_is_framed(self) -> None:
+        base_url = self._isolated_server()
+
+        detail_routes = (
+            "/settings",
+            "/project/main/work-items/WI-A",
+            "/project/main/work-items/WI-A/prompt",
+            "/workbench/prompt?work_item=WI-A",
+            "/workbench/run-packet?work_item=WI-A",
+            "/workbench/run-report?work_item=WI-A",
+        )
+        for route in _HTML_ROUTES + detail_routes:
+            with self.subTest(route=route):
+                _status, _type, body = self._read(base_url + route)
+                self.assertIn('<a class="lrh-home" href="/meta">', body)
+                self.assertIn('<nav class="lrh-sidebar"', body)
+                self.assertIn('class="lrh-main" id="lrh-content"', body)
+                self.assertEqual(body.count("<main"), 1, "one main landmark")
+                self.assertIn('<a class="lrh-skip" href="#lrh-content">', body)
+                self.assertIn(
+                    '<meta name="viewport" content="width=device-width, '
+                    'initial-scale=1">',
+                    body.split("</head>", 1)[0],
+                )
+                self.assertNotIn("<script", body.lower())
+
+    def test_content_security_policy_allows_only_same_origin_images_and_fonts(
+        self,
+    ) -> None:
+        base_url = self._isolated_server()
+
+        with urllib.request.urlopen(base_url + "/style", timeout=5) as response:
+            policy = response.headers.get("Content-Security-Policy")
+
+        self.assertEqual(
+            policy,
+            "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+            "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+            "form-action 'none'",
+        )
+
+    def _interactive_server(self, interactive: bool) -> str:
+        """Serve a viewer project with one valid view; returns the base URL.
+
+        No invalid view is written here: any validation error empties the
+        core project state, which would hide work items from other pages.
+        """
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        views = root / "project" / "views" / "dependency_maps"
+        _write(
+            views / "main.md",
+            '---\nid: "main"\ntitle: "Main"\nlanes:\n- workstream: "WS-A"\n'
+            'phases:\n- id: "one"\n  title: "One"\n  work_items: ["WI-A"]\n'
+            "---\nBody.\n",
+        )
+        httpd = serve.create_http_server(
+            serve.ServeConfig(port=0, project_root=root, interactive=interactive)
+        )
+        host, port = httpd.server_address[:2]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(httpd.server_close)
+        return f"http://{host}:{port}"
+
+    def test_interactive_mode_adds_only_same_origin_scripts(self) -> None:
+        static_url = self._interactive_server(False)
+        live_url = self._interactive_server(True)
+        script = "/static/lrh-interactive.js"
+        inline = re.compile(r"<script(?![^>]*\bsrc=)", re.IGNORECASE)
+
+        with urllib.request.urlopen(live_url + "/style", timeout=5) as response:
+            live_policy = response.headers["Content-Security-Policy"]
+            live_body = response.read().decode("utf-8")
+        with urllib.request.urlopen(static_url + "/style", timeout=5) as response:
+            static_policy = response.headers["Content-Security-Policy"]
+            static_body = response.read().decode("utf-8")
+
+        self.assertEqual(
+            live_policy,
+            "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+            "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+            "form-action 'none'; script-src 'self'",
+        )
+        self.assertNotIn("script-src", static_policy)
+        self.assertNotIn("unsafe-eval", live_policy)
+        head = live_body.split("</head>", 1)[0]
+        self.assertIn(f'<script src="{script}" defer></script>', head)
+        self.assertTrue(
+            head.split("<head>", 1)[1].startswith(
+                '<script src="/static/lrh-theme-early.js"></script>'
+            ),
+            "the early theme script runs before any style",
+        )
+        self.assertNotIn("<script", static_body)
+        for route in _HTML_ROUTES + (
+            "/settings",
+            "/workbench/prompt?work_item=WI-A",
+            "/project/main/work-items/WI-A",
+            "/project/main/dependency-maps",
+            "/project/main/dependency-maps/main",
+            "/project/main/dependency-maps/main?tab=table&item=WI-A",
+            "/project/main/dependency-maps/main?tab=blockers",
+        ):
+            with self.subTest(route=route):
+                _s, _t, body = self._read(live_url + route)
+                self.assertEqual(body.count("<script"), 2)
+                self.assertIsNone(inline.search(body))
+        views = pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "project/views"
+        _write(
+            views / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        with self.assertRaises(urllib.error.HTTPError) as invalid_ctx:
+            self._read(live_url + "/project/main/dependency-maps/broken")
+        invalid = invalid_ctx.exception.read().decode("utf-8")
+        self.assertEqual(invalid_ctx.exception.code, 422)
+        self.assertIsNone(inline.search(invalid))
+        with urllib.request.urlopen(live_url + script, timeout=5) as response:
+            self.assertIn("text/javascript", response.headers["Content-Type"])
+        for name in (script, "/static/lrh-theme-early.js"):
+            with self.subTest(static=name):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(static_url + name)
+                self.assertEqual(err_ctx.exception.code, 404)
+                # HEAD keeps the 404 but, like every HEAD, sends no body.
+                # http.client never reads a HEAD body, so Content-Length is
+                # the observable signal that one was written.
+                parts = urllib.parse.urlsplit(static_url)
+                connection = http.client.HTTPConnection(
+                    parts.hostname, parts.port, timeout=5
+                )
+                self.addCleanup(connection.close)
+                connection.request("HEAD", name)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 404)
+                self.assertIsNone(response.getheader("Content-Length"))
+        with urllib.request.urlopen(live_url + script, timeout=5) as response:
+            self.assertEqual(response.headers["Cache-Control"], "no-cache")
+
+    def test_interactive_with_a_pinned_theme_keeps_the_pin(self) -> None:
+        for theme, pinned in (("dark", True), ("system", False)):
+            config = serve.ServeConfig(port=0, theme=theme, interactive=True)
+            httpd = serve.create_http_server(config)
+            host, port = httpd.server_address[:2]
+            threading.Thread(target=httpd.serve_forever, daemon=True).start()
+            self.addCleanup(httpd.shutdown)
+            self.addCleanup(httpd.server_close)
+            with self.subTest(theme=theme):
+                _s, _t, body = self._read(f"http://{host}:{port}/style")
+                root = re.search(r"<html[^>]*>", body).group(0)
+                self.assertEqual('data-theme="dark"' in root, pinned)
+                self.assertIn("data-lrh-theme-slot", body)
+                self.assertIn("/static/lrh-interactive.js", body)
+
+    def test_desktop_server_factory_passes_interactive(self) -> None:
+        httpd = serve._desktop_server_factory(pathlib.Path("."), interactive=True)
+        host, port = httpd.server_address[:2]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(httpd.server_close)
+
+        with urllib.request.urlopen(f"http://{host}:{port}/style", timeout=5) as resp:
+            self.assertIn("script-src 'self'", resp.headers["Content-Security-Policy"])
+
+    def test_static_serves_only_allowlisted_assets(self) -> None:
+        base_url = self._isolated_server()
+
+        for name, content_type in (
+            ("lrh-icon-64.png", "image/png"),
+            ("fonts/montserrat-latin.woff2", "font/woff2"),
+            ("fonts/OFL-montserrat.txt", "text/plain"),
+            ("icons/LICENSE-lucide.txt", "text/plain"),
+        ):
+            with self.subTest(name=name):
+                with urllib.request.urlopen(
+                    f"{base_url}/static/{name}", timeout=5
+                ) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertIn(content_type, response.headers["Content-Type"])
+                    self.assertTrue(response.read())
+                head_status, head_type = self._head(f"{base_url}/static/{name}")
+                self.assertEqual(head_status, 200)
+                self.assertIn(content_type, head_type)
+        for name in ("icons/settings.svg", "../serve.py", "tokens.py", ""):
+            with self.subTest(name=name):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(f"{base_url}/static/{name}")
+                self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_settings_page_explains_the_theme_and_licenses(self) -> None:
+        base_url = self._isolated_server()
+
+        status, content_type, body = self._read(base_url + "/settings")
+        head_status, _head_type = self._head(base_url + "/settings")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("This server uses the <strong>system</strong> theme", body)
+        self.assertIn("lrh serve --theme light", body)
+        self.assertIn('href="/static/fonts/OFL-montserrat.txt"', body)
+        self.assertIn('href="/static/icons/LICENSE-lucide.txt"', body)
+
+    def test_a_broken_registry_still_serves_framed_pages(self) -> None:
+        base_url = self._isolated_server()
+
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                side_effect=PermissionError("denied"),
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+        ):
+            status, _type, body = self._read(base_url + "/")
+
+        self.assertEqual(status, 200)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+
+    def test_scope_switcher_lists_projects_whose_records_fail_to_load(self) -> None:
+        loads = (
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="good",
+                record=serve.meta_workspace.MetaProjectRecord(
+                    registry_name="good",
+                    short_name="good",
+                    display_name="Good Project",
+                    project_id=None,
+                    repo_locator=None,
+                    project_dir=None,
+                    setup_state=None,
+                ),
+            ),
+            serve.meta_workspace.MetaProjectLoadResult(
+                registry_name="broken", record=None, error="bad toml"
+            ),
+        )
+        with (
+            unittest.mock.patch.object(
+                serve.meta_workspace, "resolve_meta_workspace", return_value=object()
+            ),
+            unittest.mock.patch.object(
+                serve.meta_workspace,
+                "list_registered_project_loads_in_workspace",
+                return_value=loads,
+            ),
+        ):
+            projects = serve._frame_projects(serve.ServeConfig())
+
+        self.assertEqual(
+            projects,
+            (
+                serve.frame.Project(selector="good", label="Good Project"),
+                serve.frame.Project(selector="broken", label="broken"),
+            ),
+        )
+
+    def test_frame_and_pinned_theme_combine(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            _write_viewer_project(pathlib.Path(tmp_dir))
+            _httpd, base_url = self._start_server(pathlib.Path(tmp_dir), theme="dark")
+            _status, _type, body = self._read(base_url + "/meta")
+
+        self.assertIn('<html lang="en" data-theme="dark">', body)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+
+    def test_item_query_opens_the_drawer(self) -> None:
+        base_url = self._isolated_server()
+
+        _status, _type, body = self._read(base_url + "/meta?item=WI-ONE")
+
+        self.assertIn('<aside class="lrh-drawer"', body)
+        self.assertIn(">WI-ONE</h2>", body)
+
+    def _dependency_map_server(self) -> tuple[pathlib.Path, str]:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        patcher = unittest.mock.patch.dict(
+            "os.environ",
+            {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        root = pathlib.Path(tmp_dir)
+        _write_reviewing_workstream_project(root)
+        _write(
+            root / "project" / "views" / "dependency_maps" / "main.md",
+            '---\nid: "main"\ntitle: "Main"\nlanes:\n- workstream: "WS-A"\n'
+            'phases:\n- id: "one"\n  title: "One"\n  work_items: ["WI-A"]\n'
+            "---\nBody.\n",
+        )
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        _httpd, base_url = self._start_server(root)
+        return root, base_url
+
+    def test_dependency_map_route_returns_the_snapshot(self) -> None:
+        root, base_url = self._dependency_map_server()
+
+        status, content_type, body = self._read(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+        head_status, _head_type = self._head(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        expected = json.loads(
+            dependency_map_snapshot.build_snapshot(root, "main").to_json()
+        )
+        payload.pop("generated_at")
+        expected.pop("generated_at")
+        self.assertEqual(payload, expected)
+        self.assertEqual({node["id"] for node in payload["nodes"]}, {"WI-A", "WI-B"})
+
+    def test_dependency_map_route_reports_read_errors_as_500(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/api/project/main/dependency-maps/main"
+
+        with unittest.mock.patch.object(
+            serve.dependency_map_view,
+            "parse_markdown_file",
+            side_effect=PermissionError("denied"),
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as get_ctx:
+                self._read(url)
+            with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                self._head(url)
+
+        self.assertEqual(get_ctx.exception.code, 500)
+        self.assertEqual(head_ctx.exception.code, 500)
+
+    def test_dependency_map_page_renders_in_the_frame(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        status, content_type, body = self._read(url)
+        _s, _t, selected = self._read(url + "?item=WI-A")
+        _s, _t, table = self._read(url + "?tab=table")
+        _s, _t, blockers = self._read(url + "?tab=blockers")
+        head_status, _head_type = self._head(url)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn('<nav class="lrh-sidebar"', body)
+        self.assertIn('class="lrh-map"', body)
+        self.assertIn("Layout: layered-grid.", body)
+        self.assertIn("Dependency maps</span>", body)
+        self.assertNotIn("<script", body.lower())
+        self.assertEqual(selected.count('<aside class="lrh-drawer"'), 1)
+        _s, _t, unknown = self._read(url + "?item=WI-NOPE")
+        self.assertNotIn('<aside class="lrh-drawer"', unknown)
+        self.assertIn("WI-NOPE is not in this view.", unknown)
+        self.assertIn("Not modeled yet", selected)
+        self.assertIn('class="lrh-map-table"', table)
+        self.assertIn("Nothing in this view is waiting or blocked.", blockers)
+
+    def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+
+        with unittest.mock.patch.object(
+            dependency_map_snapshot.loader,
+            "load_project",
+            side_effect=ValueError("bad control file"),
+        ):
+            for path in (
+                "/project/main/dependency-maps/main",
+                "/api/project/main/dependency-maps/main",
+            ):
+                with self.subTest(path=path):
+                    with self.assertRaises(urllib.error.HTTPError) as get_ctx:
+                        self._read(base_url + path)
+                    with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                        self._head(base_url + path)
+                    self.assertEqual(get_ctx.exception.code, 500)
+                    self.assertEqual(head_ctx.exception.code, 500)
+
+    def test_dependency_map_index_and_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        base = base_url + "/project/main/dependency-maps"
+
+        _status, _type, index = self._read(base)
+        self.assertIn('href="/project/main/dependency-maps/main"', index)
+        self.assertIn("Invalid declaration", index)
+        for path, code in (("/missing", 404), ("/broken", 422)):
+            with self.subTest(path=path):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(base + path)
+                self.assertEqual(err_ctx.exception.code, code)
+                with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                    self._head(base + path)
+                self.assertEqual(head_ctx.exception.code, code)
+        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+            self._read(base + "/broken")
+        page = err_ctx.exception.read().decode("utf-8")
+        self.assertIn("invalid view", page)
+        self.assertIn("lanes must be a non-empty list", page)
+
+    def test_dependency_map_index_without_views_explains_how_to_add_one(self) -> None:
+        base_url = self._isolated_server()
+
+        _status, _type, body = self._read(base_url + "/project/main/dependency-maps")
+
+        self.assertIn("No dependency-map views", body)
+        self.assertIn("project/views/dependency_maps/&lt;name&gt;.md", body)
+
+    def test_dependency_map_route_errors(self) -> None:
+        _root, base_url = self._dependency_map_server()
+
+        for path, code in (
+            ("/api/project/main/dependency-maps/missing", 404),
+            ("/api/project/main/dependency-maps/broken", 422),
+            ("/api/project/main/dependency-maps/..%2Fx", 422),
+            ("/api/project/main/other/main", 404),
+            ("/api/project/main", 404),
+        ):
+            with self.subTest(path=path):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(base_url + path)
+                self.assertEqual(err_ctx.exception.code, code)
+                with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                    self._head(base_url + path)
+                self.assertEqual(head_ctx.exception.code, code)
+
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -395,14 +996,19 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/meta",
                 "/meta/project",
                 "/style",
+                "/settings",
+                "/static/<asset>",
                 "/project/<project_id>",
                 "/project/<project_id>/designs/<design_id>",
                 "/project/<project_id>/workstreams/<workstream_id>",
                 "/project/<project_id>/work-items/<work_item_id>",
+                "/project/<project_id>/dependency-maps",
+                "/project/<project_id>/dependency-maps/<view>",
                 "/project/<project_id>/work-items/<work_item_id>/prompt",
                 "/health",
                 "/api/status",
                 "/api/project",
+                "/api/project/<project_id>/dependency-maps/<view>",
                 "/api/workbench",
                 "/api/conversations/codex",
                 "/api/conversations/codex/<export_id>",
@@ -964,11 +1570,57 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("Meta Operational Triage", body)
-        self.assertIn("Total registered projects shown: 0", body)
+        self.assertIn("<title>Statusboard</title>", body)
         self.assertIn("No registered projects", body)
-        self.assertIn("Needs Attention (0)", body)
-        self.assertIn("Unknown (0)", body)
+        # Every band is shown even when empty, and Unknown says why it is empty.
+        for status in (
+            "blocked",
+            "needs_attention",
+            "active_work",
+            "awaiting_review",
+            "stable",
+            "unknown",
+        ):
+            with self.subTest(band=status):
+                self.assertIn(f'id="band-{status}"', body)
+        self.assertEqual(body.count("No projects in this band."), 5)
+        self.assertIn("No projects are currently classified as unknown.", body)
+        self.assertIn(
+            '0<span class="lrh-visually-hidden"> projects</span></span>', body
+        )
+        self.assertNotIn("<script", body)
+
+    def test_statusboard_shows_bands_first_with_card_facts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root / "repos" / "alpha")
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            _status, _type, body = self._read(base_url + "/meta")
+            _status, _type, api = self._read(base_url + "/api/meta")
+
+        payload = json.loads(api)
+        lane = next(lane for lane in payload["lanes"] if lane["count"])
+        band = body.split(f'id="band-{lane["status"]}"', 1)[1].split("</details>", 1)[0]
+        # A band with projects starts open; the empty ones start closed.
+        self.assertIn(f'id="band-{lane["status"]}" open>', body)
+        self.assertNotIn('id="band-unknown" open', body)
+        # Glyph, label, and count: never color alone.
+        self.assertIn('class="lrh-band-glyph" aria-hidden="true">', band)
+        self.assertIn(f'<span class="lrh-band-label">{lane["label"]}</span>', band)
+        self.assertIn('1<span class="lrh-visually-hidden"> project</span>', band)
+        self.assertIn(">Alpha</a></h3>", band)
+        self.assertIn("<dt>Focus:</dt>", band)
+        self.assertIn("<dt>Next:</dt>", band)
+        self.assertIn('<span class="lrh-chip">Validation: ', band)
+        self.assertIn('<span class="lrh-chip">Read live ', band)
+        self.assertIn('<details class="lrh-card-details"><summary>Details', band)
+        # The bands come before the explanatory text.
+        self.assertLess(body.index('class="lrh-bands"'), body.index("About this view"))
+        self.assertRegex(payload["read_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$")
+        self.assertNotIn("<script", body)
 
     def test_meta_route_renders_multiple_projects_in_lane_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -990,15 +1642,15 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(
             [lane["label"] for lane in payload["lanes"]],
             [
-                "Needs Attention",
-                "Active Work",
-                "Awaiting Review",
-                "Stable / No Action Needed",
                 "Blocked",
+                "Needs attention",
+                "Active work",
+                "Awaiting review",
+                "Stable",
                 "Unknown",
             ],
         )
-        active_lane = payload["lanes"][1]
+        active_lane = _meta_lane(payload, "active_work")
         self.assertEqual(active_lane["count"], 2)
         self.assertEqual(
             [card["display_name"] for card in active_lane["projects"]],
@@ -1044,7 +1696,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        needs_attention = payload["lanes"][0]
+        needs_attention = _meta_lane(payload, "needs_attention")
         self.assertEqual(needs_attention["count"], 1)
         broken = needs_attention["projects"][0]
         self.assertEqual(broken["display_name"], "broken")
@@ -1090,7 +1742,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        stable_lane = payload["lanes"][3]
+        stable_lane = _meta_lane(payload, "stable")
         self.assertEqual(stable_lane["count"], 1)
         custom = stable_lane["projects"][0]
         self.assertEqual(custom["display_name"], "Custom Dir")
@@ -1110,7 +1762,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        needs_attention = payload["lanes"][0]
+        needs_attention = _meta_lane(payload, "needs_attention")
         self.assertEqual(needs_attention["count"], 1)
         warned_card = needs_attention["projects"][0]
         self.assertEqual(warned_card["display_name"], "Warned")
@@ -1247,10 +1899,19 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        self.assertEqual(payload["lanes"][1]["projects"][0]["display_name"], "Active")
-        self.assertEqual(payload["lanes"][2]["projects"][0]["display_name"], "Review")
-        self.assertEqual(payload["lanes"][3]["projects"][0]["display_name"], "Stable")
-        self.assertEqual(payload["lanes"][4]["projects"][0]["display_name"], "Blocked")
+        self.assertEqual(
+            _meta_lane(payload, "active_work")["projects"][0]["display_name"], "Active"
+        )
+        self.assertEqual(
+            _meta_lane(payload, "awaiting_review")["projects"][0]["display_name"],
+            "Review",
+        )
+        self.assertEqual(
+            _meta_lane(payload, "stable")["projects"][0]["display_name"], "Stable"
+        )
+        self.assertEqual(
+            _meta_lane(payload, "blocked")["projects"][0]["display_name"], "Blocked"
+        )
 
     def test_meta_route_marks_local_path_without_project_missing_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1264,7 +1925,7 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        empty = payload["lanes"][0]["projects"][0]
+        empty = _meta_lane(payload, "needs_attention")["projects"][0]
         self.assertEqual(empty["display_name"], "Empty")
         self.assertEqual(empty["source_state"], "missing_project")
         self.assertIn("PROJECT_CONTROL_DIR_NOT_FOUND", empty["diagnostics"][0])
@@ -1412,7 +2073,7 @@ Body.
 
         self.assertEqual(status, 200)
         payload = json.loads(body)
-        card = payload["lanes"][5]["projects"][0]
+        card = _meta_lane(payload, "unknown")["projects"][0]
         self.assertEqual(
             card["detail_url"],
             "/project/name%20with%20%26%20hash%23",
@@ -1493,6 +2154,32 @@ Body.
         self.assertIn("Workstream: WS-B", body)
         self.assertIn("Parent: WS-A", body)
         self.assertIn("Child &lt;stream&gt;", body)
+
+    def test_detail_routes_return_not_found_without_meta_workspace(self) -> None:
+        # An empty config home and blank overrides leave no Meta workspace to
+        # resolve; the detail routes must answer 404 instead of dropping the
+        # connection.
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            for route in (
+                "/project/main/designs/DP-1",
+                "/project/main/workstreams/WS-A",
+            ):
+                with self.subTest(route=route):
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        self._read(base_url + route)
+                    self.assertEqual(caught.exception.code, 404)
+                    payload = json.loads(caught.exception.read().decode("utf-8"))
+                    self.assertEqual(payload, {"error": "not_found", "project": "main"})
 
     def test_project_dashboard_route_escapes_dynamic_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1607,6 +2294,55 @@ Body.
 
         self.assertEqual(get_err.exception.code, 404)
         self.assertEqual(head_err.exception.code, 404)
+
+    def test_detail_routes_return_not_found_for_malformed_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            # A workstream without a title makes the control loader raise.
+            _write(
+                alpha / "project" / "workstreams" / "active" / "WS-BROKEN.md",
+                "---\nid: WS-BROKEN\nkind: planning_node\nstatus: active\n---\n",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            for route in (
+                "/project/alpha/designs/DP-1",
+                "/project/alpha/workstreams/WS-A",
+            ):
+                with self.subTest(route=route):
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        self._read(base_url + route)
+                    self.assertEqual(caught.exception.code, 404)
+                    payload = json.loads(caught.exception.read().decode("utf-8"))
+                    self.assertEqual(payload["error"], "not_found")
+                    self.assertIn("title", payload["message"])
+                    with self.assertRaises(urllib.error.HTTPError) as head_err:
+                        self._head(base_url + route)
+                    self.assertEqual(head_err.exception.code, 404)
+
+    def test_project_dashboard_omits_links_for_malformed_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write(
+                alpha / "project" / "workstreams" / "active" / "WS-BROKEN.md",
+                "---\nid: WS-BROKEN\nkind: planning_node\nstatus: active\n---\n",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/project/alpha")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertNotIn("/project/alpha/designs/", body)
+        self.assertNotIn("/project/alpha/workstreams/", body)
 
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1829,6 +2565,12 @@ def _find_meta_project(
             if project["display_name"] == display_name:
                 return project
     raise AssertionError(f"project {display_name!r} not found in meta payload")
+
+
+def _meta_lane(payload: dict, status: str) -> dict:
+    """The /api/meta band with this status, independent of band order."""
+
+    return next(lane for lane in payload["lanes"] if lane["status"] == status)
 
 
 def _write_project_record(

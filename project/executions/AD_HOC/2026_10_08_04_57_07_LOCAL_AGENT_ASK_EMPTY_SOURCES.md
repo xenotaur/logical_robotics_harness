@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_04_57_07_LOCAL_AGENT_ASK_EMPTY_SOURCES
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_ASK_EMPTY_SOURCES)[2026-10-08T02:23:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/788
-commit:
+commit: f95464c38e0a9a6961e7567d6afd4c7034fa63f9
 created_at: 2026-10-08T04:57:07+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner reported two hallucinated T0 ask answers and chose fixes A+B now, c1 next, c3 as a work item

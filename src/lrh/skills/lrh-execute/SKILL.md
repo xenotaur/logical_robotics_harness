@@ -63,12 +63,13 @@ Load before running any step:
    whatever the selected agent skills directory resolves it to.
 2. **`/lrh-land/SKILL.md`** and its `references/land-workflow.md` —
    inlined at Step 4, resolved the same way.
-3. **`references/creation-pr-check.md`** — the Step 1 creation-PR check
-   this skill adds ahead of readiness: full rationale, the hard-stop vs.
-   skip-and-continue distinction between the `WI-ID` and `WS-ID`
-   branches, and the best-effort PR-naming enrichment adapted from
-   `/lrh-land`'s primary-record provenance-check algorithm. Read before
-   Step 1.
+3. **`references/creation-pr-check.md`** — the Step 1 prerequisite
+   lifecycle check this skill runs ahead of readiness: full rationale, the
+   availability gate on `origin/main`, the verified open-PR lookup, the
+   structured stop report (Immediate next action / Why / After that) with
+   worked examples, the hard-stop vs. skip-and-continue distinction between
+   the `WI-ID` and `WS-ID` branches, and the Step 1 journal handoff. Read
+   before Step 1.
 
 The WS-ID → ready-WI selection rule (Step 1) and the run journal shape
 (Step 5) are quoted in full inline below, not loaded from
@@ -115,12 +116,15 @@ followed by a second, restated plan gate.
 ### Step 1 — Resolve the target work item
 
 **Fetch once, before either branch below.** Both the `WI-ID` and `WS-ID`
-cases run a creation-PR existence check (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`)
-against the local `origin/main` ref via `git ls-tree`, which is only as
-fresh as the last fetch. Refresh it once here so neither branch can read a
-stale ref — a stale ref only ever lags behind reality, so the failure mode
-is a false-negative "not found yet" on a candidate that actually landed
-moments ago, never a false positive:
+cases run a prerequisite lifecycle check (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`,
+extended by `WI-EXECUTE-OPEN-PREREQ-PR-STOP`) against the local
+`origin/main` ref via `git ls-tree` / `git show`, which is only as fresh as
+the last fetch. Refresh it once here so neither branch reads a stale ref.
+A successful fetch is a **point-in-time snapshot**, not a guarantee:
+`origin/main` can move afterward (a WI can be resolved or reopened between the
+fetch and the merge), and the gate reads mutable lifecycle status, so a
+snapshot can be wrong in either direction. **If the fetch fails, stop and
+report that as a blocker** — never continue on a stale ref:
 
 ```bash
 git fetch -q origin main
@@ -137,30 +141,44 @@ find project/work_items/ -name "<dependency-WI-ID>.md"
 
 Every entry must have `status: resolved`. If any entry is not resolved
 (or its file can't be found at all — report that distinctly, not as
-"not resolved"), stop and report which one, and do not proceed to Step 2.
+"not resolved"), stop and report which one, and do not proceed to Step 2;
+record the stop in Step 5 (Step 1 stop variant, `stop_reason:
+depends_on_unresolved`) before reporting.
 
-**Creation-PR check** (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`): before
-running the readiness check below, verify the target `WI-ID`'s own file
-exists on `origin/main` — not just the local working tree, which can
-still have it from an unmerged WI-creation branch (see
-`references/creation-pr-check.md` for the full rationale and algorithm;
-this is the exact false-confidence gap that check exists to close, since
-a local checkout sitting on the not-yet-merged creation branch would
-otherwise report a clean `prompt_ready: yes` for a WI that doesn't exist
-on `main` at all — the fetch that keeps this ref current already ran once,
-above, before this branch split):
+**Prerequisite lifecycle check** (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`,
+`WI-EXECUTE-OPEN-PREREQ-PR-STOP`): before running the readiness check
+below, verify the target `WI-ID` is **available on `origin/main`** — its
+file is present there with `status: proposed`. The local working tree is
+not evidence: a session still checked out on the branch that created or
+reopened the WI would otherwise report a clean `prompt_ready: yes` for a WI
+that is absent from `main`, or `resolved` there (see
+`references/creation-pr-check.md` for the full rationale and algorithm; the
+fetch that keeps `origin/main` current already ran once, above, before this
+branch split):
 
 ```bash
-git ls-tree -r --name-only origin/main -- project/work_items/ \
-  | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
+path=$(git ls-tree -r --name-only origin/main -- project/work_items/ \
+  | grep -x "project/work_items/[a-z]*/<WI-ID>.md" || true)
+status=$([ -n "$path" ] && git show "origin/main:./$path" \
+  | awk 'NR>1 && /^---$/ {exit} /^status:/ {print $2; exit}' | tr -d "'\"")
 ```
 
-If this fails (no match), **stop and report** — do not proceed to the
-readiness check or Step 1.5. This is a hard, unconditional gate
-regardless of whether the specific introducing PR can be identified (see
-the reference doc for the best-effort PR-naming enrichment, and why it
-must never weaken this gate). Only then run the readiness check, before
-the chain is authorized:
+If `$path` is empty (absent) or `$status` is anything other than
+`proposed`, the WI is **unavailable: stop** — do not run the readiness
+check, mint a prompt ID, or proceed to Step 1.5. This is a hard,
+unconditional gate regardless of whether a blocking PR can be identified.
+Then look up the blocking PR as the reference doc specifies: enumerate
+**all** open PRs targeting `main` (an explicit high `--limit` or
+pagination, never the default of 30), match the WI's exact file path, and
+name a PR only if its **head version of the WI sets `status: proposed`**.
+Report with the structured stop report from the reference doc —
+**Immediate next action** (`/lrh-land <pr-url>` for exactly one qualifying
+PR; otherwise "identify and land the prerequisite PR for `<WI-ID>`" and
+name no PR), **Why**, **After that** — and record the stop in Step 5
+(Step 1 stop variant) before reporting. The later `/lrh-execute <WI-ID>`
+appears only in **After that**, as inline prose that is not yet actionable.
+Only for an available WI, run the readiness check, before the chain is
+authorized:
 
 ```bash
 lrh work-items readiness <WI-ID> --format md
@@ -190,23 +208,30 @@ order** — do not evaluate WIs from any other workstream, and do not
 guess an ordering the workstream file doesn't state. For each candidate,
 in order:
 
-**Creation-PR check first, before readiness** — same reason as the
-`WI-ID` case above: `lrh work-items readiness` reads whatever file is in
+**Prerequisite lifecycle check first, before readiness** — same reason as
+the `WI-ID` case above: `lrh work-items readiness` reads whatever file is in
 the local working tree, so running it before this check would still
-produce the exact false-confidence result this fix exists to close, just
-one candidate later than the direct-`WI-ID` case:
+produce the exact false-confidence result this check exists to close, just
+one candidate later than the direct-`WI-ID` case. Compute the candidate's
+state on `origin/main` exactly as in the `WI-ID` case:
 
 ```bash
-git ls-tree -r --name-only origin/main -- project/work_items/ \
-  | grep -qx "project/work_items/[a-z]*/<candidate-WI-ID>.md"
+path=$(git ls-tree -r --name-only origin/main -- project/work_items/ \
+  | grep -x "project/work_items/[a-z]*/<candidate-WI-ID>.md" || true)
+status=$([ -n "$path" ] && git show "origin/main:./$path" \
+  | awk 'NR>1 && /^---$/ {exit} /^status:/ {print $2; exit}' | tr -d "'\"")
 ```
 
-If this fails (no match), this candidate is **ineligible, not a
-run-aborting hard stop** — unlike the direct `WI-ID` case, skip it and
-continue to the next candidate in list order, the same as a candidate
-that fails `depends_on` or readiness today (see
-`references/creation-pr-check.md`). Do not run readiness for a candidate
-that fails this check.
+If `$path` is empty or `$status` is not `proposed`, this candidate is
+**ineligible, not a run-aborting hard stop** — unlike the direct `WI-ID`
+case, skip it and continue to the next candidate in list order, the same
+as a candidate that fails `depends_on` or readiness today (see
+`references/creation-pr-check.md`). Only record the candidate and why it was
+skipped — do **not** run the open-PR lookup per candidate: a workstream's
+list is mostly already-`resolved` WIs, and enumerating every open PR for
+each would be slow and noisy. The lookup runs lazily, once, after the whole
+list is evaluated and only if no ready WI exists (see below). Do not run
+readiness for a candidate that fails this check.
 
 Only for a candidate that passes, run readiness:
 
@@ -230,7 +255,21 @@ matching the rule's own wording; an unfiltered `^status:` grep would
 wrongly disqualify on any prior record regardless of its value). Take
 the **first** candidate in `work_items:` order that satisfies all of the
 above. **Stop and report if no ready WI exists — do not propose creating
-one.** Creation actions ("create a work item," "create a workstream,"
+one.** Then run the verified open-PR lookup **once**, only for the candidates
+**skipped by the availability check** (absent from, or not `proposed` on,
+`origin/main`) — never for a candidate that is already `proposed` there but
+failed `depends_on`, readiness, or the execution-record check, because
+landing an unrelated PR cannot make that candidate ready. One exhaustive
+enumeration matches every availability-skipped candidate's exact path; the
+head-version `status: proposed` rules are the same as the `WI-ID` case. If
+any availability-skipped candidate has exactly one qualifying blocking PR,
+use the structured stop report from the reference doc for the `WS-ID` case
+(Immediate next action: `/lrh-land` for the first such candidate in list
+order; Why: every availability-skipped candidate that has a qualifying PR,
+naming it, plus one count line for all the other skipped candidates; After
+that: re-run `/lrh-execute <WS-ID>`, not yet actionable). Record the stop
+in Step 5 (Step 1 stop variant, `wi: null` since no WI resolved,
+`stop_reason: no_ready_wi`) before reporting. Creation actions ("create a work item," "create a workstream,"
 "create a proposal") belong to `/lrh-next`, not this skill; proposing
 them here would blur the verb "execute" into something it isn't.
 
@@ -498,6 +537,34 @@ findings:
   - <gap or observation surfaced during this run>
 ```
 
+For a **Step 1 stop** — an unavailable WI (open prerequisite PR), unresolved
+`depends_on`, or a `WS-ID` with no ready WI — nothing has been minted yet, no
+chain conditions exist, and a `WS-ID` stop may have no resolved WI at all.
+Use the Step 1 stop variant, which does **not** require a resolved `wi`:
+
+```yaml
+run_id: <datetime-slug>
+node: <WS-ID or WI-ID this run started from>
+authorization_gate_reached: false
+stop_reason: <open_prerequisite_pr | prerequisite_pr_not_identified | depends_on_unresolved | no_ready_wi>
+actions:
+  - type: execute_wi
+    wi: <WI-ID, or null for a WS-ID stop with no resolved WI>
+    prompt_id: null
+    pr: null
+    blocking_prs: [<pr-url>, ...]   # empty list when none was verified
+    result: stopped
+    chain_note: null
+findings:
+  - <gap or observation surfaced during this run>
+```
+
+`pr` stays `null` here because no run PR exists; `blocking_prs` records the
+prerequisite PR(s) the stop report named (or `[]` for the no-PR form).
+`prerequisite_pr_not_identified` is the no-PR stop form (zero or multiple
+qualifying PRs, or an inconclusive lookup). A Step 1 stop mints no prompt
+ID, so `prompt_id` is always `null` in this variant.
+
 Only include `completion_condition`, `stop_work_condition`, `pr`, or a
 non-null `chain_note` when the run has actually reached the step that
 produces that value.
@@ -510,6 +577,14 @@ Decision 8, for the run report and CHAIN-NOTE accumulation
 `PROP-WORKSTREAM-EXECUTION-FRAMEWORK` §5 describes.
 
 ### Step 6 — Report
+
+**A run that stopped in Step 1 reports the Step 1 stop report and nothing
+else prominent.** Lead with `Immediate next action`, then `Why`, then `After
+that`, exactly as `references/creation-pr-check.md` specifies, as plain text
+(not inside a fenced code block). Never present `/lrh-execute <WI-ID>` in a
+standalone code block, as a headline, or under a "next step" label while
+its prerequisite PR is still open; it belongs only inside `After that`, as
+inline prose marked not yet actionable.
 
 Report to the user:
 - The resolved `WI-ID` (and, if input was a `WS-ID`, which WI it resolved
@@ -548,6 +623,18 @@ Before reporting completion, verify:
       code; no creation action proposed if none was ready
 - [ ] For a `WI-ID` input (direct or resolved): `depends_on` enforced
       before Step 2
+- [ ] The prerequisite lifecycle check ran before readiness and before any
+      prompt was minted: the WI was present on `origin/main` with `status:
+      proposed`, the open-PR lookup was exhaustive (not the default limit of
+      30), and a PR was named only after its head version was verified to
+      set `status: proposed`
+- [ ] A Step 1 stop used the structured report (Immediate next action / Why
+      / After that), named exactly one PR in the Immediate next action line
+      (or none, in the no-PR form — which never lists PRs, only a count),
+      kept `/lrh-execute <WI-ID>` out of any standalone code block and out
+      of the headline, and was recorded in the run journal's Step 1 stop
+      variant. A `WS-ID` report may additionally name each verified blocker
+      in Why; the one-PR limit applies to the Immediate next action line
 - [ ] Chain authorization gate (Step 2) completed before Step 3; both
       completion condition and stop-work condition stated and confirmed
 - [ ] `/lrh-implement`'s own Step 4 plan-confirm gate was satisfied by the

@@ -1834,8 +1834,10 @@ def _meta_lane_html(lane: object, read_at: str = "") -> str:
         body = '<p class="lrh-band-empty lrh-muted">No projects in this band.</p>'
         if status == "unknown":
             body = (
-                '<p class="lrh-band-empty lrh-muted">No projects are unknown: LRH '
-                "could establish a state for every one.</p>"
+                # Neutral on purpose: an unreadable registry also leaves every
+                # band empty, without LRH having established anything.
+                '<p class="lrh-band-empty lrh-muted">No projects are currently '
+                "classified as unknown.</p>"
             )
     # Bands with projects start open; empty bands stay visible but closed.
     is_open = " open" if card_html else ""

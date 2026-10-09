@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Meta Operational Triage Semantics
 status: proposed
 created_on: 2026-05-24
-updated_on: 2026-05-24
+updated_on: 2026-10-09
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING

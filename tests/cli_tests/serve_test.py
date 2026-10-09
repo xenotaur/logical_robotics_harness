@@ -1537,7 +1537,7 @@ class TestLrhServeRoutes(unittest.TestCase):
             with self.subTest(band=status):
                 self.assertIn(f'id="band-{status}"', body)
         self.assertEqual(body.count("No projects in this band."), 5)
-        self.assertIn("No projects are unknown", body)
+        self.assertIn("No projects are currently classified as unknown.", body)
         self.assertIn(
             '0<span class="lrh-visually-hidden"> projects</span></span>', body
         )

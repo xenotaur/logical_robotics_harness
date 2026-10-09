@@ -43,6 +43,8 @@ class SourceRef:
     truncated: bool
     relation: str
     sensitivity_warnings: tuple[str, ...] = ()
+    # High-severity findings the owner confirmed with --allow-flagged.
+    allowed_findings: tuple[dict[str, object], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -77,8 +79,9 @@ def split_lines(text: str) -> list[str]:
 
 def list_tracked_files(repo: pathlib.Path, commit: str) -> list[str]:
     """Repository-relative paths of files tracked at ``commit``."""
-    output = _git(repo, "ls-tree", "-r", "--name-only", commit)
-    return [line for line in output.decode("utf-8").splitlines() if line]
+    # -z: unquoted names, NUL-separated (newlines in names stay intact).
+    output = _git(repo, "ls-tree", "-r", "-z", "--name-only", commit)
+    return [name for name in output.decode("utf-8").split("\0") if name]
 
 
 def repo_root(start: pathlib.Path) -> pathlib.Path:
@@ -95,6 +98,9 @@ def resolve_commit(repo: pathlib.Path, revision: str) -> str:
 
 def check_path_allowed(project_relative_path: str) -> None:
     """Reject paths that stage 0 never copies into a packet."""
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in project_relative_path):
+        # Never echo such a path: it could smuggle text into headers.
+        raise SourceError("path contains control characters")
     normalized = project_relative_path.replace("\\", "/")
     if normalized.startswith("/") or ".." in normalized.split("/"):
         raise SourceError(f"path must be relative and confined: {normalized}")
@@ -113,7 +119,36 @@ def check_path_allowed(project_relative_path: str) -> None:
                 raise SourceError(f"excluded credential-like path: {normalized}")
 
 
-def check_text_allowed(repo_path: str, text: str) -> tuple[str, ...]:
+def high_findings(text: str) -> list[dict[str, object]]:
+    """High-severity scanner findings as structured records, never values.
+
+    Each record holds ``category``, ``rule_id``, and the 1-based
+    ``start_line``/``end_line`` of the match (``None`` when unknown). Any
+    severity other than medium counts as high, as in ``check_text_allowed``.
+    """
+    records: list[dict[str, object]] = []
+    scan = sensitivity.scan_text_for_sensitive_findings(text)
+    for finding in scan.findings:
+        if finding.severity == sensitivity_rules.SEVERITY_MEDIUM:
+            continue
+        end_line = finding.line_number
+        if finding.line_number is not None and finding.end_offset is not None:
+            last = max(finding.start_offset or 0, finding.end_offset - 1)
+            end_line = text.count("\n", 0, last) + 1
+        records.append(
+            {
+                "category": finding.category,
+                "rule_id": finding.rule_id,
+                "start_line": finding.line_number,
+                "end_line": end_line,
+            }
+        )
+    return records
+
+
+def check_text_allowed(
+    repo_path: str, text: str, allow: frozenset[str] = frozenset()
+) -> tuple[str, ...]:
     """Apply proposal Decision 3's severity rule (a best-effort guard).
 
     A high-severity finding (secret, token, private key, URL credentials,
@@ -121,6 +156,10 @@ def check_text_allowed(repo_path: str, text: str) -> tuple[str, ...]:
     (email, IP address, phone) do not; their categories are returned as
     warnings. Any severity other than medium is treated as high. Errors and
     warnings name categories only, never matched content.
+
+    ``allow`` holds high-severity categories the owner explicitly overrode
+    for this source (``--allow-flagged``); any other high category still
+    excludes it.
     """
     scan = sensitivity.scan_text_for_sensitive_findings(text)
     blocking = sorted(
@@ -128,6 +167,7 @@ def check_text_allowed(repo_path: str, text: str) -> tuple[str, ...]:
             finding.category
             for finding in scan.findings
             if finding.severity != sensitivity_rules.SEVERITY_MEDIUM
+            and finding.category not in allow
         }
     )
     if blocking:
@@ -176,12 +216,29 @@ def make_source(
     source_id: str,
     relation: str,
     max_bytes: int,
+    allow: frozenset[str] = frozenset(),
 ) -> tuple[SourceRef, str]:
-    """Load one allowed source, truncating on a line boundary to ``max_bytes``."""
+    """Load one allowed source, truncating on a line boundary to ``max_bytes``.
+
+    ``allow`` lifts the scanner exclusion for those high-severity categories
+    only (the owner's ``--allow-flagged``); path exclusions always apply.
+    """
     check_path_allowed(project_relative_path)
     repo_path = _join(project_dir, project_relative_path)
     text, raw, blob_id = read_tracked_text(repo, commit, repo_path)
-    warnings = check_text_allowed(repo_path, text)
+    warnings = check_text_allowed(repo_path, text, allow)
+    high = high_findings(text) if allow else []
+    if allow:
+        found = {str(finding["category"]) for finding in high}
+        if not found:
+            raise SourceError(f"no high-severity finding to override: {repo_path}")
+        extra = sorted(allow - found)
+        if extra:
+            # The override must name exactly the categories present.
+            raise SourceError(
+                f"override names categories not found ({', '.join(extra)}): "
+                f"{repo_path}"
+            )
     lines = split_lines(text)
     kept: list[str] = []
     used = 0
@@ -192,6 +249,12 @@ def make_source(
         kept.append(line)
         used += size
     truncated = len(kept) < len(lines)
+    # Only findings in the kept lines are actually sent (and so listed).
+    allowed = tuple(
+        finding
+        for finding in high
+        if finding["start_line"] is None or int(finding["start_line"]) <= len(kept)
+    )
     ref = SourceRef(
         source_id=source_id,
         repo_label=repo_label,
@@ -207,6 +270,7 @@ def make_source(
         truncated=truncated,
         relation=relation,
         sensitivity_warnings=warnings,
+        allowed_findings=allowed,
     )
     return ref, "".join(kept)
 

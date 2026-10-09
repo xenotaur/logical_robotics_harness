@@ -111,6 +111,16 @@ def build_parser() -> argparse.ArgumentParser:
     asker.add_argument(
         "--yes", action="store_true", help="send without the confirmation prompt"
     )
+    asker.add_argument(
+        "--allow-flagged",
+        action="append",
+        default=[],
+        metavar="PATH=CATEGORY[,CATEGORY]",
+        help=(
+            "send a --files path despite these high-severity scanner categories; "
+            "needs an interactive, typed 'yes' and cannot be used with --yes"
+        ),
+    )
     _add_backend_args(asker)
 
     rater = sub.add_parser("rate", help="rate a run: g(ood), o(k), or b(ad)")
@@ -245,8 +255,64 @@ def _prompt_rating(store: recorder.Store, run_id: str) -> None:
     ask.record_rating(store, run_id, choice, note)
 
 
+def _parse_allow_flagged(values: list[str]) -> dict[str, frozenset[str]]:
+    """Parse repeated ``PATH=CATEGORY[,CATEGORY]`` values."""
+    allow: dict[str, set[str]] = {}
+    for value in values:
+        path, sep, categories = value.rpartition("=")
+        names = {name.strip() for name in categories.split(",") if name.strip()}
+        if not sep or not path or not names:
+            raise ValueError(
+                f"--allow-flagged needs PATH=CATEGORY[,CATEGORY], got {value!r}"
+            )
+        allow.setdefault(path, set()).update(names)
+    return {path: frozenset(names) for path, names in allow.items()}
+
+
+def _confirm_terminal() -> bool:
+    """Whether the owner can both see the findings list and type a reply."""
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def _confirm_allowed(ctx: ask.AskContext) -> bool:
+    """Ask for a typed ``yes`` to send the listed flagged findings.
+
+    The prompt goes to stderr, the same stream as the findings list, so the
+    owner cannot confirm findings they were not shown.
+    """
+    sys.stderr.write(
+        f"send {len(ctx.allowed_flagged)} flagged finding(s) listed above "
+        "to the local model? type 'yes' to send: "
+    )
+    sys.stderr.flush()
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return answer.strip() == "yes"
+
+
 def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
     budgets = _budgets(args)
+    try:
+        allow_flagged = _parse_allow_flagged(args.allow_flagged)
+    except ValueError as error:
+        run_id = ask.record_failure(
+            store, args.question, "missing_prerequisite", f"arguments: {error}"
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
+    if allow_flagged and (args.yes or not _confirm_terminal()):
+        detail = (
+            "--allow-flagged cannot be combined with --yes"
+            if args.yes
+            else "--allow-flagged needs an interactive terminal on stdin and stderr"
+        )
+        run_id = ask.record_failure(
+            store, args.question, "missing_prerequisite", detail
+        )
+        print(f"error: {detail} (run {run_id})", file=sys.stderr)
+        return 2
     try:
         ctx = ask.build_context(
             repo=args.repo,
@@ -255,6 +321,7 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             files=args.files,
             project_dir=args.project_dir,
             budgets=budgets,
+            allow_flagged=allow_flagged,
         )
     except (readiness.WorkItemReadinessError, sources.SourceError) as error:
         run_id = ask.record_failure(
@@ -273,7 +340,19 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         print(f"not sent (run {run_id})", file=sys.stderr)
         return 2
     interactive = sys.stdin.isatty()
-    if interactive and not args.yes:
+    if ctx.allowed_flagged:
+        # Typed "yes" only, before any adapter or model call (Decision 3).
+        if not _confirm_allowed(ctx):
+            run_id = ask.record_failure(
+                store,
+                args.question,
+                "cancelled",
+                "declined the --allow-flagged confirmation",
+                ctx=ctx,
+            )
+            print(f"\nnot sent (run {run_id})", file=sys.stderr)
+            return 1
+    elif interactive and not args.yes:
         try:
             answer = input("send to the local model? [Y/n] ").strip().lower()
             declined = answer not in ("", "y", "yes")

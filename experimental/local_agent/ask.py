@@ -11,6 +11,7 @@ import collections
 import dataclasses
 import hashlib
 import math
+import os
 import pathlib
 import re
 import statistics
@@ -39,9 +40,17 @@ class AskContext:
     source_refs: list[dict[str, object]]
     excluded: list[dict[str, str]]
     diagnostics: dict[str, object] | None = None
-    # Medium-severity categories found anywhere in the rendered context,
-    # including diagnostics and the listing (names only, never values).
+    # Sensitivity categories found anywhere in the rendered context,
+    # including diagnostics and the listing (names only, never values). With
+    # --allow-flagged, the allowed file's categories are included too.
     context_warnings: tuple[str, ...] = ()
+    # The owner's --allow-flagged overrides, as structured records (path,
+    # category, rule_id, start_line, end_line), never values.
+    allowed_flagged: tuple[dict[str, object], ...] = ()
+    # What the final scan sees: ``text`` with each allowed file's body lines
+    # removed (they were scanned on raw text for the confirmation). Never
+    # recorded.
+    scan_text: str | None = None
 
 
 def _repo_relative(repo: pathlib.Path, path: str) -> str:
@@ -51,7 +60,8 @@ def _repo_relative(repo: pathlib.Path, path: str) -> str:
     try:
         return candidate.resolve().relative_to(repo.resolve()).as_posix()
     except ValueError:
-        return path
+        # Outside the checkout's cwd: treat it as repo-relative ("./a" == "a").
+        return pathlib.Path(os.path.normpath(path)).as_posix()
 
 
 def build_context(
@@ -63,6 +73,7 @@ def build_context(
     project_dir: str = ".",
     repo_label: str = "repo",
     budgets: settings.Budgets | None = None,
+    allow_flagged: dict[str, frozenset[str]] | None = None,
 ) -> AskContext:
     """Assemble tracked-file context for a question (see ``_assemble``).
 
@@ -70,7 +81,17 @@ def build_context(
     listing, is scanned once more: a high-severity finding anywhere refuses
     the whole request (proposal Decision 3), naming categories only; medium
     categories are kept as context-wide warnings.
+
+    ``allow_flagged`` maps requested ``--files`` paths to the high-severity
+    categories the owner overrides for them (Decision 3's explicit owner
+    override). It is refused outside ``--files`` questions, for paths not
+    requested, and for paths excluded by path or without a high-severity
+    finding. The final scan skips only an allowed file's body lines.
     """
+    if allow_flagged and work_item is not None:
+        raise sources.SourceError("--allow-flagged applies only to --files questions")
+    if allow_flagged and not files:
+        raise sources.SourceError("--allow-flagged applies only to --files questions")
     ctx = _assemble(
         repo=repo,
         revision=revision,
@@ -79,9 +100,15 @@ def build_context(
         project_dir=project_dir,
         repo_label=repo_label,
         budgets=budgets,
+        allow_flagged=allow_flagged or {},
     )
-    warnings = sources.check_text_allowed("assembled context", ctx.text)
-    return dataclasses.replace(ctx, context_warnings=warnings)
+    scanned = ctx.scan_text if ctx.scan_text is not None else ctx.text
+    warnings = set(sources.check_text_allowed("assembled context", scanned))
+    # Skipped bodies were scanned per file; keep their categories visible.
+    for ref in ctx.source_refs:
+        if ref.get("allowed_findings"):
+            warnings.update(str(cat) for cat in ref.get("sensitivity_warnings") or ())
+    return dataclasses.replace(ctx, context_warnings=tuple(sorted(warnings)))
 
 
 def _assemble(
@@ -93,6 +120,7 @@ def _assemble(
     project_dir: str = ".",
     repo_label: str = "repo",
     budgets: settings.Budgets | None = None,
+    allow_flagged: dict[str, frozenset[str]] | None = None,
 ) -> AskContext:
     """Assemble tracked-file context for a question.
 
@@ -155,13 +183,27 @@ def _assemble(
             listing += f"\n[... {more} more tracked files not listed]"
         listing += "\n"
 
+    allow: dict[str, frozenset[str]] = {}
+    for path, categories in (allow_flagged or {}).items():
+        key = _repo_relative(root, path)
+        allow[key] = allow.get(key, frozenset()) | categories
+    for path in allow:
+        if path not in candidates:
+            raise sources.SourceError(
+                f"--allow-flagged names {path}, which is not in --files"
+            )
+
     refs: list[dict[str, object]] = []
     excluded: list[dict[str, str]] = []
     sections: list[str] = []
+    scan_sections: list[str] = []
+    allowed_flagged: list[dict[str, object]] = []
     used = 0
     for path in candidates:
         remaining = budgets.max_packet_bytes - used
         if remaining <= 0:
+            if path in allow:
+                raise sources.SourceError(f"--allow-flagged cannot send {path}: budget")
             excluded.append({"path": path, "reason": "budget"})
             continue
         try:
@@ -174,26 +216,56 @@ def _assemble(
                 source_id=f"S{len(refs) + 1}",
                 relation="File" if mode == MODE_FILES else "README",
                 max_bytes=remaining,
+                allow=allow.get(path, frozenset()),
             )
         except sources.SourceError as error:
+            if path in allow:
+                # An override never silently degrades into an exclusion.
+                raise sources.SourceError(
+                    f"--allow-flagged cannot send {path}: {error}"
+                ) from error
             excluded.append({"path": path, "reason": str(error)})
             continue
         if ref.included_bytes == 0:
             # A first line longer than the remaining budget leaves nothing to
             # send; an empty section would only invite invented citations.
+            if path in allow:
+                raise sources.SourceError(f"--allow-flagged cannot send {path}: budget")
             excluded.append({"path": path, "reason": "budget"})
             continue
+        if path in allow and not ref.allowed_findings:
+            # Every flagged line falls past the budget: the override would
+            # send nothing it covers, so refuse it rather than fall back to
+            # the ordinary prompt without the typed-yes gate.
+            raise sources.SourceError(
+                f"--allow-flagged not needed for {path}: its flagged lines fall "
+                "outside the byte budget"
+            )
         used += ref.included_bytes
         refs.append(ref.as_dict())
-        sections.append(context.render_source(ref, text))
+        section = context.render_source(ref, text)
+        sections.append(section)
+        if ref.allowed_findings:
+            # Keep the whole header (its path is still scanned), however many
+            # physical lines it spans; drop only the numbered body lines.
+            scan_sections.append(context.render_source(ref, ""))
+            allowed_flagged.extend(
+                {"path": ref.path, **finding} for finding in ref.allowed_findings
+            )
+        else:
+            scan_sections.append(section)
 
-    body = "\n".join(sections)
-    if listing:
-        body = (body + "\n" + listing) if body else listing
-    if excluded:
-        body += "\n### Excluded sources\n" + "\n".join(
-            f"- {entry['path']}: {entry['reason']}" for entry in excluded
-        )
+    def render(parts: list[str]) -> str:
+        body = "\n".join(parts)
+        if listing:
+            body = (body + "\n" + listing) if body else listing
+        if excluded:
+            body += "\n### Excluded sources\n" + "\n".join(
+                f"- {entry['path']}: {entry['reason']}" for entry in excluded
+            )
+        return body
+
+    body = render(sections)
     return AskContext(
         mode=mode,
         repo=str(root),
@@ -201,7 +273,16 @@ def _assemble(
         text=body,
         source_refs=refs,
         excluded=excluded,
+        allowed_flagged=tuple(allowed_flagged),
+        scan_text=render(scan_sections) if allowed_flagged else None,
     )
+
+
+def _line_span(finding: dict[str, object]) -> str:
+    start, end = finding.get("start_line"), finding.get("end_line")
+    if start is None:
+        return "L?"
+    return f"L{start}" if end in (None, start) else f"L{start}-L{end}"
 
 
 def unsendable_reason(ctx: AskContext) -> str | None:
@@ -241,12 +322,18 @@ def source_summary(ctx: AskContext) -> str:
             f"L{ref['line_start']}-{ref['line_end']}/{ref['total_lines']}"
             f"{truncated}{warned}"
         )
+        for finding in ref.get("allowed_findings") or ():
+            # Terminal display only; the run records structured fields.
+            lines.append(
+                f"    ALLOWED DESPITE {finding['category']}: "
+                f"{finding['rule_id']} at {_line_span(finding)}"
+            )
     for entry in ctx.excluded:
         lines.append(f"  excluded {entry['path']}: {entry['reason']}")
     if ctx.context_warnings:
         lines.append(
             f"  context WARN: {', '.join(ctx.context_warnings)} "
-            "(medium findings anywhere in what will be sent)"
+            "(sensitivity categories anywhere in what will be sent)"
         )
     reason = unsendable_reason(ctx)
     if reason:
@@ -404,6 +491,7 @@ def context_fields(ctx: AskContext) -> dict[str, object]:
         "sources": ctx.source_refs,
         "excluded_sources": ctx.excluded,
         "context_warnings": list(ctx.context_warnings),
+        "allowed_flagged": [dict(finding) for finding in ctx.allowed_flagged],
         "diagnostics": ctx.diagnostics,
     }
 

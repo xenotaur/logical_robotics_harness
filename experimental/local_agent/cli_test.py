@@ -248,6 +248,85 @@ class CliAskTest(unittest.TestCase):
         summary = export.inspect_run(store, run_id)
         self.assertIn(f"source commit: {run['source_commit']}", summary)
 
+    def _flagged_repo(self) -> str:
+        name = "annotated.py"
+        (self.repo / name).write_text(
+            "token: Callable[[], str] = make_token\n", encoding="utf-8"
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "flagged")
+        return name
+
+    def _ask_flagged(self, name: str, *extra: str) -> tuple[int, str, str]:
+        return self._main(
+            "ask",
+            "q",
+            "--repo",
+            str(self.repo),
+            "--files",
+            name,
+            "--allow-flagged",
+            f"{name}=secret",
+            "--backend",
+            "fake",
+            "--fake-response",
+            str(self.answer),
+            *extra,
+        )
+
+    def _newest_outcome(self, before: set[str]) -> str:
+        store = recorder.Store(self.store)
+        (new,) = set(store.list_runs()) - before
+        return str(store.load_run(new)["outcome"])
+
+    def test_allow_flagged_needs_typed_yes_on_a_terminal(self) -> None:
+        name = self._flagged_repo()
+        cases = (
+            ("--yes", True, [], 2, "missing_prerequisite"),
+            ("no terminal", False, [], 2, "missing_prerequisite"),
+            ("bare enter", True, [""], 1, "cancelled"),
+            ("y is not yes", True, ["y"], 1, "cancelled"),
+            ("typed yes", True, ["yes", ""], 0, "completed"),
+        )
+        for label, tty, replies, code, outcome in cases:
+            with self.subTest(label):
+                before = set(recorder.Store(self.store).list_runs())
+                extra = ("--yes",) if label == "--yes" else ()
+                real_adapter = cli._adapter
+                adapter_calls: list[object] = []
+
+                def tracking_adapter(args: object) -> object:
+                    adapter_calls.append(args)
+                    return real_adapter(args)
+
+                with (
+                    mock.patch.object(cli, "_confirm_terminal", return_value=tty),
+                    mock.patch.object(cli, "_adapter", side_effect=tracking_adapter),
+                    mock.patch("builtins.input", side_effect=replies),
+                ):
+                    got, out, err = self._ask_flagged(name, *extra)
+                self.assertEqual(got, code, err)
+                self.assertEqual(self._newest_outcome(before), outcome)
+                self.assertEqual(bool(out.strip()), outcome == "completed")
+                self.assertEqual(bool(adapter_calls), outcome == "completed")
+                if replies:
+                    listed_at = err.index("ALLOWED DESPITE secret")
+                    self.assertLess(listed_at, err.index("type 'yes' to send"))
+
+    def test_allow_flagged_rejects_a_malformed_value(self) -> None:
+        code, _, err = self._main(
+            "ask",
+            "q",
+            "--repo",
+            str(self.repo),
+            "--files",
+            "x.py",
+            "--allow-flagged",
+            "x.py",
+        )
+        self.assertEqual(code, 2)
+        self.assertIn("PATH=CATEGORY", err)
+
     def test_rate_and_prune_report_bad_input(self) -> None:
         self.assertEqual(self._main("rate", "nope", "g")[0], 2)
         code, _, err = self._main("prune", "--before", "yesterday")

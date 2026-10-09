@@ -62,6 +62,13 @@ class SourcesTest(unittest.TestCase):
                 with self.assertRaisesRegex(sources.SourceError, "private path"):
                     sources.check_path_allowed(path)
 
+    def test_control_characters_in_paths_rejected_without_echo(self) -> None:
+        for path in ("safe\ntoken: abcdef123.py", "a\tb.py", "x\x7f.py"):
+            with self.subTest(repr(path)):
+                with self.assertRaises(sources.SourceError) as caught:
+                    sources.check_path_allowed(path)
+                self.assertNotIn("abcdef123", str(caught.exception))
+
     def test_credential_like_paths_rejected(self) -> None:
         for path in (
             ".env",
@@ -104,6 +111,38 @@ class SourcesTest(unittest.TestCase):
         self.assertIn("secret", message)
         self.assertNotIn("email", message)
         self.assertNotIn("ops@example.org", message)
+
+    def test_high_findings_are_structured_and_value_free(self) -> None:
+        records = sources.high_findings(
+            "x = 1\ntoken: Callable[[], str] = make_token\n"
+            "if secret:\n    keep(secret)\n"
+        )
+        self.assertEqual(
+            records,
+            [
+                {
+                    "category": "secret",
+                    "rule_id": "secret.keyword_assignment",
+                    "start_line": 2,
+                    "end_line": 2,
+                },
+                {
+                    "category": "secret",
+                    "rule_id": "secret.keyword_assignment",
+                    "start_line": 3,
+                    "end_line": 4,
+                },
+            ],
+        )
+
+    def test_allow_lifts_only_the_named_categories(self) -> None:
+        mixed = 'api_key = "sk-live-abcdef0123456789abcdef"\n'
+        with self.assertRaisesRegex(sources.SourceError, r"\(token\)"):
+            sources.check_text_allowed("m.py", mixed, frozenset({"secret"}))
+        self.assertEqual(
+            sources.check_text_allowed("m.py", mixed, frozenset({"secret", "token"})),
+            ("secret", "token"),
+        )
 
     def test_binary_rejected(self) -> None:
         with self.assertRaisesRegex(sources.SourceError, "binary"):

@@ -72,6 +72,26 @@ Other options:
   The source summary marks such a file `WARN: <categories>`, by category,
   never by value, before the model is called. That text does reach the model,
   which is acceptable only because inference stays on this machine.
+
+  The scanner misfires on some code: `token: Callable[[], str]` reads as a
+  secret, so `recorder.py` is excluded. You can send such a file anyway
+  with an explicit, per-run override that names the categories:
+
+  ```bash
+  experimental/local_agent/run ask "How are runs stored?" \
+      --files experimental/local_agent/recorder.py \
+      --allow-flagged experimental/local_agent/recorder.py=secret
+  ```
+
+  The summary lists every finding it would let through, by rule and line
+  (`ALLOWED DESPITE secret: secret.keyword_assignment at L99`), and only a
+  typed `yes` sends; Enter declines. It is refused:
+  - with `--yes`, or without a terminal;
+  - for a file with another high-severity category, or none;
+  - for a file you didn't request, or one excluded by path;
+  - for `--wi` and overview questions.
+
+  The run records each override as structured fields, never the value.
 - **Readiness diagnostics come from existing LRH code** and are kept verbatim.
   An unready item is described as unready.
 - **Inference is local only.** The service must be a loopback endpoint, with

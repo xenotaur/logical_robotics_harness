@@ -1128,7 +1128,10 @@ def _project_design_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError):
+        return []
     return [
         {"id": item.id, "title": item.title or "Untitled"}
         for item in loaded.design_proposals
@@ -1141,7 +1144,10 @@ def _project_workstream_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError):
+        return []
     return [{"id": item.id, "title": item.title} for item in loaded.workstreams]
 
 
@@ -1153,7 +1159,10 @@ def render_design_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, json.dumps({"error": "not_found", "message": str(error)})
     proposal = loaded.design_proposals_by_id.get(design_id)
     if proposal is None:
         return 404, json.dumps({"error": "not_found", "design": design_id}, indent=2)
@@ -1220,7 +1229,10 @@ def render_workstream_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root)
+    try:
+        loaded = control_loader.load_project(project_root)
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, json.dumps({"error": "not_found", "message": str(error)})
     workstream = loaded.workstreams_by_id.get(workstream_id)
     if workstream is None:
         return 404, json.dumps(

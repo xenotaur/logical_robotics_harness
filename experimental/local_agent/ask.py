@@ -456,13 +456,18 @@ def run_ask(
             "done_reason": response.done_reason,
             "backend_timings": response.backend_timings,
         }
-        store.write_json(run_id, "output.json", {"answer": response.text})
-        store.append_event(run_id, "model_response", **usage)
-        citations = briefing.check_text_citations(response.text, ctx.source_refs)
-        if response.done_reason == "length" or (
+        cut_off = response.done_reason == "length" or (
             response.output_tokens is not None
             and response.output_tokens > budgets.max_output_tokens
-        ):
+        )
+        output: dict[str, object] = {"answer": response.text}
+        if cut_off:
+            # Stopped by the output limit: as incomplete as a broken stream.
+            output["partial"] = True
+        store.write_json(run_id, "output.json", output)
+        store.append_event(run_id, "model_response", **usage)
+        citations = briefing.check_text_citations(response.text, ctx.source_refs)
+        if cut_off:
             return finish(
                 "budget_exhausted",
                 "answer hit the output token limit (partial answer kept)",

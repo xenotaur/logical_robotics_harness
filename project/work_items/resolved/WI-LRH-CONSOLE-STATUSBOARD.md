@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-STATUSBOARD"
 title: "Settle the statusboard band set and build the banded statusboard"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #805 (commit 8c34a403). The owner chose the six computed states as statusboard bands, in the display order Blocked, Needs attention, Active work, Awaiting review, Stable, Unknown, in sentence case, recorded in PROP-LRH-CONSOLE-VISUAL-LANGUAGE (Vocabulary) and cross-referenced in PROP-META-OPERATIONAL-TRIAGE-SEMANTICS; each triage_lane maps to one band of the same name, with no new triage logic. /meta renders one details band per state with a glyph, label, count, description, tinted header, and accent rail, collapsible without scripts; bands with projects start open, and empty bands stay visible. Cards show focus, next action, a validation chip, and a freshness chip, with registry facts under Details, and the bands come before the explanatory text. /api/meta gains read_at. At the owner request, LRH Console opens on the statusboard, with View > Statusboard and View > Workspace. The owner checked it in the app in light and dark mode. Follow-ups filed: WI-LRH-CONSOLE-PAGE-SPEED, WI-LRH-CONSOLE-DESKTOP-WINDOW-STATE, and WI-LRH-PROJECT-UPDATE-SKILL.'
 owner: "anthony"
 contributors:
 - "anthony"

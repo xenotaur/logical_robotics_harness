@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_18_33_01_LRH_CONSOLE_STATUSBOARD_CONFIRM
 prompt_id: PROMPT(WI-LRH-CONSOLE-STATUSBOARD:LRH_CONSOLE_STATUSBOARD_CONFIRM)[2026-10-09T18:33:01+00:00]
 work_item: WI-LRH-CONSOLE-STATUSBOARD
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/805
-commit:
+commit: 8c34a4031c19cd4be01e3efc84f339ce3ea891dd
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/805"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

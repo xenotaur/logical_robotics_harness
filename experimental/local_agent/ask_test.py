@@ -373,7 +373,7 @@ class AllowFlaggedTest(AskTestBase):
         testing_support.run_git(self.repo, "add", "-A")
         testing_support.run_git(self.repo, "commit", "-q", "-m", "odd")
         with self.assertRaisesRegex(
-            sources.SourceError, "control characters"
+            sources.SourceError, "control or invisible"
         ) as caught:
             self._build([odd], {odd: {"secret"}})
         # The refusal quotes the path rather than printing a raw newline.
@@ -542,7 +542,12 @@ class RunAskTest(AskTestBase):
         run = self._ask(model.FakeModel([_response("partial", done_reason="length")]))
         self.assertEqual(run["outcome"], "budget_exhausted")
         output = self.store.read_json(run["run_id"], "output.json")
-        self.assertEqual(output["answer"], "partial")
+        self.assertEqual(output, {"answer": "partial", "partial": True})
+
+    def test_complete_answer_is_not_marked_partial(self) -> None:
+        run = self._ask(model.FakeModel([_response(ANSWER)]))
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output, {"answer": ANSWER})
 
     def test_backend_failures_are_recorded(self) -> None:
         cases = (

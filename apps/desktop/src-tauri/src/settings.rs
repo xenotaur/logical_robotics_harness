@@ -42,6 +42,9 @@ pub enum BrowserChoice {
     DefaultBrowser,
 }
 
+/// The `lrh serve` flag that turns on its packaged scripts.
+pub const INTERACTIVE_FLAG: &str = "--interactive";
+
 /// The page theme: light, dark, or following the system appearance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -201,7 +204,13 @@ pub fn launch_config(config: &Config) -> LaunchConfig {
             launch
         }
     };
-    launch.serve_args = vec!["--theme".into(), config.appearance.as_theme().into()];
+    // The app always runs Serve's interactive mode (owner decision,
+    // WI-LRH-CONSOLE-INTERACTIVE); the pages still work without scripts.
+    launch.serve_args = vec![
+        "--theme".into(),
+        config.appearance.as_theme().into(),
+        INTERACTIVE_FLAG.into(),
+    ];
     launch
 }
 
@@ -434,7 +443,11 @@ mod tests {
         assert_eq!(launch.env, vec![("PYTHONPATH".into(), "/repo/src".into())]);
         assert_eq!(
             launch.serve_args,
-            vec![OsString::from("--theme"), "dark".into()]
+            vec![
+                OsString::from("--theme"),
+                "dark".into(),
+                "--interactive".into()
+            ]
         );
     }
 
@@ -448,7 +461,11 @@ mod tests {
         assert_eq!(config.appearance, Appearance::System);
         assert_eq!(
             launch_config(&config).serve_args,
-            vec![OsString::from("--theme"), "system".into()]
+            vec![
+                OsString::from("--theme"),
+                "system".into(),
+                "--interactive".into()
+            ]
         );
         let saved = serde_json::to_value(&config).unwrap();
         assert_eq!(saved["appearance"], "system");

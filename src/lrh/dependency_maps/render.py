@@ -11,6 +11,7 @@ text as well as a color, and lines differ by style as well as weight.
 from __future__ import annotations
 
 import html
+import json
 import urllib.parse
 
 from lrh.dependency_maps.layout import Layout, LayoutResult
@@ -87,10 +88,14 @@ def render_view(
     item: str | None,
     since: str | None,
     full_page_href,
+    interactive: bool = False,
 ) -> str:
     """Return the page body for one tab of a dependency-map view.
 
-    ``full_page_href(item_id)`` gives the work item's own page.
+    ``full_page_href(item_id)`` gives the work item's own page. With
+    ``interactive``, every item's drawer is rendered (hidden unless selected)
+    so the packaged script can select items without a reload; the markup is
+    otherwise identical and works without scripts.
     """
 
     nodes = {node.id: node for node in snapshot.nodes}
@@ -103,8 +108,8 @@ def render_view(
     ]
     if item and selected is None:
         parts.append(
-            f'<p class="lrh-stale" role="status">{html.escape(item)} is not in this '
-            "view.</p>"
+            f'<p class="lrh-stale" role="status" data-lrh-unknown-item>'
+            f"{html.escape(item)} is not in this view.</p>"
         )
     if tab == "table":
         parts.append(_table(snapshot, nodes))
@@ -115,7 +120,23 @@ def render_view(
         parts.append(_legend())
         parts.append(_map(snapshot, result, nodes, selected, upstream, downstream))
         parts.append(_focused_list(snapshot, nodes, selected))
-    if selected:
+    if interactive:
+        for index, node in enumerate(snapshot.nodes):
+            node_up, node_down = _related(snapshot, node.id)
+            parts.append(
+                _drawer(
+                    snapshot,
+                    nodes,
+                    node,
+                    tab,
+                    node_up,
+                    node_down,
+                    full_page_href,
+                    hidden=node.id != selected,
+                    title_id=f"lrh-drawer-title-{index}",
+                )
+            )
+    elif selected:
         parts.append(
             _drawer(
                 snapshot,
@@ -127,7 +148,21 @@ def render_view(
                 full_page_href,
             )
         )
-    return "\n".join(part for part in parts if part)
+    body = "\n".join(part for part in parts if part)
+    return f'<div class="lrh-dependency-map" data-lrh-tab="{tab}">{body}</div>'
+
+
+def _data(snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node) -> str:
+    """Data attributes the packaged script reads; inert without scripts."""
+
+    # A JSON list, not a space-joined string: work-item IDs may contain spaces.
+    unmet = json.dumps(
+        list(dict.fromkeys(t for _k, t, _l in _unmet_needs(snapshot, nodes, node)))
+    )
+    return (
+        f' data-id="{_attr(node.id)}" data-state="{_attr(node.state)}"'
+        f' data-unmet="{_attr(unmet)}"'
+    )
 
 
 def _attr(value: str) -> str:
@@ -334,6 +369,7 @@ def _map(
         marker = "lrh-arrow-selected" if emphasis else "lrh-arrow"
         paths.append(
             f'<polyline class="{classes}" points="{points}" '
+            f'data-source="{_attr(line.source)}" data-item="{_attr(line.item)}" '
             f'marker-end="url(#{marker})"/>'
         )
     cards = []
@@ -355,6 +391,7 @@ def _map(
         outside = _outside(node)
         cards.append(
             f'<a class="{classes}" href="{_attr(_href("map", card.id))}"'
+            f"{_data(snapshot, nodes, node)}"
             f' title="{_attr(card.id + ": " + node.title)}"'
             f' style="left:{card.x}px;top:{card.y}px;width:{card.width}px;'
             f'height:{card.height}px">'
@@ -403,7 +440,8 @@ def _focused_list(
             continue
         current = ' aria-current="true"'
         items = "".join(
-            f'<li><a href="{html.escape(_href("map", node.id), quote=True)}"'
+            f"<li{_data(snapshot, nodes, node)}>"
+            f'<a href="{html.escape(_href("map", node.id), quote=True)}"'
             f'{current if node.id == selected else ""}>'
             f'<span class="lrh-mono">{html.escape(node.id)}</span> '
             f"{html.escape(node.title)}</a> {_pill(node.state)}"
@@ -440,7 +478,7 @@ def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         ready = _ready_text(node)
         dependents = sorted(set(needed_by.get(node.id, [])))
         rows.append(
-            "<tr>"
+            f"<tr{_data(snapshot, nodes, node)}>"
             f'<th scope="row"><a class="lrh-id-link lrh-mono" '
             f'href="{html.escape(_href("table", node.id), quote=True)}">'
             f"{html.escape(node.id)}</a></th>"
@@ -505,7 +543,9 @@ def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
             for kind, target, lifecycle in _unmet_needs(snapshot, nodes, node)
         )
         items.append(
-            f'<li><a class="lrh-mono" href="'
+            # data-id only (no data-state): the script returns focus here when
+            # a drawer closes, but the Blockers tab has no filters.
+            f'<li data-id="{_attr(node.id)}"><a class="lrh-mono" href="'
             f'{html.escape(_href("blockers", node.id), quote=True)}">'
             f"{html.escape(node.id)}</a> {html.escape(node.title)} {_pill(node.state)}"
             f"<ul>{needs}</ul></li>"
@@ -524,6 +564,9 @@ def _drawer(
     upstream: set[str],
     downstream: set[str],
     full_page_href,
+    *,
+    hidden: bool = False,
+    title_id: str = "lrh-drawer-title",
 ) -> str:
     needs = sorted({edge.target for edge in snapshot.edges if edge.item == node.id})
     needed_by = sorted({edge.item for edge in snapshot.edges if edge.target == node.id})
@@ -553,9 +596,11 @@ def _drawer(
         if tab != "map" and not node.offscreen
         else ""
     )
-    return f"""<aside class="lrh-drawer" aria-labelledby="lrh-drawer-title">
+    hide = " hidden" if hidden else ""
+    return f"""<aside class="lrh-drawer" aria-labelledby="{title_id}"
+  data-drawer-for="{_attr(node.id)}"{hide}>
   <header>
-    <h2 id="lrh-drawer-title" class="lrh-mono">{html.escape(node.id)}</h2>
+    <h2 id="{title_id}" class="lrh-mono">{html.escape(node.id)}</h2>
     <a class="lrh-iconbtn lrh-tip-end" href="{close}">{frame.icon("x")}
       <span class="lrh-tip">Close details</span></a>
   </header>
@@ -816,6 +861,22 @@ MAP_STYLES = """
   .lrh-drawer-facts dt { color: var(--lrh-color-text-muted); font-weight: 700; }
   .lrh-drawer-facts dd { margin: 0; overflow-wrap: anywhere; }
   .lrh-drawer-facts ul { margin: 0; padding-left: 1rem; }
+  /* Interactive mode (lrh serve --interactive) only. */
+  .lrh-drawer[hidden] { display: none; }
+  .lrh-card--preview { border-color: var(--lrh-color-edge-strong); }
+  .lrh-dependency-map:focus { outline: none; }
+  .lrh-card.lrh-filtered, .lrh-line.lrh-filtered { visibility: hidden; }
+  tr.lrh-filtered, li.lrh-filtered { display: none; }
+  .lrh-filters {
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-radius: var(--lrh-radius-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lrh-space-3);
+    margin-top: var(--lrh-space-3);
+    padding: var(--lrh-space-2) var(--lrh-space-3);
+  }
+  .lrh-filters legend { color: var(--lrh-color-text-muted); font-weight: 700; }
   @media (max-width: 48rem) {
     .lrh-map-scroll, .lrh-legend { display: none; }
     .lrh-map-list { display: block; }

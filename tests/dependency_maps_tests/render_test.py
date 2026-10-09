@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import html
+import json
 import re
 import unittest
 
@@ -342,7 +344,7 @@ class RenderTest(unittest.TestCase):
     def test_table_lists_every_node_with_id_links(self) -> None:
         page = _view(_example(), tab="table")
 
-        rows = re.findall(r'<tr><th scope="row">', page)
+        rows = re.findall(r'<tr data-id="[^"]+"[^>]*><th scope="row">', page)
         self.assertEqual(len(rows), 5)
         self.assertIn('href="?tab=table&amp;item=WI-A"', page)
         self.assertIn("Outside this view", page)
@@ -354,6 +356,10 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Needs", page)
         self.assertIn("Blocked: waiting on ops", page)
         self.assertNotIn(">WI-D<", page)
+        # Each entry names its item, so focus can return to it, but carries
+        # no state: the Blockers tab has no filters.
+        self.assertIn('<li data-id="WI-B"><a class="lrh-mono"', page)
+        self.assertNotIn("data-state", page.split('<ul class="lrh-blockers">', 1)[1])
 
     def test_prompt_readiness_does_not_apply_to_closed_items(self) -> None:
         drawer = _view(_example(), item="WI-D").split('<aside class="lrh-drawer"')[1]
@@ -435,6 +441,49 @@ class RenderTest(unittest.TestCase):
             r"@media \(max-width: 48rem\) \{\s*\.lrh-map-scroll, \.lrh-legend \{ "
             r"display: none; \}\s*\.lrh-map-list \{ display: block; \}",
         )
+
+    def test_interactive_mode_prerenders_every_drawer_hidden(self) -> None:
+        page = _view(_example(), item="WI-B", interactive=True)
+
+        drawers = re.findall(r'<aside class="lrh-drawer"[^>]*>', page, flags=re.S)
+        self.assertEqual(len(drawers), 5)
+        hidden = [drawer for drawer in drawers if " hidden" in drawer]
+        self.assertEqual(len(hidden), 4)
+        self.assertIn(
+            'data-drawer-for="WI-B"', next(d for d in drawers if d not in hidden)
+        )
+        ids = re.findall(r'<h2 id="(lrh-drawer-title-\d+)"', page)
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertNotIn("<script", page)
+
+    def test_items_and_lines_carry_data_for_the_script(self) -> None:
+        page = _view(_example())
+
+        self.assertIn(
+            'data-id="WI-B" data-state="waiting" data-unmet="[&quot;WI-A&quot;]"',
+            page,
+        )
+        self.assertIn('data-id="WI-A" data-state="unblocked" data-unmet="[]"', page)
+        self.assertIn('data-source="WI-A" data-item="WI-B"', page)
+        self.assertIn('class="lrh-dependency-map" data-lrh-tab="map"', page)
+        self.assertEqual(page.count("<aside"), 0)
+
+    def test_unmet_ids_with_spaces_survive_as_a_json_list(self) -> None:
+        page = _view(
+            _snapshot(
+                (
+                    _node("WI-NEEDS REVIEW", "WS-A", "one"),
+                    _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+                ),
+                (_edge("WI-B", "WI-NEEDS REVIEW"),),
+            )
+        )
+
+        match = re.search(
+            r'data-id="WI-B" data-state="waiting" data-unmet="([^"]*)"', page
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(json.loads(html.unescape(match.group(1))), ["WI-NEEDS REVIEW"])
 
     def test_untrusted_text_is_escaped_and_there_are_no_scripts(self) -> None:
         hostile = '<script>alert("x")</script>'

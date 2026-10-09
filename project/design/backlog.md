@@ -2313,3 +2313,51 @@ prompts can detect user-question payloads reliably.
 `project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
 `project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`.
 
+
+## LRH Console UX feedback from the first interactive dogfood (layout redesign input)
+
+**Noted:** 2026-10-08, from the owner's first substantive use of LRH Console with
+`lrh serve --interactive` (PR for `WI-LRH-CONSOLE-INTERACTIVE`). Tracing, selection,
+Escape, filters, and the table all worked as intended. The feedback below is about
+navigation steps and use of screen space. Take it as one input to the layout
+redesign (`WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT` and any frame work that follows),
+not as separate patches: several items interact, and fixing them one at a time
+would lock in choices the redesign should make together.
+
+**Behaviors that are as specified today but should be revisited in the redesign:**
+
+- **Filtered cards leave gaps.** `WI-LRH-CONSOLE-INTERACTIVE` deliberately hides
+  filtered cards with `visibility: hidden` so the grid does not jump. In practice,
+  hiding Done leaves a tall, mostly empty map. The redesign should decide whether
+  filtering re-lays out (collapsing space, perhaps server-side via a query
+  parameter so the no-script path agrees) and how to keep the user oriented when
+  it does.
+- **Filters scroll out of view, and the sidebar scrolls with the content.** The
+  filters live in the map header, and the frame scrolls as one page. Consider
+  separate scroll regions for the sidebar and the main area, and a non-scrolling
+  controls bar in the view (preferred over the top bar or the OS menu bar).
+- **The in-page theme switch and Settings > Appearance are independent.** The
+  switch is per page and per server address; Appearance is the lasting app
+  setting, and the Settings window follows only Appearance. Decide whether the
+  switch should drive Appearance, be hideable from Settings, or become an
+  optional top-bar widget.
+
+**Suggestions:**
+
+- **Content first.** Show the cards before the explanatory text. Move build and
+  debugging details (fingerprint, diagnostics, method notes) below the view,
+  behind a UI toggle or a Settings option.
+- **Sidebar.** Put Statusboard (and other frequent views) above the collapsed
+  All projects group, open it by default, and remember its open or closed state
+  across navigation and between app runs. Let Settings choose which views the
+  sidebar shows.
+- **Pinned views and project groups,** in the style of Claude or Codex, to cut
+  the steps from launch to a map (today: home, All projects, project,
+  Dependency maps, view).
+- **Less vertical height.** The single-lane L1 view is very tall. Brainstorm
+  alternatives, including a variant of the outline idea in which each
+  category's cards flow to the right as a tree rather than an indented list.
+
+**Constraints to keep:** every view must still work without scripts; colors must
+stay CVD-safe (never red versus green alone); filters must never hide an
+unfinished item that a shown item needs.

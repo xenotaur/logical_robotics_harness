@@ -29,6 +29,8 @@ phases:
   - "WI-LRH-CONSOLE-MAP-SNAPSHOT"
   - "WI-LRH-CONSOLE-MAP-STATIC"
   - "WI-LRH-CONSOLE-INTERACTIVE"
+  - "WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT"
+  - "WI-LRH-CONSOLE-STATUS-SHAPES"
 - id: "statusboard"
   title: "L1 statusboard"
   work_items:

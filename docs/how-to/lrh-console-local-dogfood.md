@@ -72,6 +72,7 @@ effect when the server restarts.
 | Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
 | Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). In a served page, the LRH icon in the top bar always goes home to the statusboard (Meta), and the sidebar switches between All projects and each registered project. |
 | Open Settings from a page | The gear in a served page's top bar opens the Settings window. In a browser it opens a read-only display and about page. |
+| Trace a dependency map | LRH Console runs Serve with `--interactive`. On a dependency map, point at a card to preview what it needs and what needs it; click to select it and open its details; press Escape to close. The **Show** checkboxes hide states without ever hiding something a shown item still needs. The top bar's Light / Dark / System switch appears when Settings > Appearance is System; it resets when LRH Console restarts, so use Appearance for a lasting choice. |
 | Reload | **View > Reload** (⌘R). |
 | Go back or forward | **View > Back** (⌘[) or **View > Forward** (⌘]). They move between pages of the running server only, never to a status page or a previous server's address, and are enabled only when there is a page to go to. A restart starts a fresh history. |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |

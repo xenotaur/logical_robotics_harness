@@ -450,6 +450,30 @@ class AllowFlaggedTest(AskTestBase):
         self.assertNotIn("make_token", json.dumps(run))
 
 
+class WorkItemOmissionQuotingTest(AskTestBase):
+    def test_omitted_related_path_cannot_forge_lines(self) -> None:
+        odd = "project/design/a\nINJECTED: yes.md"
+        try:
+            (self.repo / odd).write_text("# design\n", encoding="utf-8")
+        except OSError:
+            self.skipTest("filesystem rejects newlines in names")
+        item = testing_support.READY_ITEM.replace("WI-T-1", "WI-T-8").replace(
+            "  - project/design/demo.md",
+            '  - "project/design/a\\nINJECTED: yes.md"',
+        )
+        (self.repo / "project/work_items/proposed/WI-T-8.md").write_text(
+            item, encoding="utf-8"
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "odd related")
+        ctx = ask.build_context(repo=self.repo, work_item="WI-T-8")
+        omitted = [e for e in ctx.excluded if "INJECTED" in e["path"]]
+        self.assertEqual(len(omitted), 1, ctx.excluded)
+        for shown in (ctx.text, ask.source_summary(ctx)):
+            self.assertNotIn("\nINJECTED", shown)
+            self.assertIn("a\\nINJECTED", shown)
+
+
 class NonUtf8NameTest(AskTestBase):
     def test_overview_survives_a_non_utf8_tracked_name(self) -> None:
         (self.repo / "content.tmp").write_text("hello\n", encoding="utf-8")

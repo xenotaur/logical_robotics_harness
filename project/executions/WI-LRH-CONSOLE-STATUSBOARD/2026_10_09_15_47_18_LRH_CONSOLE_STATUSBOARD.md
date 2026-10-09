@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/805
 commit:
 agent: "claude_app"
-instruction_source: "/lrh-execute WS-LRH-CONSOLE-LOCAL-DOGFOOD"
+instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/805"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-09T15:47:18+00:00
 ---

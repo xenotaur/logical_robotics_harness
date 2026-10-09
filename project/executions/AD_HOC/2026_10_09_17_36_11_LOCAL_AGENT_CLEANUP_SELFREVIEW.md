@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_17_36_11_LOCAL_AGENT_CLEANUP_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_CLEANUP_SELFREVIEW)[2026-10-09T17:36:11+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/806
+commit: 48414879fa8c28e39d7a45ff7ee3e08ca208602b
 created_at: 2026-10-09T17:36:11+00:00
 agent: claude_app
 instruction_source: lrh-implement Step 7.5 diff-mode self-review for PROMPT(AD_HOC:LOCAL_AGENT_CLEANUP)[2026-10-09T17:31:07+00:00]

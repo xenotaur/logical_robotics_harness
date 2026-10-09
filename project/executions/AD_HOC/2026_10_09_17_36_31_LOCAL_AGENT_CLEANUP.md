@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_17_36_31_LOCAL_AGENT_CLEANUP
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_CLEANUP)[2026-10-09T17:31:07+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/806
-commit:
+commit: 48414879fa8c28e39d7a45ff7ee3e08ca208602b
 created_at: 2026-10-09T17:36:31+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner asked to start the cleanup PR, then T1 brief

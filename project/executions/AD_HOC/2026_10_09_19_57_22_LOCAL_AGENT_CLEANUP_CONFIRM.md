@@ -2,10 +2,10 @@
 execution_id: 2026_10_09_19_57_22_LOCAL_AGENT_CLEANUP_CONFIRM
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_CLEANUP_CONFIRM)[2026-10-09T19:57:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_09_17_36_31_LOCAL_AGENT_CLEANUP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/806
-commit:
+commit: 48414879fa8c28e39d7a45ff7ee3e08ca208602b
 created_at: 2026-10-09T19:57:22+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/806 (lrh-land Step 5 inline confirm-fixes)

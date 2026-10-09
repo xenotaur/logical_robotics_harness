@@ -265,6 +265,77 @@ _HTML_ROUTES = (
 )
 
 
+class TestStatusboardHtml(unittest.TestCase):
+    """The statusboard's band and card HTML, without a server."""
+
+    def _card(self, **fields: object) -> dict[str, object]:
+        card: dict[str, object] = {
+            "display_name": "Alpha",
+            "project_id": "alpha",
+            "registry_name": "alpha",
+            "source_state": "live",
+            "validation_status": "valid",
+        }
+        card.update(fields)
+        return card
+
+    def test_card_text_from_project_files_is_escaped(self) -> None:
+        hostile = '<b onmouseover="x">focus</b>'
+        page = serve._meta_card_html(
+            self._card(
+                display_name=hostile,
+                current_focus_summary=hostile,
+                validation_next_action=hostile,
+            )
+        )
+
+        self.assertNotIn("<b ", page)
+        # Name, focus, next action, and the next action again under Details.
+        self.assertEqual(page.count("&lt;b onmouseover=&quot;x&quot;&gt;"), 4)
+
+    def test_freshness_says_why_a_card_was_not_read(self) -> None:
+        unread = serve._meta_card_html(
+            self._card(source_state="needs_local_checkout"), "2026-10-09T05:00:00+00:00"
+        )
+        live = serve._meta_card_html(self._card(), "2026-10-09T05:00:00+00:00")
+
+        self.assertIn(
+            '<span class="lrh-chip">Not read: needs local checkout</span>', unread
+        )
+        self.assertIn("<dd>Set a local checkout path</dd>", unread)
+        self.assertIn(
+            '<span class="lrh-chip">Read live 2026-10-09 05:00:00 UTC</span>', live
+        )
+        self.assertIn('<span class="lrh-chip">Validation: passing</span>', live)
+
+    def test_html_bands_follow_the_payload_order_with_each_project_once(self) -> None:
+        payload_lanes = [
+            {
+                "status": status.value,
+                "label": serve.dashboard.status_label(status),
+                "description": "d",
+                "count": 1,
+                "projects": [
+                    self._card(
+                        display_name=f"P-{status.value}", project_id=status.value
+                    )
+                ],
+            }
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        page = "".join(serve._meta_lane_html(lane) for lane in payload_lanes)
+
+        positions = [
+            page.index(f'id="band-{status.value}"')
+            for status in serve.dashboard.OPERATIONAL_LANE_ORDER
+        ]
+        self.assertEqual(positions, sorted(positions))
+        self.assertTrue(page.startswith('<details class="lrh-band lrh-band--blocked"'))
+        for status in serve.dashboard.OPERATIONAL_LANE_ORDER:
+            with self.subTest(band=status):
+                self.assertEqual(page.count(f">P-{status.value}</a>"), 1)
+
+
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
         self,
@@ -1467,7 +1538,9 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self.assertIn(f'id="band-{status}"', body)
         self.assertEqual(body.count("No projects in this band."), 5)
         self.assertIn("No projects are unknown", body)
-        self.assertIn('aria-label="0 projects">0</span>', body)
+        self.assertIn(
+            '0<span class="lrh-visually-hidden"> projects</span></span>', body
+        )
         self.assertNotIn("<script", body)
 
     def test_statusboard_shows_bands_first_with_card_facts(self) -> None:
@@ -1490,7 +1563,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         # Glyph, label, and count: never color alone.
         self.assertIn('class="lrh-band-glyph" aria-hidden="true">', band)
         self.assertIn(f'<span class="lrh-band-label">{lane["label"]}</span>', band)
-        self.assertIn('aria-label="1 project">1</span>', band)
+        self.assertIn('1<span class="lrh-visually-hidden"> project</span>', band)
         self.assertIn(">Alpha</a></h3>", band)
         self.assertIn("<dt>Focus:</dt>", band)
         self.assertIn("<dt>Next:</dt>", band)

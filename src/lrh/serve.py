@@ -1754,8 +1754,8 @@ STATUSBOARD_STYLES = """
   }
   .lrh-band[open] > summary { border-radius: 2px 7px 0 0; }
   .lrh-band > summary::-webkit-details-marker { display: none; }
-  .lrh-band > summary::before { content: "▸"; width: 1em; }
-  .lrh-band[open] > summary::before { content: "▾"; }
+  .lrh-band > summary::before { content: "▸" / ""; width: 1em; }
+  .lrh-band[open] > summary::before { content: "▾" / ""; }
   .lrh-band > summary:focus-visible {
     outline: 3px solid var(--lrh-color-focus); outline-offset: 2px;
   }
@@ -1789,7 +1789,17 @@ STATUSBOARD_STYLES = """
   .lrh-band--unknown { --lrh-band-fg: var(--lrh-color-band-unknown-fg);
     --lrh-band-bg: var(--lrh-color-band-unknown-bg);
     --lrh-band-line: var(--lrh-color-band-unknown-line); }
-  .lrh-band .lrh-project-card { margin: 0; min-width: 0; }
+  .lrh-band .lrh-project-card {
+    margin: 0; min-width: 0; padding: 0.75rem;
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-radius: var(--lrh-radius-md);
+    background: var(--lrh-color-surface-page);
+  }
+  .lrh-card-facts dd, .lrh-chip { overflow-wrap: anywhere; }
+  .lrh-visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
   .lrh-project-card h3 { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
   .lrh-card-facts { margin: 0 0 0.5rem; display: grid; gap: 0.25rem; }
   .lrh-card-facts dt { font-weight: 600; display: inline; }
@@ -1833,7 +1843,8 @@ def _meta_lane_html(lane: object, read_at: str = "") -> str:
         f'<details class="lrh-band lrh-band--{css}" id="band-{css}"{is_open}>'
         f'<summary><span class="lrh-band-glyph" aria-hidden="true">{glyph}</span>'
         f'<span class="lrh-band-label">{label}</span>'
-        f'<span class="lrh-band-count" aria-label="{count} {noun}">{count}</span>'
+        f'<span class="lrh-band-count">{count}'
+        f'<span class="lrh-visually-hidden"> {noun}</span></span>'
         f'<span class="lrh-band-description">{description}</span></summary>'
         f"{body}</details>"
     )

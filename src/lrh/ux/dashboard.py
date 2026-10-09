@@ -28,7 +28,7 @@ class OperationalStatus(StrEnum):
 
 
 # Statusboard band labels, in sentence case like the rest of LRH Console
-# (owner decision recorded in PROP-LRH-CONSOLE-VISUAL-LANGUAGE, Revision 2).
+# (owner decision of 2026-10-09, in PROP-LRH-CONSOLE-VISUAL-LANGUAGE, Vocabulary).
 _OPERATIONAL_STATUS_LABELS = {
     OperationalStatus.NEEDS_ATTENTION: "Needs attention",
     OperationalStatus.ACTIVE_WORK: "Active work",
@@ -57,7 +57,9 @@ _OPERATIONAL_STATUS_DESCRIPTIONS = {
     ),
 }
 
-# Band order follows derive_operational_status precedence: Blocked first.
+# Statusboard band order, Blocked first, as the owner chose (2026-10-09). It is
+# a display order, not derive_operational_status precedence, which checks
+# Awaiting review before Active work.
 OPERATIONAL_LANE_ORDER = (
     OperationalStatus.BLOCKED,
     OperationalStatus.NEEDS_ATTENTION,

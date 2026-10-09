@@ -512,8 +512,9 @@ That proposal also differs on the bands themselves, and the two need reconciling
 - **Its UI labels** are Title Case (`:120`), while this proposal uses sentence case.
 
 **Owner decision (2026-10-09, `WI-LRH-CONSOLE-STATUSBOARD`):** the statusboard keeps the six
-states LRH already computes, ordered by the precedence of `derive_operational_status`, with
-Blocked first: **Blocked, Needs attention, Active work, Awaiting review, Stable, Unknown**. Labels
+states LRH already computes, in this display order, with Blocked first: **Blocked, Needs
+attention, Active work, Awaiting review, Stable, Unknown**. (This is a display order, not the
+precedence `derive_operational_status` uses to choose a band.) Labels
 use sentence case, like the rest of LRH Console. Each `triage_lane` value maps to exactly one band
 of the same name, so no new triage logic is added, and the internal field keeps its name.
 Ready for Work and Archived, from the triage-semantics target set, are later work there: Archived

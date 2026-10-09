@@ -2,14 +2,14 @@
 execution_id: 2026_10_08_16_18_28_SERVE_DETAIL_LOAD_PROJECT_404
 prompt_id: PROMPT(AD_HOC:SERVE_DETAIL_LOAD_PROJECT_404)[2026-10-08T06:33:50+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/798
-commit:
+commit: 70750567d1968fded530b453cc749c8480f6c55e
 created_at: 2026-10-08T16:18:28+00:00
 agent: claude_app
 instruction_source: "ad-hoc: guard control_loader.load_project in serve.render_design_detail_page / render_workstream_detail_page (and the dashboard summary helpers) so a malformed registered project returns 404 JSON instead of dropping the connection; follow-up to PR #793"
-session_transcript: pending
+session_transcript: claude-app:8a797636-2cee-4a73-9763-2dd4bd5e65e6
 ---
 
 # Summary

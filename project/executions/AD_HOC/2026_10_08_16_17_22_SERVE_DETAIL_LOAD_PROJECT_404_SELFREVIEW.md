@@ -2,14 +2,14 @@
 execution_id: 2026_10_08_16_17_22_SERVE_DETAIL_LOAD_PROJECT_404_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SERVE_DETAIL_LOAD_PROJECT_404_SELFREVIEW)[2026-10-08T16:17:12+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/798
+commit: 70750567d1968fded530b453cc749c8480f6c55e
 created_at: 2026-10-08T16:17:22+00:00
 agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for PROMPT(AD_HOC:SERVE_DETAIL_LOAD_PROJECT_404)[2026-10-08T06:33:50+00:00]"
-session_transcript: pending
+session_transcript: claude-app:8a797636-2cee-4a73-9763-2dd4bd5e65e6
 ---
 
 # Summary

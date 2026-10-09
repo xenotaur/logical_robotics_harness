@@ -2,14 +2,14 @@
 execution_id: 2026_10_09_01_24_16_SERVE_DETAIL_LOAD_PROJECT_404_CONFIRM
 prompt_id: PROMPT(AD_HOC:SERVE_DETAIL_LOAD_PROJECT_404_CONFIRM)[2026-10-09T01:24:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_08_16_18_28_SERVE_DETAIL_LOAD_PROJECT_404
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/798
-commit:
+commit: 70750567d1968fded530b453cc749c8480f6c55e
 created_at: 2026-10-09T01:24:16+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/798
-session_transcript: pending
+session_transcript: claude-app:8a797636-2cee-4a73-9763-2dd4bd5e65e6
 ---
 
 # Summary

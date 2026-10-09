@@ -4,6 +4,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 from lrh import core_state
+from lrh.control import validator
 
 
 class TestCoreState(unittest.TestCase):
@@ -152,6 +153,48 @@ depends_on:
             self.assertIsNone(state.current_focus)
             self.assertEqual(state.work_items, ())
             self.assertEqual(state.prompt_inputs.active_leaf_work_item_ids, ())
+
+    def test_dependency_map_view_errors_do_not_blank_planning_state(self) -> None:
+        views = {
+            "broken.md": '---\nid: "broken"\ntitle: "Broken"\n---\n',
+            "stale.md": (
+                '---\nid: "stale"\ntitle: "Stale"\nlanes:\n- workstream: "WS-GONE"\n'
+                'phases:\n- id: "one"\n  title: "One"\n  work_items: ["WI-GONE"]\n'
+                "---\n"
+            ),
+        }
+        for name, text in views.items():
+            with self.subTest(view=name), tempfile.TemporaryDirectory() as tmp_dir:
+                root = Path(tmp_dir)
+                _write_representative_project(root)
+                _write_view(root, name, text)
+
+                state = core_state.load_core_project_state(root)
+
+                # The view problem still fails validation and is reported...
+                self.assertFalse(state.validation.is_valid)
+                self.assertGreater(state.validation.error_count, 0)
+                codes = {d.code for d in state.validation.diagnostics}
+                self.assertTrue(codes & validator.DEPENDENCY_MAP_VIEW_ISSUE_CODES)
+                self.assertFalse(state.prompt_inputs.validation_is_valid)
+                # ...but no longer hides the planning state it does not affect.
+                self.assertEqual(set(state.work_items_by_id), {"WI-A", "WI-B"})
+                self.assertIsNotNone(state.current_focus)
+                self.assertEqual(state.current_focus.id, "FOCUS-1")
+                self.assertEqual(
+                    state.prompt_inputs.active_leaf_work_item_ids, ("WI-A", "WI-B")
+                )
+
+    def test_planning_errors_still_blank_state_alongside_view_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            _write_representative_project(root, duplicate_work_item=True)
+            _write_view(root, "broken.md", '---\nid: "broken"\ntitle: "Broken"\n---\n')
+
+            state = core_state.load_core_project_state(root)
+
+            self.assertEqual(state.work_items, ())
+            self.assertIsNone(state.current_focus)
 
     def test_incomplete_optional_planning_relationships_are_reported_read_only(
         self,
@@ -316,6 +359,12 @@ title: Design Proposal Evidence
 
 def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
+
+
+def _write_view(root: Path, name: str, text: str) -> None:
+    views_dir = root / "project" / "views" / "dependency_maps"
+    views_dir.mkdir(parents=True, exist_ok=True)
+    _write(views_dir / name, text)
 
 
 if __name__ == "__main__":

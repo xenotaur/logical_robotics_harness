@@ -254,6 +254,53 @@ class TestBlockedWorkItemCount(unittest.TestCase):
         self.assertEqual(serve._blocked_work_item_count(work_items), 0)
 
 
+class TestDependencyMapViewErrorsStayScoped(unittest.TestCase):
+    """A bad dependency-map view fails ``lrh validate`` and its own map page
+    without blanking the unrelated work-item and workbench pages."""
+
+    def _project_with_broken_view(self) -> pathlib.Path:
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir, True)
+        root = pathlib.Path(tmp_dir)
+        _write_viewer_project(root)
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        return root
+
+    def test_work_item_and_workbench_pages_still_render(self) -> None:
+        config = serve.ServeConfig(project_root=self._project_with_broken_view())
+
+        status, body = serve.render_project_work_item_page(config, "main", "WI-A")
+        artifact = serve.render_workbench_artifact(config, "prompt", "WI-A")
+
+        self.assertEqual(status, 200)
+        self.assertIn("WI-A", body)
+        self.assertEqual(artifact.work_item_id, "WI-A")
+        self.assertIn("WI-A", artifact.markdown)
+
+    def test_map_page_still_explains_the_invalid_view(self) -> None:
+        config = serve.ServeConfig(project_root=self._project_with_broken_view())
+
+        status, body = serve.render_dependency_map_page(config, "main", "broken", {})
+
+        self.assertEqual(status, 422)
+        self.assertIn("invalid view", body)
+
+    def test_lrh_validate_still_fails(self) -> None:
+        root = self._project_with_broken_view()
+        argv = ["lrh", "validate", "--project-dir", str(root / "project")]
+
+        with unittest.mock.patch("sys.argv", argv):
+            with testing_support.capture_output() as captured:
+                with self.assertRaises(SystemExit) as exit_ctx:
+                    cli_main.main()
+
+        self.assertEqual(exit_ctx.exception.code, 1)
+        self.assertIn("DEPENDENCY_MAP_VIEW_INVALID", captured.stdout.getvalue())
+
+
 # HTML routes that render with no project fixtures.
 _HTML_ROUTES = (
     "/",

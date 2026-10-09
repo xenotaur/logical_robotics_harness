@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/798
 commit:
 created_at: 2026-10-08T16:18:28+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: guard control_loader.load_project in serve.render_design_detail_page / render_workstream_detail_page (and the dashboard summary helpers) so a malformed registered project returns 404 JSON instead of dropping the connection; follow-up to PR #793"
 session_transcript: pending
 ---

@@ -7,7 +7,7 @@ rerun_of:
 pr:
 commit:
 created_at: 2026-10-08T16:17:22+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for PROMPT(AD_HOC:SERVE_DETAIL_LOAD_PROJECT_404)[2026-10-08T06:33:50+00:00]"
 session_transcript: pending
 ---

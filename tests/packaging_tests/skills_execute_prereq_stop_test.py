@@ -400,6 +400,12 @@ class SnapshotAndScopeWordingTest(unittest.TestCase):
         self.assertIn("git rev-parse --show-prefix", self.reference)
         self.assertIn('grep -x "${prefix}project/work_items/', self.reference)
 
+    def test_open_pr_file_match_skips_files_the_pr_removes(self) -> None:
+        # A bucket move reported as delete+add must not match the removed path:
+        # reading it at the PR's head 404s and a valid blocker goes unnamed.
+        self.assertIn('select(.status != "removed")', self.reference)
+        self.assertIn("returns 404", self.reference)
+
     def test_ws_lookup_is_limited_to_availability_skipped_candidates(self) -> None:
         for name, text in (("reference", self.reference), ("skill", self.skill)):
             with self.subTest(section=name):

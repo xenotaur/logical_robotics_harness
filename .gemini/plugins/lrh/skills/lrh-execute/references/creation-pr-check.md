@@ -141,12 +141,17 @@ prefix (`git rev-parse --show-prefix` — empty at the repository root):
 
 ```bash
 prefix=$(git rev-parse --show-prefix)
-gh api --paginate "repos/$repo/pulls/<N>/files" --jq '.[].filename' \
+gh api --paginate "repos/$repo/pulls/<N>/files" \
+  --jq '.[] | select(.status != "removed") | .filename' \
   | grep -x "${prefix}project/work_items/[a-z]*/<WI-ID>.md"
 ```
 
-The matched `filename` is already repository-root-relative, so it is used
-as-is in the contents call below.
+Files the PR *removes* are excluded (`select(.status != "removed")`): a
+bucket move that GitHub reports as a delete plus an add would otherwise
+match the old path too, and reading the removed path at the PR's head
+returns 404. Only the added or renamed path — the one that exists at the
+PR's head — is read. The matched `filename` is repository-root-relative, so
+it is used as-is in the contents call below.
 
 For each PR that matches, read the WI as it exists at that PR's head
 commit and require `status: proposed`:

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_10_06_02_17_34_WI_LRH_GH_ERROR_CLASSIFICATION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/773
-commit: 
+commit:
 created_at: 2026-10-06T15:24:36+00:00
 ---
 

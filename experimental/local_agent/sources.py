@@ -81,7 +81,10 @@ def list_tracked_files(repo: pathlib.Path, commit: str) -> list[str]:
     """Repository-relative paths of files tracked at ``commit``."""
     # -z: unquoted names, NUL-separated (newlines in names stay intact).
     output = _git(repo, "ls-tree", "-r", "-z", "--name-only", commit)
-    return [name for name in output.decode("utf-8").split("\0") if name]
+    # surrogateescape: a name that is not valid UTF-8 survives decoding and is
+    # then rejected by ``check_path_allowed`` instead of crashing the listing.
+    decoded = output.decode("utf-8", errors="surrogateescape")
+    return [name for name in decoded.split("\0") if name]
 
 
 def repo_root(start: pathlib.Path) -> pathlib.Path:
@@ -96,9 +99,22 @@ def resolve_commit(repo: pathlib.Path, revision: str) -> str:
     return output.decode("utf-8").strip()
 
 
+def unsafe_path_char(char: str) -> bool:
+    """C0/C1 controls, DEL, or an undecodable byte (a surrogate escape)."""
+    code = ord(char)
+    return code < 0x20 or 0x7F <= code <= 0x9F or 0xDC80 <= code <= 0xDCFF
+
+
+def shown_path(path: str) -> str:
+    """A path safe to print or put in a prompt: quoted if it has unsafe chars."""
+    return ascii(path) if any(unsafe_path_char(c) for c in path) else path
+
+
 def check_path_allowed(project_relative_path: str) -> None:
     """Reject paths that stage 0 never copies into a packet."""
-    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in project_relative_path):
+    if any(0xDC80 <= ord(char) <= 0xDCFF for char in project_relative_path):
+        raise SourceError("path is not valid UTF-8")
+    if any(unsafe_path_char(char) for char in project_relative_path):
         # Never echo such a path: it could smuggle text into headers.
         raise SourceError("path contains control characters")
     normalized = project_relative_path.replace("\\", "/")

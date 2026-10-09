@@ -9,9 +9,12 @@
 
   const root = document.documentElement;
   const THEME_KEY = "lrh-console-theme";
-  // Read before this script changes anything: a server-pinned theme
-  // (--theme light|dark) arrives as data-theme on the root element.
-  const pinned = root.hasAttribute("data-theme");
+  // A server-pinned theme (--theme light|dark) arrives as data-theme on the
+  // root element. lrh-theme-early.js may also have set it from storage, and
+  // marks that with data-lrh-theme-source="browser".
+  const pinned =
+    root.hasAttribute("data-theme") &&
+    root.getAttribute("data-lrh-theme-source") !== "browser";
 
   // ----- In-page theme switch (hidden when the server pins a theme) -----
 
@@ -26,8 +29,10 @@
   function applyTheme(choice) {
     if (choice === "light" || choice === "dark") {
       root.setAttribute("data-theme", choice);
+      root.setAttribute("data-lrh-theme-source", "browser");
     } else {
       root.removeAttribute("data-theme");
+      root.removeAttribute("data-lrh-theme-source");
     }
   }
 
@@ -103,12 +108,19 @@
       if (selected) related.add(selected);
       for (const card of map.querySelectorAll(".lrh-card[data-id]")) {
         const id = card.dataset.id;
-        card.classList.toggle("lrh-card--selected", id === selected);
-        card.classList.toggle("lrh-card--related", id !== selected && related.has(id));
+        // A hover or focus preview highlights, but never looks like a selection.
+        const isSelected = !preview && id === selected;
+        card.classList.toggle("lrh-card--selected", isSelected);
+        card.classList.toggle("lrh-card--related", !preview && id !== selected && related.has(id));
         card.classList.toggle("lrh-card--preview", Boolean(preview && related.has(id)));
         const role = card.querySelector(".lrh-role");
-        const text =
-          id === selected ? "Selected" : up.has(id) ? "Upstream" : down.has(id) ? "Downstream" : "";
+        const text = isSelected
+          ? "Selected"
+          : up.has(id)
+            ? "Upstream"
+            : down.has(id)
+              ? "Downstream"
+              : "";
         if (role && !text) role.remove();
         if (text) {
           const label = role || document.createElement("span");
@@ -131,6 +143,22 @@
       }
     }
 
+    // Same-page links rendered with the old ?item= (tabs, Check for changes,
+    // the top bar's Refresh) follow the new selection.
+    function syncLinks(id) {
+      const links = document.querySelectorAll(
+        ".lrh-tabs a, .lrh-map-header a[href*='since='], .lrh-topbar a[href]",
+      );
+      for (const link of links) {
+        const url = new URL(link.href, window.location.href);
+        if (url.origin !== window.location.origin) continue;
+        if (url.pathname !== window.location.pathname) continue;
+        if (id) url.searchParams.set("item", id);
+        else url.searchParams.delete("item");
+        link.setAttribute("href", url.pathname + url.search);
+      }
+    }
+
     function currentSelection() {
       return new URLSearchParams(window.location.search).get("item");
     }
@@ -141,14 +169,17 @@
       else params.delete("item");
       const query = params.toString();
       window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+      syncLinks(id);
       mark(id, false);
       showDrawer(id);
+      const notice = map.querySelector("[data-lrh-unknown-item]");
+      if (notice) notice.remove();
     }
 
     for (const card of map.querySelectorAll(".lrh-card[data-id]")) {
       const id = card.dataset.id;
       card.addEventListener("click", (event) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         select(id);
       });

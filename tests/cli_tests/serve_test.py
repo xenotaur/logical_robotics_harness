@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -423,6 +424,11 @@ class TestLrhServeRoutes(unittest.TestCase):
         )
 
     def _interactive_server(self, interactive: bool) -> str:
+        """Serve a viewer project with one valid view; returns the base URL.
+
+        No invalid view is written here: any validation error empties the
+        core project state, which would hide work items from other pages.
+        """
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir, True)
         patcher = unittest.mock.patch.dict(
@@ -433,6 +439,13 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.addCleanup(patcher.stop)
         root = pathlib.Path(tmp_dir)
         _write_viewer_project(root)
+        views = root / "project" / "views" / "dependency_maps"
+        _write(
+            views / "main.md",
+            '---\nid: "main"\ntitle: "Main"\nlanes:\n- workstream: "WS-A"\n'
+            'phases:\n- id: "one"\n  title: "One"\n  work_items: ["WI-A"]\n'
+            "---\nBody.\n",
+        )
         httpd = serve.create_http_server(
             serve.ServeConfig(port=0, project_root=root, interactive=interactive)
         )
@@ -465,17 +478,60 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertNotIn("unsafe-eval", live_policy)
         head = live_body.split("</head>", 1)[0]
         self.assertIn(f'<script src="{script}" defer></script>', head)
+        self.assertTrue(
+            head.split("<head>", 1)[1].startswith(
+                '<script src="/static/lrh-theme-early.js"></script>'
+            ),
+            "the early theme script runs before any style",
+        )
         self.assertNotIn("<script", static_body)
-        for route in _HTML_ROUTES + ("/settings",):
+        for route in _HTML_ROUTES + (
+            "/settings",
+            "/workbench/prompt?work_item=WI-A",
+            "/project/main/work-items/WI-A",
+            "/project/main/dependency-maps",
+            "/project/main/dependency-maps/main",
+            "/project/main/dependency-maps/main?tab=table&item=WI-A",
+            "/project/main/dependency-maps/main?tab=blockers",
+        ):
             with self.subTest(route=route):
                 _s, _t, body = self._read(live_url + route)
-                self.assertEqual(body.count("<script"), 1)
+                self.assertEqual(body.count("<script"), 2)
                 self.assertIsNone(inline.search(body))
+        views = pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "project/views"
+        _write(
+            views / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+        with self.assertRaises(urllib.error.HTTPError) as invalid_ctx:
+            self._read(live_url + "/project/main/dependency-maps/broken")
+        invalid = invalid_ctx.exception.read().decode("utf-8")
+        self.assertEqual(invalid_ctx.exception.code, 422)
+        self.assertIsNone(inline.search(invalid))
         with urllib.request.urlopen(live_url + script, timeout=5) as response:
             self.assertIn("text/javascript", response.headers["Content-Type"])
-        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
-            self._read(static_url + script)
-        self.assertEqual(err_ctx.exception.code, 404)
+        for name in (script, "/static/lrh-theme-early.js"):
+            with self.subTest(static=name):
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    self._read(static_url + name)
+                self.assertEqual(err_ctx.exception.code, 404)
+        with urllib.request.urlopen(live_url + script, timeout=5) as response:
+            self.assertEqual(response.headers["Cache-Control"], "no-cache")
+
+    def test_interactive_with_a_pinned_theme_keeps_the_pin(self) -> None:
+        for theme, pinned in (("dark", True), ("system", False)):
+            config = serve.ServeConfig(port=0, theme=theme, interactive=True)
+            httpd = serve.create_http_server(config)
+            host, port = httpd.server_address[:2]
+            threading.Thread(target=httpd.serve_forever, daemon=True).start()
+            self.addCleanup(httpd.shutdown)
+            self.addCleanup(httpd.server_close)
+            with self.subTest(theme=theme):
+                _s, _t, body = self._read(f"http://{host}:{port}/style")
+                root = re.search(r"<html[^>]*>", body).group(0)
+                self.assertEqual('data-theme="dark"' in root, pinned)
+                self.assertIn("data-lrh-theme-slot", body)
+                self.assertIn("/static/lrh-interactive.js", body)
 
     def test_desktop_server_factory_passes_interactive(self) -> None:
         httpd = serve._desktop_server_factory(pathlib.Path("."), interactive=True)

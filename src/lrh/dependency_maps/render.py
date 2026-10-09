@@ -107,8 +107,8 @@ def render_view(
     ]
     if item and selected is None:
         parts.append(
-            f'<p class="lrh-stale" role="status">{html.escape(item)} is not in this '
-            "view.</p>"
+            f'<p class="lrh-stale" role="status" data-lrh-unknown-item>'
+            f"{html.escape(item)} is not in this view.</p>"
         )
     if tab == "table":
         parts.append(_table(snapshot, nodes))

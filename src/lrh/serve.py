@@ -109,7 +109,11 @@ _CONTENT_SECURITY_POLICY = (
 # --interactive adds only same-origin scripts: never inline script or eval.
 _INTERACTIVE_CONTENT_SECURITY_POLICY = _CONTENT_SECURITY_POLICY + "; script-src 'self'"
 _INTERACTIVE_SCRIPT = "lrh-interactive.js"
+_THEME_EARLY_SCRIPT = "lrh-theme-early.js"
+_INTERACTIVE_SCRIPTS = frozenset({_INTERACTIVE_SCRIPT, _THEME_EARLY_SCRIPT})
 _INTERACTIVE_SCRIPT_TAG = f'<script src="/static/{_INTERACTIVE_SCRIPT}" defer></script>'
+# Runs before first paint so a stored theme does not flash; tiny and blocking.
+_THEME_EARLY_SCRIPT_TAG = f'<script src="/static/{_THEME_EARLY_SCRIPT}"></script>'
 
 
 def content_security_policy(config: ServeConfig) -> str:
@@ -123,8 +127,9 @@ def content_security_policy(config: ServeConfig) -> str:
 def apply_interactive(page: str, interactive: bool) -> str:
     """Add the packaged script to an HTML page's head under --interactive."""
 
-    if not interactive or "</head>" not in page:
+    if not interactive or "<head>" not in page or "</head>" not in page:
         return page
+    page = page.replace("<head>", "<head>" + _THEME_EARLY_SCRIPT_TAG, 1)
     return page.replace("</head>", _INTERACTIVE_SCRIPT_TAG + "</head>", 1)
 
 
@@ -3567,7 +3572,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             # The script exists only for --interactive servers.
             body = (
                 None
-                if name == _INTERACTIVE_SCRIPT and not config.interactive
+                if name in _INTERACTIVE_SCRIPTS and not config.interactive
                 else frame.read_static(name)
             )
             if body is None:
@@ -3576,7 +3581,11 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_response(200)
             self.send_header("Content-Type", frame.STATIC_FILES[name])
             # Assets ship with the package, so an hour of caching is safe.
-            self.send_header("Cache-Control", "max-age=3600")
+            # Scripts must not outlive an upgrade; fonts and images may.
+            self.send_header(
+                "Cache-Control",
+                "no-cache" if name.endswith(".js") else "max-age=3600",
+            )
             self._add_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()

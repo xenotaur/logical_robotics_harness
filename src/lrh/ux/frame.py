@@ -36,6 +36,7 @@ STATIC_FILES = {
     "icons/LICENSE-lucide.txt": "text/plain; charset=utf-8",
     # Served only by --interactive servers; see serve._write_static.
     "lrh-interactive.js": "text/javascript; charset=utf-8",
+    "lrh-theme-early.js": "text/javascript; charset=utf-8",
 }
 
 ICON_NAMES = (

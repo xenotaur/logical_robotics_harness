@@ -33,15 +33,21 @@ lrh serve --desktop-protocol
 - `--interactive`: add packaged, same-origin scripts. The Content-Security-Policy
   then adds `script-src 'self'`, and nothing else; there is no inline script
   and no `eval`. Every page still works without the scripts. They add:
-  - **Tracing:** hovering over or focusing a dependency-map card previews its
-    upstream and downstream; clicking selects it without a reload, opens its
-    drawer, and updates `?item=`. Escape closes it.
+  - **Tracing:** while nothing is selected, hovering over or focusing a
+    dependency-map card previews its upstream and downstream. Clicking selects
+    it without a reload, opens its drawer, and updates `?item=` and the page's
+    tab links. Escape closes it.
   - **Filters:** checkboxes by state on the map and table. A filter never hides
     an unfinished item that a shown item still needs.
-  - **Theme switch:** Light, Dark, and System in the top bar, remembered per
-    browser. It is hidden when `--theme light` or `--theme dark` pins the theme.
+  - **Theme switch:** Light, Dark, and System in the top bar, remembered by the
+    browser for that server address and applied before the page first paints.
+    LRH Console's server gets a new port each time it starts, so the choice
+    resets when the app or its server restarts; Settings > Appearance is the
+    lasting setting. The switch is hidden when `--theme light` or `--theme dark`
+    pins the theme.
 
-  Without the flag, the script URL returns 404. `--show-config` reports
+  Without the flag, the script URLs (`lrh-interactive.js` and
+  `lrh-theme-early.js`) return 404. `--show-config` reports
   `interactive`. Also accepted with `--desktop-protocol`, which LRH Console
   always passes.
 - `--show-config`: validate and print deterministic JSON configuration without serving.

@@ -2,14 +2,14 @@
 execution_id: 2026_10_09_02_07_28_DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING_SELFREVIEW)[2026-10-09T02:07:24+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/802
-commit:
+commit: 5e67c2b1fb6bc4898784d1e2e3c854fb12e034f7
 created_at: 2026-10-09T02:07:28+00:00
 agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for PROMPT(AD_HOC:DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING)[2026-10-09T01:23:54+00:00]"
-session_transcript: pending
+session_transcript: claude-app:f057ed51-1b95-47ea-9e12-14b2d6271846
 ---
 
 # Summary

@@ -2,14 +2,14 @@
 execution_id: 2026_10_09_05_14_01_DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING_CONFIRM
 prompt_id: PROMPT(AD_HOC:DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING_CONFIRM)[2026-10-09T05:13:50+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_09_02_07_24_DEPENDENCY_MAP_VIEW_ERRORS_NONBLOCKING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/802
-commit:
+commit: 5e67c2b1fb6bc4898784d1e2e3c854fb12e034f7
 created_at: 2026-10-09T05:14:01+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/802
-session_transcript: pending
+session_transcript: claude-app:f057ed51-1b95-47ea-9e12-14b2d6271846
 ---
 
 # Summary

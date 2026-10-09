@@ -61,7 +61,7 @@ def _repo_relative(repo: pathlib.Path, path: str) -> str:
         return candidate.resolve().relative_to(repo.resolve()).as_posix()
     except ValueError:
         # Outside the checkout's cwd: treat it as repo-relative ("./a" == "a").
-        return pathlib.PurePosixPath(os.path.normpath(path)).as_posix()
+        return pathlib.Path(os.path.normpath(path)).as_posix()
 
 
 def build_context(
@@ -233,13 +233,22 @@ def _assemble(
                 raise sources.SourceError(f"--allow-flagged cannot send {path}: budget")
             excluded.append({"path": path, "reason": "budget"})
             continue
+        if path in allow and not ref.allowed_findings:
+            # Every flagged line falls past the budget: the override would
+            # send nothing it covers, so refuse it rather than fall back to
+            # the ordinary prompt without the typed-yes gate.
+            raise sources.SourceError(
+                f"--allow-flagged not needed for {path}: its flagged lines fall "
+                "outside the byte budget"
+            )
         used += ref.included_bytes
         refs.append(ref.as_dict())
         section = context.render_source(ref, text)
         sections.append(section)
         if ref.allowed_findings:
-            # Keep the header (its path is still scanned); drop body lines.
-            scan_sections.append(section.split("\n", 1)[0] + "\n")
+            # Keep the whole header (its path is still scanned), however many
+            # physical lines it spans; drop only the numbered body lines.
+            scan_sections.append(context.render_source(ref, ""))
             allowed_flagged.extend(
                 {"path": ref.path, **finding} for finding in ref.allowed_findings
             )
@@ -324,7 +333,7 @@ def source_summary(ctx: AskContext) -> str:
     if ctx.context_warnings:
         lines.append(
             f"  context WARN: {', '.join(ctx.context_warnings)} "
-            "(medium findings anywhere in what will be sent)"
+            "(sensitivity categories anywhere in what will be sent)"
         )
     reason = unsendable_reason(ctx)
     if reason:

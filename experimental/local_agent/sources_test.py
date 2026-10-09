@@ -62,6 +62,13 @@ class SourcesTest(unittest.TestCase):
                 with self.assertRaisesRegex(sources.SourceError, "private path"):
                     sources.check_path_allowed(path)
 
+    def test_control_characters_in_paths_rejected_without_echo(self) -> None:
+        for path in ("safe\ntoken: abcdef123.py", "a\tb.py", "x\x7f.py"):
+            with self.subTest(repr(path)):
+                with self.assertRaises(sources.SourceError) as caught:
+                    sources.check_path_allowed(path)
+                self.assertNotIn("abcdef123", str(caught.exception))
+
     def test_credential_like_paths_rejected(self) -> None:
         for path in (
             ".env",

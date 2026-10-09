@@ -347,6 +347,43 @@ class AllowFlaggedTest(AskTestBase):
             {f["category"] for f in ctx.allowed_flagged}, {"secret", "token"}
         )
 
+    def test_override_refused_when_budget_cuts_every_flagged_line(self) -> None:
+        late = "late.py"
+        (self.repo / late).write_text(
+            "x = 1\n" * 20 + "token: Callable[[], str] = make_token\n",
+            encoding="utf-8",
+        )
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "late")
+        with self.assertRaisesRegex(sources.SourceError, "not needed"):
+            ask.build_context(
+                repo=self.repo,
+                files=[late],
+                allow_flagged={late: frozenset({"secret"})},
+                budgets=settings.Budgets(max_packet_bytes=30),
+            )
+
+    def test_newline_in_a_requested_path_is_refused(self) -> None:
+        odd = "safe\ntoken: abcdef123.py"
+        try:
+            (self.repo / odd).write_text("token: Callable[[], str] = x\n")
+        except OSError:
+            self.skipTest("filesystem rejects newlines in names")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "odd")
+        with self.assertRaisesRegex(sources.SourceError, "control characters"):
+            self._build([odd], {odd: {"secret"}})
+        # The listing returns the real, unquoted name, which path checks reject.
+        commit = sources.resolve_commit(self.repo, "HEAD")
+        self.assertIn(odd, sources.list_tracked_files(self.repo, commit))
+
+    def test_context_warning_label_covers_any_severity(self) -> None:
+        ctx = self._build([self.ANNOTATED], {self.ANNOTATED: {"secret"}})
+        self.assertIn(
+            "context WARN: secret (sensitivity categories anywhere",
+            ask.source_summary(ctx),
+        )
+
     def test_another_high_category_is_refused(self) -> None:
         with self.assertRaisesRegex(
             sources.SourceError, r"cannot send mixed.py.*token"

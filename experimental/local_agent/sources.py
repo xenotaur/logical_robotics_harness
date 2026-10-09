@@ -79,8 +79,9 @@ def split_lines(text: str) -> list[str]:
 
 def list_tracked_files(repo: pathlib.Path, commit: str) -> list[str]:
     """Repository-relative paths of files tracked at ``commit``."""
-    output = _git(repo, "ls-tree", "-r", "--name-only", commit)
-    return [line for line in output.decode("utf-8").splitlines() if line]
+    # -z: unquoted names, NUL-separated (newlines in names stay intact).
+    output = _git(repo, "ls-tree", "-r", "-z", "--name-only", commit)
+    return [name for name in output.decode("utf-8").split("\0") if name]
 
 
 def repo_root(start: pathlib.Path) -> pathlib.Path:
@@ -97,6 +98,9 @@ def resolve_commit(repo: pathlib.Path, revision: str) -> str:
 
 def check_path_allowed(project_relative_path: str) -> None:
     """Reject paths that stage 0 never copies into a packet."""
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in project_relative_path):
+        # Never echo such a path: it could smuggle text into headers.
+        raise SourceError("path contains control characters")
     normalized = project_relative_path.replace("\\", "/")
     if normalized.startswith("/") or ".." in normalized.split("/"):
         raise SourceError(f"path must be relative and confined: {normalized}")

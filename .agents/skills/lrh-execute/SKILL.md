@@ -623,9 +623,12 @@ Before reporting completion, verify:
       30), and a PR was named only after its head version was verified to
       set `status: proposed`
 - [ ] A Step 1 stop used the structured report (Immediate next action / Why
-      / After that), named at most one PR, kept `/lrh-execute <WI-ID>` out of
-      any standalone code block and out of the headline, and was recorded
-      in the run journal's Step 1 stop variant
+      / After that), named exactly one PR in the Immediate next action line
+      (or none, in the no-PR form — which never lists PRs, only a count),
+      kept `/lrh-execute <WI-ID>` out of any standalone code block and out
+      of the headline, and was recorded in the run journal's Step 1 stop
+      variant. A `WS-ID` report may additionally name each verified blocker
+      in Why; the one-PR limit applies to the Immediate next action line
 - [ ] Chain authorization gate (Step 2) completed before Step 3; both
       completion condition and stop-work condition stated and confirmed
 - [ ] `/lrh-implement`'s own Step 4 plan-confirm gate was satisfied by the

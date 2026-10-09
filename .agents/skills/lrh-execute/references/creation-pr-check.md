@@ -197,9 +197,10 @@ No-PR form (zero or multiple qualifying PRs, or an inconclusive lookup):
 - Immediate next action: identify and land the prerequisite PR for `<WI-ID>`
 - Why: `<WI-ID>` is `<absent from origin/main | status: <status> on origin/main>`
   and `<no open PR verified to set it to status: proposed | N open PRs
-  qualify (list them) | the open-PR lookup failed or was truncated>`, so
-  execution cannot start. No PR is named because none could be verified as
-  the single prerequisite.
+  qualify (give only the count) | the open-PR lookup failed or was
+  truncated>`, so execution cannot start. No PR is named, linked, or listed
+  because none could be verified as the single prerequisite — for the
+  multiple-match case state only the count, never PR numbers or URLs.
 - After that: once the WI is `proposed` on `origin/main`, re-run
   `/lrh-execute <WI-ID>` (not actionable yet).
 
@@ -233,6 +234,22 @@ PRs qualify, so no single PR is named. Execution cannot start.
 After that: once the WI is proposed on origin/main, re-run /lrh-execute
 WI-LINGUISTICS-0014 (not actionable yet).
 <!-- worked-example:no-pr:end -->
+
+Input: the same WI, `status: resolved` on `origin/main`, but **no** open PR
+touches it (a conclusive lookup with zero qualifying PRs).
+
+<!-- worked-example:zero-match:start -->
+Immediate next action: identify and land the prerequisite PR for
+WI-LINGUISTICS-0014
+
+Why: `WI-LINGUISTICS-0014` is `status: resolved` on origin/main and no open
+PR was found that sets it to proposed, so nothing is waiting to land: it is
+already resolved and cannot be executed unless it is reopened first. No PR
+is named.
+
+After that: once the WI is proposed on origin/main, re-run /lrh-execute
+WI-LINGUISTICS-0014 (not actionable yet).
+<!-- worked-example:zero-match:end -->
 
 ---
 

@@ -91,7 +91,9 @@ class PrereqStopReportTest(unittest.TestCase):
         self.assertEqual(example.count("/lrh-execute"), 1)
         self.assertNotIn(FENCE, example)
 
-    def test_zero_or_multiple_matches_use_a_no_pr_form_that_names_no_pr(self) -> None:
+    def test_multiple_matches_use_a_no_pr_form_that_gives_only_the_count(
+        self,
+    ) -> None:
         example = _example(self.reference, "no-pr")
         parts = _split_parts(example)
         self.assertEqual(
@@ -100,9 +102,46 @@ class PrereqStopReportTest(unittest.TestCase):
         )
         self.assertNotIn("/lrh-land", example)
         self.assertNotIn("http", example)
+        self.assertNotIn("pull/", example)
+        self.assertIn("2 open PRs qualify", parts["Why"])
         self.assertIn("/lrh-execute WI-LINGUISTICS-0014", parts["After that"])
         self.assertIn("not actionable yet", parts["After that"])
         self.assertNotIn(FENCE, example)
+        # The template must not ask for the qualifying PRs to be listed: a
+        # list necessarily names them, contradicting "names no PR".
+        flat = _flatten(self.reference)
+        self.assertNotIn("(list them)", flat)
+        self.assertIn("give only the count", flat)
+        self.assertIn("never PR numbers or URLs", flat)
+
+    def test_zero_matches_use_a_distinct_no_pr_example_with_its_own_reason(
+        self,
+    ) -> None:
+        zero = _example(self.reference, "zero-match")
+        multi = _example(self.reference, "no-pr")
+        self.assertNotEqual(_flatten(zero), _flatten(multi))
+        parts = _split_parts(zero)
+        self.assertEqual(
+            parts["Immediate next action"],
+            "identify and land the prerequisite PR for WI-LINGUISTICS-0014",
+        )
+        self.assertIn("no open PR was found", parts["Why"])
+        self.assertIn("unless it is reopened first", parts["Why"])
+        self.assertNotIn("qualify", parts["Why"])
+        self.assertNotIn("/lrh-land", zero)
+        self.assertNotIn("http", zero)
+        self.assertIn("/lrh-execute WI-LINGUISTICS-0014", parts["After that"])
+        self.assertIn("not actionable yet", parts["After that"])
+        self.assertNotIn(FENCE, zero)
+
+    def test_checklist_allows_a_ws_report_to_name_every_verified_blocker(
+        self,
+    ) -> None:
+        checklist = _flatten(self.skill[self.skill.index("## Quality Checklist") :])
+        self.assertNotIn("named at most one PR", checklist)
+        self.assertIn("exactly one PR in the Immediate next action line", checklist)
+        self.assertIn("may additionally name each verified blocker in Why", checklist)
+        self.assertIn("never lists PRs, only a count", checklist)
 
     def test_execution_command_never_sits_in_a_code_block_or_next_step_heading(
         self,

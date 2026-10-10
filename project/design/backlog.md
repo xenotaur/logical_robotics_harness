@@ -2361,3 +2361,21 @@ would lock in choices the redesign should make together.
 **Constraints to keep:** every view must still work without scripts; colors must
 stay CVD-safe (never red versus green alone); filters must never hide an
 unfinished item that a shown item needs.
+
+---
+
+## LRH profiles: support `hybrid` and `local` profile modes
+
+**Noted:** 2026-10-09, while deciding PROP-LRH-PROFILES. Profiles are `global`
+mode only in v1: `meta init --profile X` writes `mode = "global"` explicitly,
+and a profile config without a `[workspace] mode` key already falls back to
+`global` (`src/lrh/meta/workspace.py:1064-1069`).
+
+**Deferred because:** v1 only needs isolated global Meta workspaces. A hybrid
+profile would need a local catalog root outside the profile directory, which
+conflicts with the self-contained, relocatable layout. A local profile is
+largely meaningless, since local mode is chosen by `.lrh/config.toml` discovery
+rather than a profile. Revisit if a real need appears.
+
+**Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
+(Decision 3); owner decision recorded in this session.

@@ -1,0 +1,226 @@
+---
+id: "PROP-LRH-PROFILES"
+type: "design_proposal"
+title: "LRH Profiles: Named, Isolated Meta and Console Configuration"
+status: "proposed"
+created_on: "2026-10-09"
+updated_on: "2026-10-09"
+implementation_status: "not_started"
+implemented_by: []
+evidence: []
+supersedes: []
+superseded_by: null
+related_design:
+- "docs/explanations/workspace-and-meta-model.md"
+- "docs/how-to/lrh-console-local-dogfood.md"
+- "project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md"
+- "project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md"
+---
+
+# LRH Profiles: named, isolated Meta and Console configuration
+
+## Summary
+
+Add a Chrome-style "profile" to LRH: a named, isolated set of Meta config,
+state and cache, plus its own LRH Console app config. A profile is selected by
+`LRH_PROFILE` or `--profile` for the `lrh` CLI, or `LRH_CONSOLE_PROFILE` or
+`--profile` for LRH Console (which passes `LRH_PROFILE` to its backend). One
+shared layout specification, implemented by a Python resolver and a small
+Rust path function checked by shared conformance fixtures, keeps them
+aligned. The `default` profile is today's layout, so nothing migrates.
+
+## Background / Motivation
+
+An installed LRH Console always reads one `config.json`
+(`apps/desktop/src-tauri/src/shell.rs:1064-1068`; identity fixed by
+`tauri.conf.json:4`). The backend it launches resolves one global Meta
+workspace from flags, `LRH_CONFIG`, `LRH_WORKSPACE`, local `.lrh/config.toml`
+discovery, then `$XDG_CONFIG_HOME/lrh/config.toml`
+(`src/lrh/meta/workspace.py:905-1004`, `1280-1298`; `src/lrh/serve.py:141`).
+The app's `Config` has no Meta field (`settings.rs:71-80`); Meta isolation
+comes only from the backend's environment. Users cannot keep two starting
+projects with different configs, and developers cannot try a new LRH
+installation against a fresh Meta directory.
+
+An existing developer override (`LRH_CONSOLE_*`, `shell.rs:37-47`) covers part
+of testing but has a hazard: `save_settings` writes the shared `config.json`
+before checking for the override (`shell.rs:1387` vs `1391`), so a Save during
+a test session overwrites the real configuration.
+
+## Prior Art Check
+
+### Duplication search
+- In-repo: No existing implementation found. "Profile" already means bootstrap
+  profile (`src/lrh/cli/main.py:344`), the chain-defaults profile, and
+  `AssistantProfile` (WI-LRH-ASSISTANTS-STAGE-2): naming collisions, not
+  duplicates.
+- Sibling repos: None identified (owner not asked beyond this session).
+- External libraries: None identified. Chrome/Firefox profiles are the model.
+- Recommendation: Proceed
+
+### Demand search
+- Work items: None found (hits for "profile" are unrelated).
+- Proposals: None found. Related context: PROP-LRH-CONSOLE-LOCAL-DOGFOOD.
+- Backlog: No matching entries checked beyond a text search.
+- Recommendation: No action
+
+## Design Decisions
+
+### Decision 1: Where a profile sits in resolution
+
+Options: above local discovery; replace only the global (XDG) tier; replace
+everything. **Chosen: a profile replaces only the global tier** (resolution
+step 7). Placing it higher would make `lrh meta` inside a repo ignore that
+repo's `.lrh/config.toml`. Because `serve` resolves from `cwd=project_root`,
+local discovery would defeat the app's isolation, so the app additionally sets
+`LRH_CONFIG` to the profile config (step 4).
+
+### Decision 2: Isolation mechanism
+
+Options: inject `XDG_*` into the child; LRH-resolved profile paths.
+**Chosen: LRH-resolved paths.** `XDG_CONFIG_HOME` is also how `git` and `gh`
+find global config, so injecting it would break them for the `serve` child.
+
+### Decision 3: Shared resolver and self-contained profile layout
+
+A new `lrh.meta.profiles` module: `resolve_profile(name, environ)` returns
+config path, state dir, cache dir and templates dir. `default` returns today's
+XDG paths unchanged.
+
+Other profiles are one self-contained, relocatable directory:
+
+```
+<profiles root>/<name>/
+  config.toml    # all paths relative: state_dir = "state", cache_dir = "cache",
+                 # catalog_root = ".", projects_dir = "projects"
+  state/  cache/  templates/  projects/
+```
+
+`<profiles root>` is `$XDG_DATA_HOME/lrh/profiles` (default
+`~/.local/share/lrh/profiles`). This is a low-stakes choice made in the
+proposal and easy to change before implementation.
+
+Options considered: three XDG roots (config/state/cache) per profile, or one
+self-contained directory. **Chosen: the self-contained directory.**
+`_configured_path` already resolves relative paths against the config file's
+directory (`src/lrh/meta/workspace.py:1260-1263`), so the profile is
+relocatable: clone is a directory copy, backup is a tar, and later save/load
+commands need no path rewriting. With three XDG roots and explicit absolute
+paths, a copied profile would silently keep pointing at the source profile's
+state and cache, breaking isolation. The cost is losing XDG separation for
+non-default profiles; the `default` profile keeps it.
+
+The config must set `catalog_root` and `projects_dir` explicitly. Their
+defaults derive from the global state root (`workspace.py:1196-1207`), so an
+omitted key would share the global project registry. For a named profile the
+resolver therefore fills profile-scoped defaults for every workspace path
+key (`config_dir`, `catalog_root`, `projects_dir`, `state_dir`, `cache_dir`)
+and rejects a profile config whose paths resolve outside the profile
+directory, so a partial or hand-edited config cannot silently reuse the
+`default` profile's mutable data.
+
+Names match `[a-z0-9][a-z0-9_-]{0,31}`; `default` is reserved. Profiles are
+`global` mode only in v1; `meta init --profile X` writes `mode = "global"`
+explicitly. Without a `[workspace] mode` key the mode falls back to `global`
+for any path not under `.lrh/` (`workspace.py:1064-1069`), so this is
+consistent.
+
+### Decision 4: Selection surface
+
+`LRH_PROFILE` and `--profile` on `lrh meta` and `lrh serve` only; bootstrap's
+`--profile` is untouched. The shorter name was chosen deliberately: there is a
+single known user today, and the other "profile" meanings are disambiguated in
+the docs. No persisted "active profile" in v1: one source of truth, always
+explicit.
+
+### Decision 5: Console app
+
+`--profile` or `LRH_CONSOLE_PROFILE` selects a named profile. The `default`
+profile, and no selection at all, keep today's locations exactly: the existing
+`app_config_dir()/config.json` and the default webview store. Only a
+non-default profile uses `app_config_dir()/profiles/<name>/config.json` and
+its own store. `launch_config` (`settings.rs:190-214`) adds `LRH_PROFILE` and
+`LRH_CONFIG` to the child. The webview store uses a deterministic
+`data_store_identifier` derived from the name (macOS >= 14; Tauri 2.12
+`webview_window.rs:1199`), and the profile name appears in the window title.
+
+**Cross-language contract.** The Console picks its config store in Rust before
+it starts the Python backend, so it cannot call `lrh.meta.profiles`. The
+profile layout (Decision 3) is therefore a documented, language-neutral
+specification. Python implements the full resolver; Rust implements only the
+small path function it needs (name validation, app config path, `LRH_CONFIG`
+path). A shared JSON fixture of names and expected paths is checked by both
+test suites, so the two cannot drift. The Python backend resolves everything
+else from `LRH_PROFILE`. A second profile launches with
+`open -n -a "LRH Console" --args --profile X` (no single-instance plugin,
+`Cargo.toml:17-20`). Webview-store isolation and the `open -n` launch are
+untested, so the Console stage starts with a short manual spike on macOS 14+
+and treats isolation as best-effort until verified.
+
+### Decision 6: New profiles start empty; copy, save and load are deferred
+
+Inheriting would silently copy a project registry pointing at real checkouts.
+`--from <profile>` and save/load (export/import) commands are out of v1: the
+relocatable layout (Decision 3) makes a directory copy a safe interim clone,
+and the commands become a thin later wrapper that must exclude `state/`
+(logs, chats, secrets) and `cache/` by default. Console `config.json` holds
+absolute program and workspace paths, so it is not part of a profile copy.
+
+### Decision 7: Assist templates are per-profile
+
+Templates resolve from the profile's `templates/` directory
+(`src/lrh/assist/template_resolver.py:210`). Under `default` this is today's
+`$XDG_CONFIG_HOME/lrh/templates`, so current users see no change.
+
+### Decision 8: Fix the Save hazard first
+
+In env-override mode Save must not write the shared file. Independently
+valuable and shippable first.
+
+## Non-Goals
+
+- Does not change bootstrap or chain-defaults "profile" behavior.
+- Does not add a persisted active profile, an in-app profile picker, or
+  `lrh profile list/create/use` commands in v1.
+- Does not migrate existing config; `default` is unchanged.
+- Does not support `hybrid` or `local` profiles in v1 (backlog).
+- Does not add `--from`, save, or load commands in v1 (Decision 6).
+- Does not isolate anything via global `XDG_*` overrides.
+
+## Implementation Plan
+
+Multi-PR; to be governed by the planned workstream `WS-LRH-PROFILES`
+(proposed in PR #815; not yet merged). Proposed order:
+
+1. Fix `save_settings` in env-override mode (first, standalone).
+2. `lrh.meta.profiles` resolver plus tests.
+3. Wire the resolver into `resolve_meta_workspace`, `meta init`, `serve`, and
+   the assist template resolver; update help text and release-smoke
+   sanitising.
+4. Console: a short macOS spike (webview-store isolation, `open -n`), then
+   per-profile app config dir, child env, window title, webview store.
+5. Docs: how-to, plus the naming disambiguation.
+
+## Decisions Recorded
+
+Resolved with the owner after the first draft:
+
+- Flag and env name: `--profile` / `LRH_PROFILE`.
+- Assist templates: per-profile.
+- Copy, save and load: deferred; relocatable layout instead (Decision 3).
+- Save-hazard fix: its own first work item.
+- Profile mode: `global` only in v1; other modes are a backlog item.
+- Webview isolation and `open -n`: a short spike opens the Console stage.
+- The proposal stays `proposed` at merge; adoption is a separate decision.
+
+## Open Questions
+
+- Does WKWebView actually isolate stores by `data_store_identifier`, and does
+  `open -n` behave as expected? Both untested (resolved by the spike).
+- Is `$XDG_DATA_HOME/lrh/profiles` the right root for the profiles directory?
+
+## Cross-References
+
+- `docs/how-to/lrh-console-local-dogfood.md`
+- `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
+- `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`

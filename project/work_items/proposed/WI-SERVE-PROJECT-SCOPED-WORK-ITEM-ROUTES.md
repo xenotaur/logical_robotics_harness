@@ -33,8 +33,8 @@ forbidden_actions:
 acceptance:
 - "On /project/<id>/work-items/<wi> and /project/<id>/work-items/<wi>/prompt, every prompt-download link targets the selected project, and following it returns that project's generated prompt Markdown, never the served project's."
 - "The /project/<id>/work-items/<wi>/prompt preview page's navigation links stay in the named project: Back to workbench and Back to viewer context point at /project/<id>/work-items/<wi> and /project/<id>, not /workbench or /#work-item-<wi>."
-- "A registered project whose bound checkout path no longer exists returns the framed 409 no-local-checkout page on the dependency-map, work-item detail, and work-item prompt HTML routes, and the no_local_checkout JSON error on /api/project/<id>/dependency-maps/<view>, with the lrh meta set <name> --local-repo-path PATH command, instead of 200 'No dependency-map views' or a bare JSON 404."
-- "HEAD on /project/<id>/work-items/<wi> and .../prompt returns the same status as GET, including 404 and 409 selector errors."
+- "A registered project whose bound checkout path no longer exists returns the framed 409 no-local-checkout page on the dependency-map, work-item detail, and work-item prompt HTML routes, and the no_local_checkout JSON error on /api/project/<id>/dependency-maps/<view>, with the lrh meta set <name> --local-repo-path PATH command and a message naming the missing path on both the HTML page and the JSON error, instead of 200 'No dependency-map views' or a bare JSON 404."
+- "HEAD on /project/<id>/work-items/<wi> and .../prompt returns the same status and content type as GET, including 404 and 409 selector errors, and HEAD on the dependency-map routes returns 409 for a missing bound checkout, as GET does."
 - "test_project_routes_serve_the_served_projects_own_selectors asserts route-specific content instead of assertTrue(a or b)."
 - "docs/reference/cli/serve.md describes the project-scoped download and the missing-checkout behavior."
 required_evidence:
@@ -138,11 +138,21 @@ stop-work gate.
 
    Leave `/workbench/...` routes, their pages' links, and
    `/api/workbench/...` payloads unchanged for the served-project workbench.
-2. In `_config_for_project_selector`, when the registry resolves a project path
-   whose checkout does not exist, raise the 409 `no_local_checkout`
-   `ProjectSelectorError` with the `lrh meta set <name> --local-repo-path PATH`
-   next action. The message should say the bound checkout path is missing.
-   Keep the existing behavior for existing paths and for `main`.
+2. In `_config_for_project_selector`, when the registry resolves a repo path
+   (`selection.resolved_repo_path`) that does not exist, raise the 409
+   `no_local_checkout` `ProjectSelectorError` with the
+   `lrh meta set <name> --local-repo-path PATH` next action and a message
+   that names the missing path.
+   - Test the repo path, not `resolved_project_path`. A record without
+     `project_dir` resolves to `<repo>/project`, so testing that path would
+     report "No local checkout" for a repo that exists but has no `project/`
+     directory. That case is a Non-Goal.
+   - Update `render_project_selector_error_page` so the no-checkout page shows
+     `error.message` with the bind command, instead of its fixed "has no local
+     checkout" sentence. That way the missing-path wording reaches the HTML
+     page, not only the JSON error. The existing never-bound case keeps a
+     message that reads correctly on the page.
+   - Keep the existing behavior for existing paths and for `main`.
 3. Add HEAD handling for `/project/<id>/work-items/<wi>` and `.../prompt` that
    returns the same status and content type as GET.
 4. Replace `assertTrue("WI-A" in body or "dependency-maps/main" in body)` in
@@ -154,7 +164,8 @@ stop-work gate.
      `/project/<id>/...`, and the `/workbench/prompt` page keeps its existing
      links;
    - a registry record bound to a nonexistent path returns 409 on the HTML,
-     JSON, and HEAD routes;
+     JSON, and HEAD routes, and the HTML page and JSON message name the
+     missing path;
    - HEAD on the work-item routes matches GET for 200, 404, and 409.
 6. Update the "Project selectors" section of `docs/reference/cli/serve.md`.
 
@@ -167,6 +178,8 @@ stop-work gate.
   their existing 404 behavior. The missing-checkout 409 applies only to
   routes that go through `_config_for_project_selector`.
 - No change to how the Meta registry resolves or stores checkout bindings.
+- No new handling for a bound repo that exists but has no project directory.
+  It keeps today's behavior.
 - No deduplication of the registry read on HEAD; it is harmless.
 
 ## Acceptance Criteria
@@ -179,8 +192,11 @@ stop-work gate.
   - the framed 409 page from the HTML routes;
   - the `no_local_checkout` JSON error from the API route.
 
-  Both carry the `lrh meta set` command.
-- HEAD on the work-item routes matches GET's status.
+  Both carry the `lrh meta set` command and a message naming the missing
+  path. The check tests the bound repo path.
+- HEAD on the work-item routes matches GET's status and content type,
+  including 404 and 409. HEAD on the dependency-map routes returns 409 for a
+  missing bound checkout.
 - The served-selectors test asserts route-specific content.
 - `docs/reference/cli/serve.md` documents the download and missing-checkout
   behavior.

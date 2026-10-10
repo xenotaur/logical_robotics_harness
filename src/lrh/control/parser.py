@@ -8,6 +8,10 @@ from typing import Any
 
 import yaml
 
+# PyYAML's libyaml-backed loader is several times faster. It is optional, so
+# fall back to the pure-Python loader when PyYAML was built without libyaml.
+_FAST_SAFE_LOADER: type = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
 
 @dataclass(frozen=True)
 class ParsedMarkdown:
@@ -76,11 +80,28 @@ def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
     return frontmatter_text, body
 
 
+def safe_load_fast(text: str) -> Any:
+    """``yaml.safe_load`` through libyaml when available.
+
+    On a syntax error the text is parsed again with the pure-Python loader,
+    so the exception (and every message built from it) is exactly the one
+    ``yaml.safe_load`` raises. Errors are rare, so the second parse costs
+    little.
+    """
+
+    try:
+        return yaml.load(text, Loader=_FAST_SAFE_LOADER)  # noqa: S506 (safe loader)
+    except yaml.YAMLError:
+        if _FAST_SAFE_LOADER is yaml.SafeLoader:
+            raise
+        return yaml.safe_load(text)
+
+
 def load_yaml_document(text: str) -> Any:
     """Parse a YAML document, wrapping syntax errors as ``ValueError``."""
 
     try:
-        return yaml.safe_load(text)
+        return safe_load_fast(text)
     except yaml.YAMLError as exc:
         raise ValueError(f"invalid YAML in frontmatter: {exc}") from exc
 

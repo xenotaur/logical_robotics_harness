@@ -300,6 +300,55 @@
     }
   }
 
+  // ----- Loading indication for slow navigations -----
+
+  // Same-origin page loads can take a moment while the server reads project
+  // files. After a short delay, dim the page and say it is loading, so a slow
+  // click never looks like a stalled app. Links that open elsewhere,
+  // downloads, and in-page selections never trigger it.
+  const LOADING_DELAY_MS = 300;
+
+  function setupLoading() {
+    const overlay = document.createElement("div");
+    overlay.className = "lrh-loading-overlay";
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    document.body.append(overlay);
+    let timer = null;
+
+    function clear() {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      root.classList.remove("lrh-loading");
+      overlay.textContent = "";
+    }
+
+    function start() {
+      clear();
+      timer = window.setTimeout(() => {
+        root.classList.add("lrh-loading");
+        overlay.textContent = "Loading…";
+      }, LOADING_DELAY_MS);
+    }
+
+    document.addEventListener("click", (event) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!link || link.hasAttribute("download")) return;
+      if (link.target && link.target !== "_self") return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.searchParams.has("download")) return;
+      const here = new URL(window.location.href);
+      if (url.pathname === here.pathname && url.search === here.search && url.hash) return;
+      start();
+    });
+    // Coming back through the history cache must not leave the page dimmed.
+    window.addEventListener("pageshow", clear);
+  }
+
   setupThemeSwitch();
   setupMap();
+  setupLoading();
 })();

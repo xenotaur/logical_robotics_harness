@@ -74,6 +74,22 @@ class InteractiveScriptTest(unittest.TestCase):
         )
         self.assertLess(body.index("map.focus("), body.index("restoringFocus = false;"))
 
+    def test_loading_shows_only_for_real_same_origin_navigations(self) -> None:
+        body = self.source.split("function setupLoading() {", 1)[1]
+        for guard in (
+            "event.defaultPrevented",
+            "event.metaKey || event.ctrlKey || event.shiftKey || event.altKey",
+            'link.hasAttribute("download")',
+            'link.target && link.target !== "_self"',
+            "url.origin !== window.location.origin",
+            'url.searchParams.has("download")',
+        ):
+            with self.subTest(guard=guard):
+                self.assertIn(guard, body)
+        self.assertIn("const LOADING_DELAY_MS = 300;", self.source)
+        self.assertIn('window.addEventListener("pageshow", clear);', body)
+        self.assertIn('overlay.setAttribute("role", "status");', body)
+
 
 if __name__ == "__main__":
     unittest.main()

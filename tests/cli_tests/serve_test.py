@@ -1236,6 +1236,25 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertNotIn("SECRET_TOKEN_VALUE", body)
         self.assertNotIn("do not list", body)
 
+    def test_cached_pages_show_control_file_edits_on_the_next_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            work_item = root / "project" / "work_items" / "active" / "WI-B.md"
+
+            _s, _t, before = self._read(base_url + "/project/main/work-items/WI-B")
+            _s, _t, again = self._read(base_url + "/project/main/work-items/WI-B")
+            work_item.write_text(
+                work_item.read_text().replace("title: Beta", "title: Renamed beta")
+            )
+            _s, _t, after = self._read(base_url + "/project/main/work-items/WI-B")
+
+        self.assertIn("Beta", before)
+        self.assertEqual(again, before.replace(*_rendered_times(before, again)))
+        self.assertNotIn("Renamed beta", before)
+        self.assertIn("Renamed beta", after)
+
     def test_project_api_returns_read_only_project_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -2565,6 +2584,14 @@ def _find_meta_project(
             if project["display_name"] == display_name:
                 return project
     raise AssertionError(f"project {display_name!r} not found in meta payload")
+
+
+def _rendered_times(first: str, second: str) -> tuple[str, str]:
+    """The frame's render-time stamps of two pages, which differ by design."""
+
+    pattern = re.compile(r"Rendered [0-9:]+ UTC")
+    a, b = pattern.search(first), pattern.search(second)
+    return (a.group(0) if a else "", b.group(0) if b else "")
 
 
 def _meta_lane(payload: dict, status: str) -> dict:

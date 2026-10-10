@@ -3,6 +3,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
+from lrh.control import parser
 from lrh.control.parser import parse_markdown_file, parse_markdown_text
 
 
@@ -110,6 +113,52 @@ Hello.
         )
         self.assertEqual(parsed.frontmatter["foo"], ["a", "b"])
         self.assertEqual(parsed.frontmatter["bar"], ["c"])
+
+
+_REPO_PROJECT = Path(__file__).resolve().parents[2] / "project"
+
+
+class TestFastSafeLoad(unittest.TestCase):
+    """libyaml parsing is an optimization only: results and errors are unchanged."""
+
+    def test_every_control_file_parses_the_same_as_safe_load(self) -> None:
+        files = sorted(_REPO_PROJECT.glob("**/*.md"))
+        self.assertGreater(len(files), 100)
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            if not text.startswith("---\n"):
+                continue
+            try:
+                frontmatter, _body = parser.split_frontmatter_and_body(text)
+            except ValueError:
+                continue
+            with self.subTest(path=str(path.relative_to(_REPO_PROJECT))):
+                try:
+                    expected = yaml.safe_load(frontmatter)
+                except yaml.YAMLError:
+                    continue
+                self.assertEqual(parser.safe_load_fast(frontmatter), expected)
+
+    def test_syntax_errors_keep_the_pure_python_message(self) -> None:
+        for text in ("title: [unclosed\n", "a: 1\n\tb: tab\n", "a: b: c\n"):
+            with self.subTest(text=text):
+                with self.assertRaises(yaml.YAMLError) as expected:
+                    yaml.safe_load(text)
+                with self.assertRaises(ValueError) as actual:
+                    parser.load_yaml_document(text)
+                self.assertEqual(
+                    str(actual.exception),
+                    f"invalid YAML in frontmatter: {expected.exception}",
+                )
+
+    def test_falls_back_without_libyaml(self) -> None:
+        original = parser._FAST_SAFE_LOADER
+        parser._FAST_SAFE_LOADER = yaml.SafeLoader
+        self.addCleanup(setattr, parser, "_FAST_SAFE_LOADER", original)
+
+        self.assertEqual(parser.safe_load_fast("a: [1, two]\n"), {"a": [1, "two"]})
+        with self.assertRaises(yaml.YAMLError):
+            parser.safe_load_fast("title: [unclosed\n")
 
 
 if __name__ == "__main__":

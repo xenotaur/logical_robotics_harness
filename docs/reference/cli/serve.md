@@ -39,6 +39,9 @@ lrh serve --desktop-protocol
     tab links. Escape closes it.
   - **Filters:** checkboxes by state on the map and table. A filter never hides
     an unfinished item that a shown item still needs.
+  - **Loading:** when a same-origin page takes longer than about 300 ms to
+    load, the page dims and a "Loading…" status appears. Links that open
+    elsewhere, downloads, and in-page selections never trigger it.
   - **Theme switch:** Light, Dark, and System in the top bar, remembered by the
     browser for that server address and applied before the page first paints.
     LRH Console's server gets a new port each time it starts, so the choice
@@ -64,6 +67,11 @@ lrh serve --desktop-protocol
 ## Current behavior and limitations
 
 - This command is intentionally safe-default and read-only.
+- The server caches each project's loaded state, validation results, and
+  dependency-map snapshots, and reuses them only while that project's
+  `project/` files are unchanged (same paths, sizes, modification times, and
+  inodes). Any edit, addition, deletion, or rename is picked up on the next
+  request. A cached dependency-map snapshot keeps the time it was built.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode. Its JSON includes the
   `theme`.

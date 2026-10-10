@@ -267,6 +267,18 @@ class TestProjectStateCache(unittest.TestCase):
                 self.assertEqual(self._get(), expected)
                 self.assertEqual(self._get(), expected, "and is cached again")
 
+    def test_changes_inside_a_symlinked_directory_invalidate(self) -> None:
+        with tempfile.TemporaryDirectory() as archive_dir:
+            archive = Path(archive_dir)
+            _write(archive / "RECORD.md", "one\n")
+            (self.project_dir / "archive").symlink_to(archive, target_is_directory=True)
+            # A link back up must not loop the walk.
+            (archive / "loop").symlink_to(self.project_dir, target_is_directory=True)
+            first = self._get()
+            self.assertEqual(self._get(), first)
+            _write(archive / "RECORD.md", "one, edited\n")
+            self.assertEqual(self._get(), first + 1)
+
     def test_errors_are_not_cached(self) -> None:
         def fail() -> int:
             raise ValueError("boom")

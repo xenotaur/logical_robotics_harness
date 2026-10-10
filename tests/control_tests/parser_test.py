@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from lrh.control import parser
+from lrh.control import frontmatter_lint, parser
 from lrh.control.parser import parse_markdown_file, parse_markdown_text
 
 
@@ -151,10 +151,38 @@ class TestFastSafeLoad(unittest.TestCase):
                     f"invalid YAML in frontmatter: {expected.exception}",
                 )
 
+    def test_text_the_loaders_disagree_on_matches_safe_load(self) -> None:
+        # libyaml accepts or parses each of these differently from the pure
+        # loader; found by fuzzing the two against each other.
+        for text in (
+            "a: b\t\n",
+            "status:\tactive\n",
+            "a: !\n",
+            "a: |#\n  x\n",
+            "a: >#\n",
+            "\ufeffa: 1\n",
+            "a: 1\r\nb: 2\r\n",
+            "a: x\x85b: y\n",
+            "a: x\u2028y\n",
+            "a: \udcff\n",
+        ):
+            with self.subTest(text=text):
+                try:
+                    expected = ("ok", yaml.safe_load(text))
+                except (yaml.YAMLError, ValueError) as error:
+                    expected = ("error", type(error), str(error))
+                try:
+                    actual = ("ok", parser.safe_load_fast(text))
+                except (yaml.YAMLError, ValueError) as error:
+                    actual = ("error", type(error), str(error))
+                self.assertEqual(actual, expected)
+
     def test_falls_back_without_libyaml(self) -> None:
         original = parser._FAST_SAFE_LOADER
         parser._FAST_SAFE_LOADER = yaml.SafeLoader
         self.addCleanup(setattr, parser, "_FAST_SAFE_LOADER", original)
+        # Lint memoizes scalar kinds; keep this loader's results out of it.
+        self.addCleanup(frontmatter_lint._resolved_kind.cache_clear)
 
         self.assertEqual(parser.safe_load_fast("a: [1, two]\n"), {"a": [1, "two"]})
         with self.assertRaises(yaml.YAMLError):

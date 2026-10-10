@@ -216,7 +216,19 @@ def control_fingerprint(project_dir: Path) -> str:
     digest = hashlib.sha256()
     root = str(project_dir)
     entries: list[tuple[str, int, int, int]] = []
-    for directory, dirnames, filenames in os.walk(root):
+    # The loader and validator read through symlinked directories, so the
+    # fingerprint follows them too, visiting each real directory once.
+    seen: set[tuple[int, int]] = set()
+    for directory, dirnames, filenames in os.walk(root, followlinks=True):
+        try:
+            info = os.stat(directory)
+        except OSError:
+            dirnames[:] = []
+            continue
+        if (info.st_dev, info.st_ino) in seen:
+            dirnames[:] = []
+            continue
+        seen.add((info.st_dev, info.st_ino))
         dirnames.sort()
         for name in filenames:
             path = os.path.join(directory, name)

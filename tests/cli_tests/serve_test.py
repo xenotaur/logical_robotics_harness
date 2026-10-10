@@ -1236,6 +1236,60 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertNotIn("SECRET_TOKEN_VALUE", body)
         self.assertNotIn("do not list", body)
 
+    def test_repeat_requests_reuse_cached_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            real = serve.core_state.control_validator.validate_project
+            calls: list[object] = []
+
+            def counting(*args: object, **kwargs: object) -> object:
+                calls.append(args)
+                return real(*args, **kwargs)
+
+            with unittest.mock.patch.object(
+                serve.core_state.control_validator, "validate_project", counting
+            ):
+                for _ in range(3):
+                    self._read(base_url + "/project/main/work-items/WI-B")
+                self.assertEqual(len(calls), 1)
+                work_item = root / "project" / "work_items" / "active" / "WI-B.md"
+                work_item.write_text(work_item.read_text() + "\nMore.\n")
+                self._read(base_url + "/project/main/work-items/WI-B")
+                self.assertEqual(len(calls), 2)
+
+    def test_cached_dependency_map_follows_edits_and_reads_head_fresh(self) -> None:
+        base_url = self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        api = base_url + "/api/project/main/dependency-maps/main"
+        work_item = root / "project" / "work_items" / "active" / "WI-A.md"
+
+        first = json.loads(self._read(api)[2])
+        work_item.write_text(
+            work_item.read_text().replace("title: Alpha", "title: Moved")
+        )
+        head = {"value": "head-one"}
+        with unittest.mock.patch.object(
+            serve.dependency_map_snapshot,
+            "project_identity",
+            lambda repo_root: serve.dependency_map_snapshot.ProjectIdentity(
+                name=repo_root.name, checkout_id="local:test", head=head["value"]
+            ),
+        ):
+            second = json.loads(self._read(api)[2])
+            head["value"] = "head-two"
+            third = json.loads(self._read(api)[2])
+
+        titles = {node["id"]: node["title"] for node in second["nodes"]}
+        self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
+        self.assertEqual(titles["WI-A"], "Moved")
+        self.assertEqual(second["generated_at"], third["generated_at"], "cached")
+        self.assertEqual(
+            (second["project"]["head"], third["project"]["head"]),
+            ("head-one", "head-two"),
+        )
+
     def test_cached_pages_show_control_file_edits_on_the_next_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

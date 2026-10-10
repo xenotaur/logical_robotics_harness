@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import hashlib
 import html
@@ -593,7 +594,8 @@ def _build_snapshot(
     """A dependency-map snapshot, cached while control files are unchanged.
 
     A cached snapshot keeps the ``generated_at`` time it was built at, which
-    is when its data was read.
+    is when its data was read. Its project identity (including git HEAD,
+    which can move without any control-file change) is read fresh each time.
     """
 
     try:
@@ -602,11 +604,17 @@ def _build_snapshot(
         # No control directory to fingerprint: build uncached, so the
         # snapshot reports the problem exactly as it always has.
         return dependency_map_snapshot.build_snapshot(repo_root, view_id)
-    return _STATE_CACHE.get(
+    snapshot = _STATE_CACHE.get(
         f"dependency-map:{view_id}",
         project_dir,
         lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
     )
+    identity = dependency_map_snapshot.project_identity(
+        dependency_map_snapshot.repository_root(repo_root)
+    )
+    if identity == snapshot.project:
+        return snapshot
+    return dataclasses.replace(snapshot, project=identity)
 
 
 def project_viewer_payload(config: ServeConfig) -> dict[str, Any]:

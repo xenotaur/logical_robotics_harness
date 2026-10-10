@@ -23,9 +23,11 @@ related_design:
 
 Add a Chrome-style "profile" to LRH: a named, isolated set of Meta config,
 state and cache, plus its own LRH Console app config. A profile is selected by
-`LRH_PROFILE` or `--profile`, resolved by one shared module that both the
-`lrh` CLI and LRH Console use. The `default` profile is today's layout, so
-nothing migrates.
+`LRH_PROFILE` or `--profile` for the `lrh` CLI, or `LRH_CONSOLE_PROFILE` or
+`--profile` for LRH Console (which passes `LRH_PROFILE` to its backend). One
+shared layout specification, implemented by a Python resolver and a small
+Rust path function checked by shared conformance fixtures, keeps them
+aligned. The `default` profile is today's layout, so nothing migrates.
 
 ## Background / Motivation
 
@@ -110,7 +112,12 @@ non-default profiles; the `default` profile keeps it.
 
 The config must set `catalog_root` and `projects_dir` explicitly. Their
 defaults derive from the global state root (`workspace.py:1196-1207`), so an
-omitted key would share the global project registry.
+omitted key would share the global project registry. For a named profile the
+resolver therefore fills profile-scoped defaults for every workspace path
+key (`config_dir`, `catalog_root`, `projects_dir`, `state_dir`, `cache_dir`)
+and rejects a profile config whose paths resolve outside the profile
+directory, so a partial or hand-edited config cannot silently reuse the
+`default` profile's mutable data.
 
 Names match `[a-z0-9][a-z0-9_-]{0,31}`; `default` is reserved. Profiles are
 `global` mode only in v1; `meta init --profile X` writes `mode = "global"`
@@ -128,12 +135,23 @@ explicit.
 
 ### Decision 5: Console app
 
-`--profile` or `LRH_CONSOLE_PROFILE` selects
-`app_config_dir()/profiles/<name>/config.json`. `launch_config`
-(`settings.rs:190-214`) adds `LRH_PROFILE` and `LRH_CONFIG` to the child. The
-webview store uses a deterministic `data_store_identifier` derived from the
-name (macOS >= 14; Tauri 2.12 `webview_window.rs:1199`), and the profile name
-appears in the window title. A second profile launches with
+`--profile` or `LRH_CONSOLE_PROFILE` selects a named profile. The `default`
+profile, and no selection at all, keep today's locations exactly: the existing
+`app_config_dir()/config.json` and the default webview store. Only a
+non-default profile uses `app_config_dir()/profiles/<name>/config.json` and
+its own store. `launch_config` (`settings.rs:190-214`) adds `LRH_PROFILE` and
+`LRH_CONFIG` to the child. The webview store uses a deterministic
+`data_store_identifier` derived from the name (macOS >= 14; Tauri 2.12
+`webview_window.rs:1199`), and the profile name appears in the window title.
+
+**Cross-language contract.** The Console picks its config store in Rust before
+it starts the Python backend, so it cannot call `lrh.meta.profiles`. The
+profile layout (Decision 3) is therefore a documented, language-neutral
+specification. Python implements the full resolver; Rust implements only the
+small path function it needs (name validation, app config path, `LRH_CONFIG`
+path). A shared JSON fixture of names and expected paths is checked by both
+test suites, so the two cannot drift. The Python backend resolves everything
+else from `LRH_PROFILE`. A second profile launches with
 `open -n -a "LRH Console" --args --profile X` (no single-instance plugin,
 `Cargo.toml:17-20`). Webview-store isolation and the `open -n` launch are
 untested, so the Console stage starts with a short manual spike on macOS 14+
@@ -171,7 +189,8 @@ valuable and shippable first.
 
 ## Implementation Plan
 
-Multi-PR; governed by workstream `WS-LRH-PROFILES`. Proposed order:
+Multi-PR; to be governed by the planned workstream `WS-LRH-PROFILES`
+(proposed in PR #815; not yet merged). Proposed order:
 
 1. Fix `save_settings` in env-override mode (first, standalone).
 2. `lrh.meta.profiles` resolver plus tests.

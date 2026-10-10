@@ -1,3 +1,4 @@
+import datetime
 import http.client
 import io
 import json
@@ -10,6 +11,7 @@ import struct
 import sys
 import tempfile
 import threading
+import types
 import unittest
 import unittest.mock
 import urllib.error
@@ -1277,6 +1279,17 @@ class TestLrhServeRoutes(unittest.TestCase):
             builds.append("build")
             return real_build(*args, **kwargs)
 
+        later = datetime.datetime(2030, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)
+
+        class _LaterDateTime(datetime.datetime):
+            @classmethod
+            def now(cls, tz: datetime.tzinfo | None = None) -> datetime.datetime:
+                return later if tz is not None else later.replace(tzinfo=None)
+
+        # Only serve's clock moves; the snapshot build keeps the real one.
+        later_clock = types.SimpleNamespace(**vars(datetime))
+        later_clock.datetime = _LaterDateTime
+
         with (
             unittest.mock.patch.object(
                 serve.dependency_map_snapshot,
@@ -1291,14 +1304,16 @@ class TestLrhServeRoutes(unittest.TestCase):
         ):
             second = json.loads(self._read(api)[2])
             head["value"] = "head-two"
-            third = json.loads(self._read(api)[2])
+            with unittest.mock.patch.object(serve, "datetime", later_clock):
+                third = json.loads(self._read(api)[2])
 
         titles = {node["id"]: node["title"] for node in second["nodes"]}
         self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
         self.assertEqual(titles["WI-A"], "Moved")
         self.assertEqual(builds, ["build"], "the third request is a cache hit")
-        # A cache hit is stamped like a fresh build, never with an old time.
-        self.assertGreaterEqual(third["generated_at"], second["generated_at"])
+        # A cache hit is stamped with the time it is served, like a fresh build.
+        self.assertEqual(third["generated_at"], "2030-01-02T03:04:05+00:00")
+        self.assertNotEqual(second["generated_at"], third["generated_at"])
         self.assertEqual(
             (second["project"]["head"], third["project"]["head"]),
             ("head-one", "head-two"),

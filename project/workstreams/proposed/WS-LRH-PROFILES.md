@@ -12,8 +12,6 @@ related_focus: []
 related_roadmap: []
 related_design:
 - "project/design/proposals/proposed/lrh-profiles/00_proposal.md"
-- "project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md"
-- "docs/how-to/lrh-console-local-dogfood.md"
 work_items: []
 execution_records: []
 evidence: []
@@ -33,6 +31,11 @@ Coordinate delivery of PROP-LRH-PROFILES: Chrome-style named profiles that give
 a user several isolated LRH setups, and give developers a fresh profile with a
 new Meta directory for testing a new installation. It spans the `lrh` CLI
 resolver and the LRH Console app, so the work needs sequencing across both.
+
+Related, not design inputs: the active workstream WS-LRH-CONSOLE-LOCAL-DOGFOOD
+(owner of the Console settings work this builds on) and the how-to
+`docs/how-to/lrh-console-local-dogfood.md` (the Console setup guide this
+changes).
 
 ## Scope
 

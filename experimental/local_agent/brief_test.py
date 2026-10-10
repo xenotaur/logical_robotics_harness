@@ -110,6 +110,11 @@ class ReadinessCheckTest(BriefTestBase):
                 check = brief.readiness_check(text, self.ctx)["readiness_check"]
                 self.assertEqual(check["status"], "agrees")
 
+    def test_repeated_agreeing_lines_are_duplicated(self) -> None:
+        text = f"## Summary\n{self.agreeing}\n\n{self.agreeing}\n"
+        check = brief.readiness_check(text, self.ctx)["readiness_check"]
+        self.assertEqual(check["status"], "duplicated")
+
     def test_agreeing_line_not_at_the_end_is_misplaced(self) -> None:
         text = f"{self.agreeing}\n\n## Summary\nmore text after it\n"
         check = brief.readiness_check(text, self.ctx)["readiness_check"]
@@ -135,7 +140,9 @@ class RunBriefTest(BriefTestBase):
         self.assertEqual(run["work_item_id"], "WI-T-1")
         self.assertEqual(run["prompt_version"], "brief_v1")
         self.assertEqual(run["readiness_check"]["status"], "agrees")
-        self.assertIn("## Readiness", self.adapter.requests[0].prompt)
+        prompt = self.adapter.requests[0].prompt
+        self.assertIn("Do not write a readiness section", prompt)
+        self.assertIn("[diagnostics]", prompt)
         self.assertIn("readiness agrees", ask.footer(self.store, run["run_id"]))
         self.assertIn("flagged runs: 0", ask.summarize(self.store))
 
@@ -145,6 +152,45 @@ class RunBriefTest(BriefTestBase):
         summary = ask.summarize(self.store)
         self.assertIn("runs: 2 (brief 2)", summary)
         self.assertIn("flagged runs: 2", summary)
+
+    def test_readiness_block_is_written_by_the_tool(self) -> None:
+        block = brief.readiness_block(self.ctx)
+        self.assertTrue(block.startswith("## Readiness (from LRH diagnostics)"))
+        self.assertIn(
+            f"- prompt_ready: {_yes_no(self.expected['prompt_ready'])}", block
+        )
+        self.assertIn(
+            f"- execution_ready: {_yes_no(self.expected['execution_ready'])}", block
+        )
+        self.assertIn("EXECUTION_READINESS_NOT_READY", block)
+        # The block never looks like the model's checked line.
+        check = brief.readiness_check(block, self.ctx)["readiness_check"]
+        self.assertEqual(check["status"], "missing")
+
+    def test_block_is_streamed_first_and_stored_before_the_answer(self) -> None:
+        streamed: list[str] = []
+        adapter = model.FakeModel(
+            [
+                model.ModelResponse(
+                    f"## Summary\nok\n\n{self.agreeing}\n", "stop", 1, 1, {}
+                )
+            ]
+        )
+        run_id = brief.run_brief(
+            store=self.store,
+            work_item="WI-T-1",
+            ctx=self.ctx,
+            adapter=adapter,
+            budgets=settings.Budgets(),
+            on_text=streamed.append,
+        )
+        block = brief.readiness_block(self.ctx)
+        self.assertEqual(streamed[0], block)
+        answer = self.store.read_json(run_id, "output.json")["answer"]
+        self.assertTrue(answer.startswith(block))
+        self.assertTrue(answer.endswith(self.agreeing + "\n"))
+        run = self.store.load_run(run_id)
+        self.assertEqual(run["readiness_check"]["status"], "agrees")
 
     def test_misplaced_brief_is_flagged(self) -> None:
         self._brief(f"{self.agreeing}\n## Summary\nafter\n")
@@ -187,6 +233,7 @@ class BriefCliTest(BriefTestBase):
         )
         self.assertEqual(code, 0, err)
         self.assertIn(self.agreeing, out)
+        self.assertTrue(out.startswith("## Readiness (from LRH diagnostics)"))
         self.assertIn("readiness agrees", err)
         store = recorder.Store(self.store_dir)
         (run_id,) = store.list_runs()

@@ -1,8 +1,10 @@
 """T1 brief: a work-item briefing preset built on T0 ``ask``.
 
 ``brief <WI-ID>`` is ``ask --wi <WI-ID>`` with a fixed briefing prompt. The
-model must end with one ``READINESS:`` line; it is compared with LRH's own
-readiness diagnostics, and a contradicting or missing line flags the run.
+readiness section is written by the tool from LRH's diagnostics, never by the
+model, so the briefing cannot misstate it. The model must still end with one
+``READINESS:`` line; it is compared with the diagnostics as an attention check,
+and a contradicting, missing, misplaced, or duplicated line flags the run.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ STATUS_CONTRADICTS = "contradicts"
 STATUS_MISSING = "missing"
 STATUS_UNAVAILABLE = "unavailable"
 STATUS_MISPLACED = "misplaced"
+STATUS_DUPLICATED = "duplicated"
 
 _READINESS_LINE = re.compile(
     r"READINESS:\s*prompt_ready=(?P<prompt>yes|no)\s+"
@@ -87,8 +90,9 @@ def readiness_check(text: str, ctx: ask.AskContext) -> dict[str, object]:
 
     Lines may be wrapped in light Markdown (bold, code, quote, list item) and
     end with a period. Any disagreeing line is ``contradicts``; none is
-    ``missing``; agreeing lines that are not the final non-blank line are
-    ``misplaced``. Without usable diagnostics the check is ``unavailable``.
+    ``missing``; more than one agreeing line is ``duplicated``; an agreeing
+    line that is not the final non-blank line is ``misplaced``. Without usable
+    diagnostics the check is ``unavailable``.
     Only the ``READINESS:`` line is checked, not the briefing's prose.
     """
     expected = expected_readiness(ctx)
@@ -101,6 +105,8 @@ def readiness_check(text: str, ctx: ask.AskContext) -> dict[str, object]:
         status = STATUS_MISSING
     elif any(claim != expected for claim in claims):
         status = STATUS_CONTRADICTS
+    elif len(claims) > 1:
+        status = STATUS_DUPLICATED
     elif not last_is_claim:
         status = STATUS_MISPLACED
     else:
@@ -121,6 +127,42 @@ def readiness_check(text: str, ctx: ask.AskContext) -> dict[str, object]:
             "mismatches": mismatches,
         }
     }
+
+
+def _yes_no(value: object) -> str:
+    return "yes" if value is True else "no" if value is False else "unknown"
+
+
+def readiness_block(ctx: ask.AskContext) -> str:
+    """The authoritative readiness section, written from LRH's diagnostics.
+
+    The model is told not to restate readiness; this block is shown and stored
+    in its place, so the briefing's readiness cannot contradict LRH.
+    """
+    diagnostics = ctx.diagnostics or {}
+    prompt = diagnostics.get("prompt_readiness")
+    execution = diagnostics.get("execution_readiness")
+    prompt = prompt if isinstance(prompt, dict) else {}
+    execution = execution if isinstance(execution, dict) else {}
+    lines = [
+        "## Readiness (from LRH diagnostics)",
+        "",
+        f"- prompt_ready: {_yes_no(prompt.get('prompt_ready'))}",
+    ]
+    for reason in prompt.get("blocking_reasons") or []:
+        lines.append(f"  - blocking: {reason}")
+    for warning in prompt.get("warnings") or []:
+        lines.append(f"  - warning: {warning}")
+    lines.append(f"- execution_ready: {_yes_no(execution.get('execution_ready'))}")
+    for issue in execution.get("issues") or []:
+        if isinstance(issue, dict):
+            lines.append(
+                f"  - {issue.get('severity')}: {issue.get('code')}: "
+                f"{issue.get('message')}"
+            )
+    if not diagnostics:
+        lines = ["## Readiness (from LRH diagnostics)", "", "- unavailable"]
+    return "\n".join(lines) + "\n\n"
 
 
 def run_brief(
@@ -144,4 +186,5 @@ def run_brief(
         prompt_version=PROMPT_VERSION,
         post_check=readiness_check,
         record={"work_item_id": work_item},
+        preamble=readiness_block(ctx),
     )

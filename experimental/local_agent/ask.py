@@ -377,6 +377,7 @@ def run_ask(
     prompt_version: str = PROMPT_VERSION,
     post_check: Callable[[str, AskContext], dict[str, object]] | None = None,
     record: dict[str, object] | None = None,
+    preamble: str = "",
 ) -> str:
     """Answer one question with one call; return the run id.
 
@@ -385,7 +386,9 @@ def run_ask(
 
     Presets such as T1 ``brief`` reuse this with their own ``kind``,
     ``prompt_version``, extra ``record`` fields, and a ``post_check`` whose
-    fields are stored with any non-empty answer.
+    fields are stored with any non-empty answer. A ``preamble`` (tool-written,
+    not model-written) is streamed before the model's text and stored at the
+    start of the answer; checks see only the model's text.
     """
     prompt = render_prompt(question, ctx, prompt_version)
     template_hash = hashlib.sha256(
@@ -425,7 +428,9 @@ def run_ask(
         # The owner has already seen streamed text; keep it for review.
         if streamed:
             store.write_json(
-                run_id, "output.json", {"answer": "".join(streamed), "partial": True}
+                run_id,
+                "output.json",
+                {"answer": preamble + "".join(streamed), "partial": True},
             )
 
     try:
@@ -449,6 +454,8 @@ def run_ask(
                 estimated_input_tokens=estimated,
             )
         store.append_event(run_id, "model_request", estimated_input_tokens=estimated)
+        if preamble and on_text is not None:
+            on_text(preamble)
         try:
             response = adapter.generate(
                 model.ModelRequest(
@@ -471,7 +478,7 @@ def run_ask(
             response.output_tokens is not None
             and response.output_tokens > budgets.max_output_tokens
         )
-        output: dict[str, object] = {"answer": response.text}
+        output: dict[str, object] = {"answer": preamble + response.text}
         if cut_off:
             # Stopped by the output limit: as incomplete as a broken stream.
             output["partial"] = True

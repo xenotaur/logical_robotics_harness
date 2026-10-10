@@ -36,9 +36,15 @@ experimental/local_agent/run log
 ```
 
 `brief <WI-ID>` is `ask --wi <WI-ID>` with a fixed briefing prompt
-(`prompts/brief_v1.md`). The briefing has five sections: Summary, Readiness,
-Scope and next steps, Dependencies and risks, and Open questions. It must end
-with one line:
+(`prompts/brief_v1.md`). The tool itself prints a **Readiness (from LRH
+diagnostics)** section first: prompt and execution readiness, with blocking
+reasons, warnings, and issues. It is stored at the start of the answer. The
+model never writes readiness, so its prose cannot contradict LRH.
+
+The model's briefing follows in four sections: Summary, Scope and next steps,
+Dependencies and risks, and Open questions. Claims cite `S<n>:L<a>-L<b>`, and
+anything taken from the diagnostics cites `[diagnostics]`. The briefing must
+end with exactly one line:
 
 ```text
 READINESS: prompt_ready=<yes|no> execution_ready=<yes|no>
@@ -52,10 +58,12 @@ records `readiness_check` with one of these statuses:
 - `contradicts`: any line disagrees
 - `missing`: no such line
 - `misplaced`: an agreeing line that is not the last line
+- `duplicated`: more than one agreeing line
 - `unavailable`: there are no diagnostics
 
 The footer shows the result, and `log` flags every status except `agrees` and
-`unavailable`. Only that line is checked, not the briefing's prose.
+`unavailable`. The line is an attention check. The readiness itself comes from
+the tool's section, not the model.
 
 `brief` takes the same options as `ask` (`--repo`, `--commit`,
 `--project-dir`, `--yes`, `--no-rate`, and the backend options), except

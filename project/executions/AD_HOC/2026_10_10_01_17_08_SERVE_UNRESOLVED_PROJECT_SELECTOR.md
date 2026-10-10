@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_01_17_08_SERVE_UNRESOLVED_PROJECT_SELECTOR
 prompt_id: PROMPT(AD_HOC:SERVE_UNRESOLVED_PROJECT_SELECTOR)[2026-10-10T00:27:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/813
-commit:
+commit: d9f5b1bd2c829e40b366421fecf4a2c83cd3a42a
 created_at: 2026-10-10T01:17:08+00:00
 agent: claude_app
 instruction_source: ad-hoc — fix lrh serve _config_for_project_selector falling back to the served project for registered no-checkout projects and unknown selectors
-session_transcript: pending
+session_transcript: claude-app:c94e499e-da6e-4e3f-a979-5876278e9f67
 ---
 # Summary
 

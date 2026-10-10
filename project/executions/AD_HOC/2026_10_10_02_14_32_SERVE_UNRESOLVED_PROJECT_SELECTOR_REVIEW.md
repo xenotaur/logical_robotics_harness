@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_02_14_32_SERVE_UNRESOLVED_PROJECT_SELECTOR_REVIEW
 prompt_id: PROMPT(AD_HOC:SERVE_UNRESOLVED_PROJECT_SELECTOR_REVIEW)[2026-10-10T02:09:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_01_17_08_SERVE_UNRESOLVED_PROJECT_SELECTOR
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/813
-commit:
+commit: d9f5b1bd2c829e40b366421fecf4a2c83cd3a42a
 created_at: 2026-10-10T02:14:32+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/813
-session_transcript: pending
+session_transcript: claude-app:c94e499e-da6e-4e3f-a979-5876278e9f67
 ---
 # Summary
 

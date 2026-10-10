@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_01_10_42_SERVE_UNRESOLVED_PROJECT_SELECTOR_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SERVE_UNRESOLVED_PROJECT_SELECTOR_SELFREVIEW)[2026-10-10T01:10:37+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/813
+commit: d9f5b1bd2c829e40b366421fecf4a2c83cd3a42a
 created_at: 2026-10-10T01:10:42+00:00
 agent: claude_app
 instruction_source: ad-hoc — diff-mode self-review of the lrh serve unresolved project-selector fix
-session_transcript: pending
+session_transcript: claude-app:c94e499e-da6e-4e3f-a979-5876278e9f67
 ---
 # Summary
 

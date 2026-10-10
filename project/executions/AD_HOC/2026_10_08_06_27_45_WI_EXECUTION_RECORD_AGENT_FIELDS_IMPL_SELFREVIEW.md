@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_06_27_45_WI_EXECUTION_RECORD_AGENT_FIELDS_IMPL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXECUTION_RECORD_AGENT_FIELDS_IMPL_SELFREVIEW)[2026-10-08T06:27:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/794
+commit: 7d2d73632a7c4b3db46e199118d3703a983b6f4d
 created_at: 2026-10-08T06:27:45+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXECUTION-RECORD-AGENT-FIELDS.md

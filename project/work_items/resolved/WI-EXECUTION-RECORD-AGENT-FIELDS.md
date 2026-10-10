@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented in PR #794 (commit 7d2d7363): optional --agent, --instruction-source, --session-transcript on record-execution and --agent, --instruction-source on update-execution, with safe YAML encoding and checked updates. Verdict: optionality is intentional, the missing CLI creation path was an oversight. Skill-text migration deferred to a follow-up work item.'
 blocked_reason: null
 blocked: false
 id: WI-EXECUTION-RECORD-AGENT-FIELDS
 title: Investigate agent/instruction_source/session_transcript gap in record-execution field population
 type: investigation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

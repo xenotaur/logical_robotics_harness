@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_00_07_55_CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS_CONFIRM
 prompt_id: PROMPT(AD_HOC:CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS_CONFIRM)[2026-10-10T00:07:38+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_09_23_52_44_CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS_CONFIRM
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/807
-commit:
+commit: 0fbb74a807c3a953f3188ff042f4a8156f4f1152
 created_at: 2026-10-10T00:07:55+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/807
-session_transcript: pending
+session_transcript: claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa
 ---
 
 # Summary

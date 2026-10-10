@@ -2,14 +2,14 @@
 execution_id: 2026_10_09_18_41_00_CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS_SELFREVIEW)[2026-10-09T18:40:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/807
+commit: 0fbb74a807c3a953f3188ff042f4a8156f4f1152
 created_at: 2026-10-09T18:41:00+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for the confirm-fixes CI-predicate empty-check-list fix"
-session_transcript: pending
+session_transcript: claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa
 ---
 
 # Summary

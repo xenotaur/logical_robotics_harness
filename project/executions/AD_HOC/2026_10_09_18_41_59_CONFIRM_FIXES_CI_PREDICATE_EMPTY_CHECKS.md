@@ -2,14 +2,14 @@
 execution_id: 2026_10_09_18_41_59_CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS
 prompt_id: PROMPT(AD_HOC:CONFIRM_FIXES_CI_PREDICATE_EMPTY_CHECKS)[2026-10-09T17:33:12+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/807
-commit:
+commit: 0fbb74a807c3a953f3188ff042f4a8156f4f1152
 created_at: 2026-10-09T18:41:59+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: fix false-green in /lrh-confirm-fixes check_ci_predicate when the gh pr checks list is empty right after a push; consider verifying headRefOid"
-session_transcript: pending
+session_transcript: claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa
 ---
 
 # Summary

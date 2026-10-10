@@ -32,7 +32,8 @@ forbidden_actions:
 - "deploy_remote_service"
 acceptance:
 - "On /project/<id>/work-items/<wi> and /project/<id>/work-items/<wi>/prompt, every prompt-download link targets the selected project, and following it returns that project's generated prompt Markdown, never the served project's."
-- "A registered project whose bound checkout path no longer exists returns the framed 409 no-local-checkout page on HTML routes and the no_local_checkout JSON error on /api/project/..., with the lrh meta set <name> --local-repo-path PATH command, instead of 200 'No dependency-map views' or a bare JSON 404."
+- "The /project/<id>/work-items/<wi>/prompt preview page's navigation links stay in the named project: Back to workbench and Back to viewer context point at /project/<id>/work-items/<wi> and /project/<id>, not /workbench or /#work-item-<wi>."
+- "A registered project whose bound checkout path no longer exists returns the framed 409 no-local-checkout page on the dependency-map, work-item detail, and work-item prompt HTML routes, and the no_local_checkout JSON error on /api/project/<id>/dependency-maps/<view>, with the lrh meta set <name> --local-repo-path PATH command, instead of 200 'No dependency-map views' or a bare JSON 404."
 - "HEAD on /project/<id>/work-items/<wi> and .../prompt returns the same status as GET, including 404 and 409 selector errors."
 - "test_project_routes_serve_the_served_projects_own_selectors asserts route-specific content instead of assertTrue(a or b)."
 - "docs/reference/cli/serve.md describes the project-scoped download and the missing-checkout behavior."
@@ -52,7 +53,8 @@ artifacts_expected:
 PR #813 stopped `/project/<id>/` routes from showing the served project's data
 under another project's name. Three gaps remain on the same routes:
 
-- the work-item pages' prompt-download links still target the served project;
+- the work-item pages' prompt-download links, and the prompt preview page's
+  navigation links, still target the served project;
 - a registered project whose bound checkout has moved or been deleted gets a
   misleading page instead of the framed "No local checkout" error;
 - the work-item routes have no HEAD handler.
@@ -76,8 +78,13 @@ stop-work gate.
    `_write_workbench_artifact` (`src/lrh/serve.py:3874`) renders those routes
    with the served `config`. On project Alpha's page, either download returns
    the served project's prompt for the same work-item ID, or a 404. This is the
-   PR #813 bug class: one project's data under another project's name.
-2. **Missing bound checkout.** `_config_for_project_selector` returns a
+   PR #813 bug class: one project's data under another project's name. The
+   same preview page's "Back to workbench" (`/workbench`) and "Back to viewer
+   context" (`/#work-item-<wi>`) links (`src/lrh/serve.py:2215-2216`) also
+   take the user out of the named project and back into the served
+   project's pages.
+2. **Missing bound checkout.** On the routes that use it (dependency maps,
+   work-item detail, and work-item prompt), `_config_for_project_selector` returns a
    `ServeConfig` whenever the registry resolves a path, without checking that
    the path exists. If that checkout was moved or deleted:
    - `/project/<id>/dependency-maps` returns 200 "No dependency-map views";
@@ -105,9 +112,10 @@ stop-work gate.
 ## Scope
 
 - The project-scoped prompt download for the work-item detail page and the
-  prompt preview page.
-- Missing-checkout detection in `_config_for_project_selector`, on every route
-  that uses it.
+  prompt preview page, and the preview page's navigation links.
+- Missing-checkout detection in `_config_for_project_selector`, on the routes
+  that use it: dependency maps (HTML, JSON API, and HEAD), work-item detail,
+  and work-item prompt.
 - HEAD parity for `/project/<id>/work-items/<wi>` and `.../prompt`.
 - Tightening the one loose served-selectors test assertion.
 - Updating the serve reference docs.
@@ -122,8 +130,14 @@ stop-work gate.
    - the "Download Markdown" link on the preview page rendered for
      `/project/<id>/work-items/<wi>/prompt`.
 
-   Leave `/workbench/...` routes and `/api/workbench/...` payloads unchanged
-   for the served-project workbench.
+   When `render_workbench_artifact_page` renders for a project-scoped route,
+   point its "Back to workbench" link at `/project/<id>/work-items/<wi>` and
+   its "Back to viewer context" link at `/project/<id>`. For example, pass
+   project-scoped hrefs in from the caller instead of hard-coding the
+   served-project links.
+
+   Leave `/workbench/...` routes, their pages' links, and
+   `/api/workbench/...` payloads unchanged for the served-project workbench.
 2. In `_config_for_project_selector`, when the registry resolves a project path
    whose checkout does not exist, raise the 409 `no_local_checkout`
    `ProjectSelectorError` with the `lrh meta set <name> --local-repo-path PATH`
@@ -136,6 +150,9 @@ stop-work gate.
    per-route assertions.
 5. Add tests:
    - the download from a non-served project returns that project's prompt;
+   - the project-scoped preview page's navigation links point at
+     `/project/<id>/...`, and the `/workbench/prompt` page keeps its existing
+     links;
    - a registry record bound to a nonexistent path returns 409 on the HTML,
      JSON, and HEAD routes;
    - HEAD on the work-item routes matches GET for 200, 404, and 409.
@@ -145,8 +162,10 @@ stop-work gate.
 
 - No changes to `/workbench/...` or `/api/workbench/...` behavior for the
   served project.
-- No changes to the dashboard, design, or workstream routes, which already
-  return 404 without falling back.
+- No changes to the dashboard (`/project/<id>`), design, or workstream routes.
+  They resolve projects through `_project_from_meta_selector` and keep
+  their existing 404 behavior. The missing-checkout 409 applies only to
+  routes that go through `_config_for_project_selector`.
 - No change to how the Meta registry resolves or stores checkout bindings.
 - No deduplication of the registry read on HEAD; it is harmless.
 
@@ -154,7 +173,9 @@ stop-work gate.
 
 - Every prompt-download link on a `/project/<id>/work-items/...` page targets
   the selected project and returns that project's prompt.
-- A registered project with a missing bound checkout gets:
+- The prompt preview page's navigation links stay in `/project/<id>/...`.
+- On the dependency-map, work-item detail, and work-item prompt routes, a
+  registered project with a missing bound checkout gets:
   - the framed 409 page from the HTML routes;
   - the `no_local_checkout` JSON error from the API route.
 

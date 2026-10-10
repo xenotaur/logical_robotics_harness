@@ -25,8 +25,6 @@ from typing import Any
 
 import yaml
 
-from lrh.control import parser
-
 # Fields whose values are always expected to be strings (or lists of
 # strings). Used only by the implicit-non-string-type check -- a
 # deliberately conservative allow-list: a genuine string field missing from
@@ -345,7 +343,7 @@ def _resolved_kind(value_text: str) -> str:
     """
 
     try:
-        resolved: Any = parser.safe_load_fast(value_text)
+        resolved: Any = yaml.safe_load(value_text)
     except yaml.YAMLError:
         return "error"
     if resolved is None:

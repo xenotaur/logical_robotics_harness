@@ -1270,11 +1270,23 @@ class TestLrhServeRoutes(unittest.TestCase):
             work_item.read_text().replace("title: Alpha", "title: Moved")
         )
         head = {"value": "head-one"}
-        with unittest.mock.patch.object(
-            serve.dependency_map_snapshot,
-            "project_identity",
-            lambda repo_root: serve.dependency_map_snapshot.ProjectIdentity(
-                name=repo_root.name, checkout_id="local:test", head=head["value"]
+        real_build = serve.dependency_map_snapshot.build_snapshot
+        builds: list[str] = []
+
+        def counting_build(*args: object, **kwargs: object) -> object:
+            builds.append("build")
+            return real_build(*args, **kwargs)
+
+        with (
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot,
+                "project_identity",
+                lambda repo_root: serve.dependency_map_snapshot.ProjectIdentity(
+                    name=repo_root.name, checkout_id="local:test", head=head["value"]
+                ),
+            ),
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot, "build_snapshot", counting_build
             ),
         ):
             second = json.loads(self._read(api)[2])
@@ -1284,7 +1296,9 @@ class TestLrhServeRoutes(unittest.TestCase):
         titles = {node["id"]: node["title"] for node in second["nodes"]}
         self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
         self.assertEqual(titles["WI-A"], "Moved")
-        self.assertEqual(second["generated_at"], third["generated_at"], "cached")
+        self.assertEqual(builds, ["build"], "the third request is a cache hit")
+        # A cache hit is stamped like a fresh build, never with an old time.
+        self.assertGreaterEqual(third["generated_at"], second["generated_at"])
         self.assertEqual(
             (second["project"]["head"], third["project"]["head"]),
             ("head-one", "head-two"),

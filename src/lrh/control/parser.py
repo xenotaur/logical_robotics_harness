@@ -2,23 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
-
-# PyYAML's libyaml-backed loader is several times faster. It is optional, so
-# fall back to the pure-Python loader when PyYAML was built without libyaml.
-_FAST_SAFE_LOADER: type = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
-
-# Text libyaml and the pure-Python loader can disagree on, found by fuzzing:
-# libyaml accepts tabs and "|#" block headers that the pure loader rejects,
-# parses a bare "!" tag differently, and treats \r, NEL, the byte-order mark,
-# and Unicode line separators differently. Such text always takes the pure
-# loader, so results never depend on whether libyaml is installed.
-_PURE_ONLY = re.compile(r"[\t\r!\x85\ufeff\u2028\u2029]|[|>][-+0-9]*#")
 
 
 @dataclass(frozen=True)
@@ -88,29 +76,11 @@ def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
     return frontmatter_text, body
 
 
-def safe_load_fast(text: str) -> Any:
-    """Exactly ``yaml.safe_load``, through libyaml when that is safe.
-
-    Text the two loaders could disagree on (see ``_PURE_ONLY``) goes straight
-    to the pure-Python loader. On any error the text is parsed again with the
-    pure-Python loader, so the exception (and every message built from it) is
-    exactly the one ``yaml.safe_load`` raises. Errors are rare, so the second
-    parse costs little.
-    """
-
-    if _FAST_SAFE_LOADER is yaml.SafeLoader or _PURE_ONLY.search(text):
-        return yaml.safe_load(text)
-    try:
-        return yaml.load(text, Loader=_FAST_SAFE_LOADER)  # noqa: S506 (safe loader)
-    except (yaml.YAMLError, UnicodeEncodeError):
-        return yaml.safe_load(text)
-
-
 def load_yaml_document(text: str) -> Any:
     """Parse a YAML document, wrapping syntax errors as ``ValueError``."""
 
     try:
-        return safe_load_fast(text)
+        return yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ValueError(f"invalid YAML in frontmatter: {exc}") from exc
 

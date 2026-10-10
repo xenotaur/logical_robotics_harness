@@ -73,11 +73,9 @@ lrh serve --desktop-protocol
   inodes). Any edit, addition, deletion, or rename is picked up on the next
   request, including inside symlinked directories. An edit that keeps a file's
   size and lands within the same filesystem timestamp tick is not detected
-  until another change. A cached dependency-map snapshot keeps the time it was
-  built; its git HEAD is read fresh on every request.
-- YAML is parsed with PyYAML's libyaml loader when it is installed, except for
-  text the two loaders could disagree on, so results and messages never depend
-  on whether libyaml is present.
+  until another change. A cached dependency-map snapshot is
+  served with the current time and git HEAD, exactly as a fresh build would
+  be.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode. Its JSON includes the
   `theme`.

@@ -593,9 +593,10 @@ def _build_snapshot(
 ) -> dependency_map_snapshot.DependencyMapSnapshot:
     """A dependency-map snapshot, cached while control files are unchanged.
 
-    A cached snapshot keeps the ``generated_at`` time it was built at, which
-    is when its data was read. Its project identity (including git HEAD,
-    which can move without any control-file change) is read fresh each time.
+    A cache hit is served exactly as a fresh build would be: with the current
+    ``generated_at`` time (the fingerprint has just confirmed the data is
+    current) and a freshly read project identity, since git HEAD can move
+    without any control-file change.
     """
 
     try:
@@ -609,12 +610,13 @@ def _build_snapshot(
         project_dir,
         lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
     )
-    identity = dependency_map_snapshot.project_identity(
-        dependency_map_snapshot.repository_root(repo_root)
+    return dataclasses.replace(
+        snapshot,
+        generated_at=datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        project=dependency_map_snapshot.project_identity(
+            dependency_map_snapshot.repository_root(repo_root)
+        ),
     )
-    if identity == snapshot.project:
-        return snapshot
-    return dataclasses.replace(snapshot, project=identity)
 
 
 def project_viewer_payload(config: ServeConfig) -> dict[str, Any]:

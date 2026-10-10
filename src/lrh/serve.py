@@ -598,13 +598,26 @@ class WarmupResult:
     failures: tuple[str, ...]
 
 
-def _control_dir_key(root: Path) -> Path:
-    """The ``project/`` directory a root resolves to, for de-duplication."""
+def _control_dir_key(root: Path) -> Path | None:
+    """The real ``project/`` directory a root resolves to, or None if it has none.
+
+    Resolved, so a symlinked ``project/`` reached two ways is one key.
+    """
 
     try:
-        return control_loader.find_project_dir(root)
+        return control_loader.find_project_dir(root).resolve()
     except FileNotFoundError:
-        return root.resolve()
+        return None
+
+
+# Long YAML or validation errors stay readable on one stderr line.
+_WARMUP_MESSAGE_LIMIT = 300
+
+
+def _short(text: str) -> str:
+    if len(text) <= _WARMUP_MESSAGE_LIMIT:
+        return text
+    return text[: _WARMUP_MESSAGE_LIMIT - 1] + "…"
 
 
 def warm_caches(config: ServeConfig) -> WarmupResult:
@@ -639,7 +652,11 @@ def warm_caches(config: ServeConfig) -> WarmupResult:
     # repository root and through a nested project_dir.
     unique: dict[Path, Path] = {}
     for root in roots:
-        unique.setdefault(_control_dir_key(root), root)
+        key = _control_dir_key(root)
+        # A root with no control directory (a plain viewer directory, or a
+        # registered checkout without project/) has nothing to warm.
+        if key is not None:
+            unique.setdefault(key, root)
     plan: list[tuple[Path, Path | None, tuple[Path, ...]]] = []
     for root in unique.values():
         try:
@@ -664,14 +681,14 @@ def warm_caches(config: ServeConfig) -> WarmupResult:
             # Project, design, and workstream pages read the loaded project.
             _load_project(root)
         except (FileNotFoundError, OSError, ValueError) as err:
-            failures.append(f"{root}: {err}")
+            failures.append(_short(f"{root}: {err}"))
         if repo_root is None:
             continue
         for path in views:
             try:
                 _cached_snapshot(repo_root, path.stem)
             except Exception as err:  # noqa: BLE001 - one bad view must not stop
-                failures.append(f"{path}: {type(err).__name__}: {err}")
+                failures.append(_short(f"{path}: {type(err).__name__}: {err}"))
     return WarmupResult(projects=len(plan), failures=tuple(failures))
 
 
@@ -688,7 +705,9 @@ def start_cache_warmup(config: ServeConfig) -> threading.Thread:
         try:
             result = warm_caches(config)
         except Exception as err:  # noqa: BLE001 - warm-up is best effort
-            print(f"lrh serve: cache warm-up failed: {err}", file=sys.stderr)
+            print(
+                f"lrh serve: cache warm-up failed: {_short(str(err))}", file=sys.stderr
+            )
             return
         for failure in result.failures:
             print(f"lrh serve: cache warm-up skipped {failure}", file=sys.stderr)

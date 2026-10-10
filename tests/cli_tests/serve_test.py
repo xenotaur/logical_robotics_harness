@@ -1377,13 +1377,39 @@ class TestLrhServeRoutes(unittest.TestCase):
 
     def test_a_project_reached_two_ways_is_one_control_directory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = pathlib.Path(tmp_dir) / "real"
             _write_viewer_project(root)
+            link = pathlib.Path(tmp_dir) / "linked"
+            link.mkdir()
+            (link / "project").symlink_to(root / "project", target_is_directory=True)
 
-            self.assertEqual(
+            keys = {
                 serve._control_dir_key(root),
                 serve._control_dir_key(root / "project"),
-            )
+                serve._control_dir_key(link),
+            }
+
+        self.assertEqual(len(keys), 1)
+        self.assertNotIn(None, keys)
+
+    def test_a_directory_without_project_files_warms_nothing_and_reports_nothing(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ):
+                result = serve.warm_caches(
+                    serve.ServeConfig(project_root=pathlib.Path(tmp_dir))
+                )
+
+        self.assertEqual(result, serve.WarmupResult(projects=0, failures=()))
+
+    def test_warm_up_messages_are_kept_to_one_short_line(self) -> None:
+        self.assertEqual(serve._short("x" * 10), "x" * 10)
+        self.assertEqual(len(serve._short("y" * 5000)), serve._WARMUP_MESSAGE_LIMIT)
+        self.assertTrue(serve._short("y" * 5000).endswith("…"))
 
     def test_warm_up_failures_go_to_stderr_and_never_raise(self) -> None:
         with (

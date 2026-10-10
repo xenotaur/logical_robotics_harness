@@ -460,9 +460,13 @@ the resulting `HEAD`, not the pre-push commit (Step 8).
 
 Re-fetch CI against the post-push `HEAD` SHA — including this first read,
 through `check_ci_predicate` from `references/confirm-fixes-workflow.md`
-§ Bounded background-poll wait, never a bare `gh pr checks` call:
+§ Bounded background-poll wait, never a bare `gh pr checks` call.
+`check_ci_predicate` is a shell function, not a command on `PATH`: paste its
+full definition from that section into the same shell first (a fresh shell
+without it exits `127`, which is none of the predicate's return codes):
 
 ```bash
+# check_ci_predicate() { ... }   # defined first, verbatim from the reference
 check_ci_predicate <pr-url> "$(git rev-parse HEAD)"
 ```
 

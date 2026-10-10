@@ -168,6 +168,7 @@ class ConfirmFixesStep8WiringTest(unittest.TestCase):
                     'check_ci_predicate <pr-url> "$(git rev-parse HEAD)"', step8
                 )
                 self.assertNotIn("gh pr checks <pr-url> --required", step8)
+                self.assertIn("is a shell function, not a command", step8)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ import shlex
 import socket
 import socketserver
 import sys
+import threading
+import time
 import urllib.parse
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -170,20 +172,22 @@ def dependency_map_payload(
 ) -> tuple[int, dict[str, object]]:
     """Answer ``/api/project/<project_id>/dependency-maps/<view>`` read-only.
 
-    Like the other ``/project/<project_id>/`` routes, a ``project_id`` that the
-    Meta registry cannot resolve to a local checkout falls back to the served
-    project. Returns the versioned snapshot JSON, 404 for a malformed path or
-    an unknown view, 422 for an invalid view declaration, or 500 if the
-    project's control files cannot be loaded.
+    Returns the versioned snapshot JSON, 404 for a malformed path, an unknown
+    project, or an unknown view, 409 for a registered project with no local
+    checkout, 422 for an invalid view declaration, or 500 if the project's
+    control files cannot be loaded.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
     if len(parts) != 3 or parts[1] != "dependency-maps":
         return 404, {"error": "not_found"}
     project_selector, _, view_id = parts
-    repo_root = _config_for_project_selector(
-        config, project_selector
-    ).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, project_selector
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status, error.to_payload()
     try:
         snapshot = _build_snapshot(repo_root, view_id)
     except FileNotFoundError:
@@ -204,12 +208,16 @@ def render_dependency_map_page(
     """Render a dependency-map view, or the project's list of views.
 
     Returns 404 for an unknown view, 422 for an invalid declaration, and 500
-    if the sources cannot be read; the last two render an explanatory page.
+    if the sources cannot be read; the last two render an explanatory page, as
+    do an unknown project (404) and a project with no local checkout (409).
     """
 
-    repo_root = _config_for_project_selector(
-        config, project_selector
-    ).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, project_selector
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status, render_project_selector_error_page(error)
     base = f"/project/{_url_quote(project_selector)}/dependency-maps"
     if view_id is None:
         return 200, _dependency_map_document(
@@ -306,7 +314,12 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
     if len(parts) != 3 or parts[1] != "dependency-maps":
         return 404
-    repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, parts[0]
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status
     try:
         _build_snapshot(repo_root, parts[2])
     except FileNotFoundError:
@@ -588,6 +601,159 @@ def _load_project(project_root: Path) -> control_models.ProjectState:
     )
 
 
+@dataclass(frozen=True)
+class WarmupResult:
+    """What one cache warm-up covered, and anything that failed."""
+
+    projects: int
+    failures: tuple[str, ...]
+
+
+def _control_dir_key(root: Path) -> Path | None:
+    """The real ``project/`` directory a root resolves to, or None if it has none.
+
+    Resolved, so a symlinked ``project/`` reached two ways is one key.
+    """
+
+    try:
+        return control_loader.find_project_dir(root).resolve()
+    except FileNotFoundError:
+        return None
+
+
+# Long YAML or validation errors stay readable on one stderr line.
+_WARMUP_MESSAGE_LIMIT = 300
+
+
+def _short(text: str) -> str:
+    if len(text) <= _WARMUP_MESSAGE_LIMIT:
+        return text
+    return text[: _WARMUP_MESSAGE_LIMIT - 1] + "…"
+
+
+def warm_caches(config: ServeConfig) -> WarmupResult:
+    """Fill the project-state cache the way the first page visits would.
+
+    Covers ``/meta``'s projects (core state), the served project, and, for
+    every project with a local checkout, its loaded control files and
+    dependency-map views. The cache is first sized for everything warmed, so
+    later entries never evict earlier ones. Errors for one project or view
+    never stop the others; they are returned for the caller to report.
+    """
+
+    roots: list[Path] = [config.resolved_project_root()]
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        loads = meta_workspace.list_registered_project_loads_in_workspace(workspace)
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ):
+        loads = ()
+    for result in loads:
+        if result.record is None:
+            continue
+        root = _registered_project_root(workspace, result)
+        if root is not None and root.exists():
+            roots.append(root)
+    # One entry per control directory: a project can be reached through its
+    # repository root and through a nested project_dir.
+    unique: dict[Path, Path] = {}
+    for root in roots:
+        key = _control_dir_key(root)
+        # A root with no control directory (a plain viewer directory, or a
+        # registered checkout without project/) has nothing to warm.
+        if key is not None:
+            unique.setdefault(key, root)
+    plan: list[tuple[Path, Path | None, tuple[Path, ...]]] = []
+    for root in unique.values():
+        try:
+            repo_root = dependency_map_snapshot.repository_root(root)
+            views = dependency_map_view.discover_views(repo_root)
+        except (OSError, ValueError):
+            plan.append((root, None, ()))
+            continue
+        plan.append((root, repo_root, views))
+    # Core state and loaded project per project, plus one snapshot per view;
+    # doubled so ordinary browsing never pushes warmed entries out.
+    _STATE_CACHE.reserve(2 * sum(2 + len(views) for _r, _rr, views in plan))
+
+    failures: list[str] = []
+    # Same order as a fresh LRH Console: the app opens on /meta first. A
+    # request racing the warm-up then waits on the same builds (single-flight)
+    # instead of competing with them.
+    meta_dashboard_payload(config)
+    project_viewer_payload(config)
+    for root, repo_root, views in plan:
+        try:
+            # Project, design, and workstream pages read the loaded project.
+            _load_project(root)
+        except (FileNotFoundError, OSError, ValueError) as err:
+            failures.append(_short(f"{root}: {err}"))
+        if repo_root is None:
+            continue
+        for path in views:
+            try:
+                _cached_snapshot(repo_root, path.stem)
+            except Exception as err:  # noqa: BLE001 - one bad view must not stop
+                failures.append(_short(f"{path}: {type(err).__name__}: {err}"))
+    return WarmupResult(projects=len(plan), failures=tuple(failures))
+
+
+def start_cache_warmup(config: ServeConfig) -> threading.Thread:
+    """Warm the cache on a daemon thread, so startup and requests never wait.
+
+    A request for a value the warm-up is still building waits for that build
+    (the cache is single-flight). Each failure goes to stderr, and the final
+    line says how many there were; responses never change.
+    """
+
+    def run() -> None:
+        started = time.perf_counter()
+        try:
+            result = warm_caches(config)
+        except Exception as err:  # noqa: BLE001 - warm-up is best effort
+            print(
+                f"lrh serve: cache warm-up failed: {_short(str(err))}", file=sys.stderr
+            )
+            return
+        for failure in result.failures:
+            print(f"lrh serve: cache warm-up skipped {failure}", file=sys.stderr)
+        elapsed = time.perf_counter() - started
+        problems = f", {len(result.failures)} item(s) failed" if result.failures else ""
+        print(
+            f"lrh serve: cache warmed for {result.projects} project(s) in "
+            f"{elapsed:.1f}s{problems}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    thread = threading.Thread(target=run, name="lrh-serve-warmup", daemon=True)
+    thread.start()
+    return thread
+
+
+def _cached_snapshot(
+    repo_root: Path, view_id: str
+) -> dependency_map_snapshot.DependencyMapSnapshot:
+    """The cached snapshot as built, before per-request time and HEAD."""
+
+    try:
+        project_dir = control_loader.find_project_dir(repo_root)
+    except FileNotFoundError:
+        # No control directory to fingerprint: build uncached, so the
+        # snapshot reports the problem exactly as it always has.
+        return dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    return _STATE_CACHE.get(
+        f"dependency-map:{view_id}",
+        project_dir,
+        lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
+    )
+
+
 def _build_snapshot(
     repo_root: Path, view_id: str
 ) -> dependency_map_snapshot.DependencyMapSnapshot:
@@ -599,17 +765,7 @@ def _build_snapshot(
     without any control-file change.
     """
 
-    try:
-        project_dir = control_loader.find_project_dir(repo_root)
-    except FileNotFoundError:
-        # No control directory to fingerprint: build uncached, so the
-        # snapshot reports the problem exactly as it always has.
-        return dependency_map_snapshot.build_snapshot(repo_root, view_id)
-    snapshot = _STATE_CACHE.get(
-        f"dependency-map:{view_id}",
-        project_dir,
-        lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
-    )
+    snapshot = _cached_snapshot(repo_root, view_id)
     return dataclasses.replace(
         snapshot,
         generated_at=datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
@@ -1409,9 +1565,7 @@ def _operational_card_from_load_result(
                 ),
             )
         )
-    project_root = _registered_project_control_root(workspace, record)
-    if inspect_result is not None and source_state in {"live", "missing_project"}:
-        project_root = inspect_result.resolved_project_path
+    project_root = _registered_project_root(workspace, result, inspect_result)
     should_load_project_payload = project_root is not None and source_state not in {
         "missing_repo",
         "needs_local_checkout",
@@ -1596,6 +1750,27 @@ def _diagnostics_for_source_state(
     if source_state == "missing_project":
         return ("PROJECT_CONTROL_DIR_NOT_FOUND",)
     return ("PROJECT_SOURCE_STATE_INACCESSIBLE",)
+
+
+_UNSET: Any = object()
+
+
+def _registered_project_root(
+    workspace: meta_workspace.MetaWorkspace,
+    result: meta_workspace.MetaProjectLoadResult,
+    inspect_result: meta_workspace.MetaInspectResult | None = _UNSET,
+) -> Path | None:
+    """The local project root ``/meta`` reads for one registry load result."""
+
+    if inspect_result is _UNSET:
+        inspect_result = _inspect_registered_project(workspace, result.registry_name)
+    if inspect_result is not None and _source_state_from_inspect_result(
+        inspect_result
+    ) in {"live", "missing_project"}:
+        return inspect_result.resolved_project_path
+    if result.record is None:
+        return None
+    return _registered_project_control_root(workspace, result.record)
 
 
 def _registered_project_control_root(
@@ -2246,6 +2421,9 @@ def render_project_work_item_page(
 
     try:
         scoped_config = _config_for_project_selector(config, project_id)
+    except ProjectSelectorError as error:
+        return error.status, render_project_selector_error_page(error)
+    try:
         state = core_state.load_core_project_state(
             scoped_config.resolved_project_root(), cache=_STATE_CACHE
         )
@@ -2313,34 +2491,179 @@ renderer.</p>
     return 200, page
 
 
+SERVED_PROJECT_SELECTOR = "main"
+
+
+class ProjectSelectorError(Exception):
+    """A ``/project/<project_id>/`` selector names no locally readable project.
+
+    ``status`` is 404 when nothing matches the selector, and 409 when it names
+    a registered project that has no local checkout to read.
+    """
+
+    def __init__(
+        self,
+        selector: str,
+        *,
+        status: int,
+        error: str,
+        message: str,
+        registry_name: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.selector = selector
+        self.status = status
+        self.error = error
+        self.message = message
+        self.registry_name = registry_name
+
+    @property
+    def next_action(self) -> str | None:
+        """The command that binds a local checkout, for a no-checkout error."""
+
+        if self.registry_name is None:
+            return None
+        return f"lrh meta set {shlex.quote(self.registry_name)} --local-repo-path PATH"
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the JSON error body the API routes send."""
+
+        payload: dict[str, object] = {
+            "error": self.error,
+            "project": self.selector,
+            "message": self.message,
+        }
+        if self.next_action is not None:
+            payload["next_action"] = self.next_action
+        return payload
+
+
 def _config_for_project_selector(
     config: ServeConfig, project_selector: str
 ) -> ServeConfig:
-    """Return project-scoped config for a project selector when possible."""
+    """Return the config scoped to the project a selector names.
+
+    A selector the Meta registry resolves to a local checkout scopes to that
+    checkout. ``main``, the served project's own selector, falls back to the
+    served project only when no Meta workspace exists or the registry reads
+    cleanly and no record matches it. A registered project without a local
+    checkout raises a 409 ``ProjectSelectorError`` and anything else,
+    including an ambiguous selector or an unreadable registry, a 404, so a
+    page never shows the served project's data under another project's name.
+    """
 
     try:
         workspace = meta_workspace.resolve_meta_workspace(
             cwd=config.resolved_project_root()
         )
+    except (meta_workspace.MetaWorkspaceResolutionError, ValueError) as error:
+        if project_selector == SERVED_PROJECT_SELECTOR:
+            return config
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=f"No Meta registry is available to resolve {project_selector!r}.",
+        ) from error
+    except meta_workspace.MetaRegistryError as error:
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
+        ) from error
+    try:
         selection = meta_workspace.inspect_registered_project_in_workspace(
             workspace,
             selector=project_selector,
         )
-    except (
-        meta_workspace.MetaRegistryError,
-        meta_workspace.MetaWorkspaceResolutionError,
-        ValueError,
-    ):
-        return config
+    except (meta_workspace.MetaRegistryError, ValueError) as error:
+        if project_selector == SERVED_PROJECT_SELECTOR and _registry_has_no_match(
+            workspace, project_selector
+        ):
+            return config
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
+        ) from error
     resolved_path = selection.resolved_project_path
+    if (
+        resolved_path is None
+        and selection.resolved_repo_path is not None
+        and selection.record.project_dir is None
+    ):
+        # A record without project_dir keeps its control files in the
+        # conventional project/ directory, as _registered_project_control_root
+        # assumes for the dashboard.
+        resolved_path = selection.resolved_repo_path / "project"
     if resolved_path is None:
-        return config
+        registry_name = selection.record.registry_name
+        raise ProjectSelectorError(
+            project_selector,
+            status=409,
+            error="no_local_checkout",
+            message=(
+                f"Project {registry_name!r} is registered but has no local "
+                "checkout, so its project files cannot be read."
+            ),
+            registry_name=registry_name,
+        )
     return ServeConfig(
         host=config.host,
         port=config.port,
         project_root=resolved_path,
         allow_nonlocal_host=config.allow_nonlocal_host,
     )
+
+
+def _registry_has_no_match(
+    workspace: meta_workspace.MetaWorkspace, project_selector: str
+) -> bool:
+    """Return whether the registry reads cleanly and no record matches."""
+
+    try:
+        records = meta_workspace.list_registered_projects_in_workspace(workspace)
+    except meta_workspace.MetaRegistryError:
+        return False
+    return not any(
+        project_selector in (record.project_id, record.short_name, record.registry_name)
+        for record in records
+    )
+
+
+def render_project_selector_error_page(error: ProjectSelectorError) -> str:
+    """Render the page for a selector that names no locally readable project."""
+
+    selector = html.escape(error.selector)
+    if error.next_action is None:
+        title = "Project not found"
+        detail = (
+            f"<p>{html.escape(error.message)}</p>"
+            '<p><a href="/meta">Open the meta triage dashboard</a> to see the '
+            "registered projects.</p>"
+        )
+    else:
+        title = "No local checkout"
+        name = html.escape(error.registry_name or error.selector)
+        detail = (
+            f"<p>Project <code>{name}</code> is registered, but it has no local "
+            "checkout, so LRH cannot read its project files.</p>"
+            "<p>Bind a local checkout, then reload this page:</p>"
+            f"<p><code>{html.escape(error.next_action)}</code></p>"
+        )
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{html.escape(title)}</title>{_base_styles()}</head>
+<body>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header"><p class="lrh-eyebrow">{selector}</p>
+    <h1>{html.escape(title)}</h1>{detail}</header>
+  </div>
+</body>
+</html>
+"""
 
 
 def render_workbench_artifact(
@@ -3444,7 +3767,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                         parts[2] if len(parts) == 3 else None,
                         self._query_values(),
                     )
-                    if status_code == 404:
+                    if status_code == 404 and not body:
                         self._write_json(404, {"error": "not_found"})
                     else:
                         self._write_text(status_code, "text/html; charset=utf-8", body)
@@ -3471,8 +3794,8 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     status_code, body = render_project_work_item_page(
                         config, parts[0], parts[2]
                     )
-                    if status_code == 200:
-                        self._write_text(200, "text/html; charset=utf-8", body)
+                    if status_code == 200 or body.startswith("<!doctype html>"):
+                        self._write_text(status_code, "text/html; charset=utf-8", body)
                     else:
                         self._write_json(status_code, json.loads(body))
                     return
@@ -3483,6 +3806,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 ):
                     try:
                         scoped_config = _config_for_project_selector(config, parts[0])
+                    except ProjectSelectorError as error:
+                        self._write_text(
+                            error.status,
+                            "text/html; charset=utf-8",
+                            render_project_selector_error_page(error),
+                        )
+                        return
+                    try:
                         artifact = render_workbench_artifact(
                             scoped_config, "prompt", parts[2]
                         )
@@ -3565,6 +3896,11 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
                 if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    try:
+                        _config_for_project_selector(config, parts[0])
+                    except ProjectSelectorError as error:
+                        self._write_head(error.status, "text/html; charset=utf-8")
+                        return
                     status_code = (
                         dependency_map_head_status(config, remainder)
                         if len(parts) == 3
@@ -4057,11 +4393,21 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MIN_START_REQUEST_TIMEOUT_SECONDS:g} and "
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
+
     return desktop_protocol.run_desktop_protocol(
         lambda project_root: _desktop_server_factory(
             project_root, theme=args.theme, interactive=args.interactive
         ),
         start_request_timeout=timeout,
+        # Warm only after ready, so the self-check and ready never compete
+        # with it, and a failed startup never starts it.
+        on_ready=lambda project_root: start_cache_warmup(
+            ServeConfig(
+                project_root=project_root,
+                theme=args.theme,
+                interactive=args.interactive,
+            )
+        ),
     )
 
 
@@ -4091,6 +4437,7 @@ def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int
         "(read-only safe-default viewer)",
         flush=True,
     )
+    start_cache_warmup(config)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

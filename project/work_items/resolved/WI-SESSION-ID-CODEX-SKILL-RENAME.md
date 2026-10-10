@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #790 (commit 476868e2): renamed lrh-codex-session to lrh-session-id-codex, kept lrh-codex-session as a deprecated stub that hands off with the same arguments and cannot be auto-selected on Claude, Codex or Antigravity, and updated references, rendered copies and current-state lines in the planning docs.'
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ID-CODEX-SKILL-RENAME
 title: "Rename lrh-codex-session to lrh-session-id-codex, with a deprecated stub"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

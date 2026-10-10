@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented in PR #794 (commit 7d2d7363): optional --agent, --instruction-source, --session-transcript on record-execution and --agent, --instruction-source on update-execution, with safe YAML encoding and checked updates. Verdict: optionality is intentional, the missing CLI creation path was an oversight. Skill-text migration deferred to a follow-up work item.'
 blocked_reason: null
 blocked: false
 id: WI-EXECUTION-RECORD-AGENT-FIELDS
 title: Investigate agent/instruction_source/session_transcript gap in record-execution field population
 type: investigation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -120,7 +120,7 @@ follow.
 1. Read `project/design/proposals/proposed/lrh-execution-sessions/00_proposal.md`, `src/lrh/prompt_workflow.py`, `src/lrh/prompt_workflow_records.py`, and each skill reference that touches these three fields. `lrh-implement`, `lrh-work-item`, `lrh-review-response`, and `lrh-confirm-fixes` instruct a manual edit; `lrh-self-review` provides no fallback at all and must be assessed separately.
 2. Determine design intent: deliberate (e.g. a correct `agent`/`instruction_source` cannot be known CLI-side, or the proposal's manual-population allowance) or an oversight from when the schema grew after the CLI shipped.
 3. Record the verdict and rationale in this work item or its execution record.
-4. If a fix is warranted, add flags or defaults to `record-execution` (covering `session_transcript` as well) and/or extend `update-execution` in `src/lrh/prompt_workflow.py`, update `render_execution_content`, and update the skill references to stop instructing manual edits for fields the CLI now sets.
+4. If a fix is warranted, add flags or defaults to `record-execution` (covering `session_transcript` as well) and/or extend `update-execution` in `src/lrh/prompt_workflow.py`, and update `render_execution_content`. Migrating the skill references to pass the new flags (and stop instructing manual edits) is deferred to a separate follow-up work item, so that the large mechanical diff across `src/lrh/skills`, `.claude/skills`, and `.agents/skills` can be reviewed on its own; the existing skill instructions keep working because the flags are optional.
 5. If the CLI changes, update `PROMPTS.md` (the public `record-execution` command flow) and `project/executions/README.md` (the canonical frontmatter schema used by non-skill callers) to document the new path.
 6. Add or update tests covering any new or changed CLI behavior.
 
@@ -129,6 +129,7 @@ follow.
 - Do not make any LCATS-side change.
 - Do not change the existing `update-execution --session-transcript` path; only `agent`/`instruction_source` and creation-time defaults are in scope.
 - Do not retroactively backfill existing execution records in this repo.
+- Do not migrate the skills' execution-record instructions in this work item; that is the follow-up above. `lrh-self-review`, which never sets the three fields at all, is the first thing that follow-up should cover.
 
 ## Acceptance Criteria
 

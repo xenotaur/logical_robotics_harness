@@ -951,6 +951,195 @@ class TestLrhServeRoutes(unittest.TestCase):
                     self._head(base_url + path)
                 self.assertEqual(head_ctx.exception.code, code)
 
+    def _registered_selector_server(self) -> tuple[pathlib.Path, str]:
+        """Serve a dependency-map project inside a Meta workspace.
+
+        The workspace registers ``served`` (the served checkout itself) and
+        ``remote-only`` (a repo locator with no local checkout).
+        """
+
+        root, _base_url = self._dependency_map_server()
+        _write_local_meta_workspace(root)
+        _write_project_record(root, "served", str(root), display_name="Served")
+        _write_project_record(
+            root,
+            "remote-only",
+            "https://example.test/team/remote-only",
+            display_name="Remote Only",
+        )
+        _httpd, base_url = self._start_server(root)
+        return root, base_url
+
+    def _read_error(self, url: str, *, head: bool = False) -> tuple[int, str, str]:
+        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+            if head:
+                self._head(url)
+            else:
+                self._read(url)
+        error = err_ctx.exception
+        content_type = error.headers.get("Content-Type", "")
+        return error.code, content_type, error.read().decode("utf-8")
+
+    def test_project_routes_refuse_a_registered_project_without_a_checkout(
+        self,
+    ) -> None:
+        _root, base_url = self._registered_selector_server()
+
+        for route in (
+            "/project/remote-only/dependency-maps",
+            "/project/remote-only/dependency-maps/main",
+            "/project/remote-only/work-items/WI-A",
+            "/project/remote-only/work-items/WI-A/prompt",
+        ):
+            with self.subTest(route=route):
+                status, content_type, body = self._read_error(base_url + route)
+                self.assertEqual(status, 409)
+                self.assertIn("text/html", content_type)
+                self.assertIn("No local checkout", body)
+                self.assertIn("lrh meta set remote-only --local-repo-path PATH", body)
+                self.assertIn('<div class="lrh-frame">', body)
+                # Never the served project's data under another project's name.
+                self.assertNotIn("Alpha", body)
+                self.assertNotIn("<h1>Dependency maps</h1>", body)
+                self.assertNotIn("<title>Main</title>", body)
+        for route in (
+            "/project/remote-only/dependency-maps",
+            "/project/remote-only/dependency-maps/main",
+        ):
+            with self.subTest(head=route):
+                status, content_type, _body = self._read_error(
+                    base_url + route, head=True
+                )
+                self.assertEqual(status, 409)
+                self.assertIn("text/html", content_type)
+
+        api_url = base_url + "/api/project/remote-only/dependency-maps/main"
+        status, content_type, body = self._read_error(api_url)
+        self.assertEqual(status, 409)
+        self.assertIn("application/json", content_type)
+        self.assertEqual(
+            json.loads(body),
+            {
+                "error": "no_local_checkout",
+                "project": "remote-only",
+                "message": (
+                    "Project 'remote-only' is registered but has no local "
+                    "checkout, so its project files cannot be read."
+                ),
+                "next_action": "lrh meta set remote-only --local-repo-path PATH",
+            },
+        )
+        self.assertEqual(self._read_error(api_url, head=True)[0], 409)
+
+    def test_project_routes_return_404_for_an_unknown_selector(self) -> None:
+        _root, registered_url = self._registered_selector_server()
+        _root, unregistered_url = self._dependency_map_server()
+
+        for base_url in (registered_url, unregistered_url):
+            for route in (
+                "/project/nope/dependency-maps",
+                "/project/nope/dependency-maps/main",
+                "/project/nope/work-items/WI-A",
+                "/project/nope/work-items/WI-A/prompt",
+            ):
+                with self.subTest(base_url=base_url, route=route):
+                    status, content_type, body = self._read_error(base_url + route)
+                    self.assertEqual(status, 404)
+                    self.assertIn("text/html", content_type)
+                    self.assertIn("Project not found", body)
+                    self.assertNotIn("lrh meta set", body)
+            with self.subTest(base_url=base_url, head="dependency-maps"):
+                self.assertEqual(
+                    self._read_error(
+                        base_url + "/project/nope/dependency-maps/main", head=True
+                    )[0],
+                    404,
+                )
+            api_url = base_url + "/api/project/nope/dependency-maps/main"
+            status, content_type, body = self._read_error(api_url)
+            self.assertEqual(status, 404)
+            self.assertIn("application/json", content_type)
+            self.assertEqual(json.loads(body)["error"], "project_not_found")
+            self.assertIn("'nope'", json.loads(body)["message"])
+            self.assertEqual(self._read_error(api_url, head=True)[0], 404)
+
+    def test_main_does_not_fall_back_when_the_registry_cannot_decide(self) -> None:
+        root, base_url = self._registered_selector_server()
+        _write_project_record(
+            root, "main", "https://example.test/team/main", display_name="Main"
+        )
+        _write_project_record(
+            root, "other", "https://example.test/team/other", display_name="Other"
+        )
+        other_record = root / "projects" / "other" / "project.toml"
+        other_record.write_text(
+            other_record.read_text(encoding="utf-8").replace(
+                'project_id = "proj-other"', 'project_id = "main"'
+            ),
+            encoding="utf-8",
+        )
+
+        status, _content_type, body = self._read_error(
+            base_url + "/project/main/dependency-maps/main"
+        )
+        self.assertEqual(status, 404)
+        self.assertIn("ambiguous project selector", body)
+        status, _content_type, body = self._read_error(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+        self.assertEqual(status, 404)
+        self.assertIn("ambiguous project selector", json.loads(body)["message"])
+
+        shutil.rmtree(root / "projects" / "main")
+        shutil.rmtree(root / "projects" / "other")
+        _write(root / "projects" / "broken" / "project.toml", "not = [valid toml\n")
+        status, _content_type, body = self._read_error(
+            base_url + "/api/project/main/dependency-maps/main"
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(json.loads(body)["error"], "project_not_found")
+
+    def test_project_routes_default_a_record_without_project_dir(self) -> None:
+        root, _base_url = self._registered_selector_server()
+        alpha = root / "repos" / "alpha"
+        _write_viewer_project(alpha)
+        _write_project_record(
+            root, "alpha", str(alpha), display_name="Alpha", project_dir=None
+        )
+        _httpd, base_url = self._start_server(root)
+
+        status, _content_type, body = self._read(
+            base_url + "/project/alpha/work-items/WI-A"
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("Project: alpha", body)
+        status, _content_type, body = self._read(
+            base_url + "/project/alpha/dependency-maps"
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("No dependency-map views", body)
+
+    def test_project_routes_serve_the_served_projects_own_selectors(self) -> None:
+        _root, base_url = self._registered_selector_server()
+
+        for selector in ("served", "proj-served", "main"):
+            for route in (
+                f"/project/{selector}/dependency-maps",
+                f"/project/{selector}/dependency-maps/main",
+                f"/project/{selector}/work-items/WI-A",
+                f"/project/{selector}/work-items/WI-A/prompt",
+                f"/api/project/{selector}/dependency-maps/main",
+            ):
+                with self.subTest(route=route):
+                    status, _content_type, body = self._read(base_url + route)
+                    self.assertEqual(status, 200)
+                    self.assertTrue("WI-A" in body or "dependency-maps/main" in body)
+            with self.subTest(head=selector):
+                status, _content_type = self._head(
+                    base_url + f"/project/{selector}/dependency-maps/main"
+                )
+                self.assertEqual(status, 200)
+
     def test_serve_pages_inline_the_shared_token_file(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -1317,6 +1506,114 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(
             (second["project"]["head"], third["project"]["head"]),
             ("head-one", "head-two"),
+        )
+
+    def test_warm_up_fills_the_cache_for_pages_and_maps(self) -> None:
+        base_url = self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        validations: list[object] = []
+        builds: list[object] = []
+        loads: list[object] = []
+        real_validate = serve.core_state.control_validator.validate_project
+        real_build = serve.dependency_map_snapshot.build_snapshot
+        real_load = serve.control_loader.load_project
+
+        result = serve.warm_caches(serve.ServeConfig(project_root=root))
+        with (
+            unittest.mock.patch.object(
+                serve.core_state.control_validator,
+                "validate_project",
+                lambda *a, **k: validations.append(a) or real_validate(*a, **k),
+            ),
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot,
+                "build_snapshot",
+                lambda *a, **k: builds.append(a) or real_build(*a, **k),
+            ),
+            unittest.mock.patch.object(
+                serve.control_loader,
+                "load_project",
+                lambda *a, **k: loads.append(a) or real_load(*a, **k),
+            ),
+        ):
+            self._read(base_url + "/project/main/work-items/WI-A")
+            self._read(base_url + "/project/main/dependency-maps/main")
+            # Project, design, and workstream pages read this entry; they
+            # need a registered project, so it is read directly here.
+            serve._load_project(root)
+
+        self.assertEqual(result, serve.WarmupResult(projects=1, failures=()))
+        self.assertEqual((validations, builds, loads), ([], [], []), "all warmed")
+
+    def test_warm_up_reports_each_failed_view(self) -> None:
+        self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+
+        with testing_support.capture_output() as captured:
+            thread = serve.start_cache_warmup(serve.ServeConfig(project_root=root))
+            thread.join(30)
+
+        self.assertFalse(thread.is_alive())
+        stderr = captured.stderr.getvalue()
+        self.assertIn("lrh serve: cache warm-up skipped ", stderr)
+        self.assertIn("broken.md: ViewDeclarationError", stderr)
+        self.assertIn("project(s) in ", stderr)
+        self.assertIn(", 1 item(s) failed", stderr)
+
+    def test_a_project_reached_two_ways_is_one_control_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir) / "real"
+            _write_viewer_project(root)
+            link = pathlib.Path(tmp_dir) / "linked"
+            link.mkdir()
+            (link / "project").symlink_to(root / "project", target_is_directory=True)
+
+            keys = {
+                serve._control_dir_key(root),
+                serve._control_dir_key(root / "project"),
+                serve._control_dir_key(link),
+            }
+
+        self.assertEqual(len(keys), 1)
+        self.assertNotIn(None, keys)
+
+    def test_a_directory_without_project_files_warms_nothing_and_reports_nothing(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ):
+                result = serve.warm_caches(
+                    serve.ServeConfig(project_root=pathlib.Path(tmp_dir))
+                )
+
+        self.assertEqual(result, serve.WarmupResult(projects=0, failures=()))
+
+    def test_warm_up_messages_are_kept_to_one_short_line(self) -> None:
+        self.assertEqual(serve._short("x" * 10), "x" * 10)
+        self.assertEqual(len(serve._short("y" * 5000)), serve._WARMUP_MESSAGE_LIMIT)
+        self.assertTrue(serve._short("y" * 5000).endswith("…"))
+
+    def test_warm_up_failures_go_to_stderr_and_never_raise(self) -> None:
+        with (
+            unittest.mock.patch.object(
+                serve, "warm_caches", side_effect=RuntimeError("disk gone")
+            ),
+            testing_support.capture_output() as captured,
+        ):
+            thread = serve.start_cache_warmup(serve.ServeConfig())
+            thread.join(5)
+
+        self.assertTrue(thread.daemon)
+        self.assertFalse(thread.is_alive())
+        self.assertIn(
+            "lrh serve: cache warm-up failed: disk gone", captured.stderr.getvalue()
         )
 
     def test_cached_pages_show_control_file_edits_on_the_next_request(self) -> None:

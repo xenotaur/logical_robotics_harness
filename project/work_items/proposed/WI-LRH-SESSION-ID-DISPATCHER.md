@@ -73,7 +73,7 @@ lets callers, and users, ask for "this session's ID" and get the right pointer
 in each environment.
 
 Unlike `/lrh-export`, this dispatcher is metadata-only. Like
-`lrh-codex-session` today, it may be called from other skills without an
+`lrh-session-id-codex` today, it may be called from other skills without an
 explicit user request.
 
 This item depends on `WI-SESSION-ID-CODEX-SKILL-RENAME` and
@@ -87,8 +87,8 @@ dispatcher, instead of through the per-vendor skills, is left to a follow-up.
 `WI-SKILLS-LRH-CLAUDE-SESSION` already routes the Claude case.
 
 ### Duplication search
-- In-repo: Related: `lrh-codex-session` (to become `lrh-session-id-codex`) and
-  the planned `lrh-session-id-claude`. No dispatcher exists.
+- In-repo: Related: `lrh-session-id-codex` (formerly `lrh-codex-session`, now
+  a deprecated stub) and `lrh-session-id-claude`. No dispatcher exists.
 - Sibling repos: None identified.
 - External libraries: None identified.
 - Recommendation: Proceed.

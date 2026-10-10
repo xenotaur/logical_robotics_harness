@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-CACHE-WARMUP"
 title: "Warm the lrh serve project-state cache in the background so first visits are fast"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #817 (commit 3cff4c29). All acceptance criteria are met: after lrh serve starts, a daemon thread warms the ProjectStateCache for /meta projects, the served project, and every registered project with a local checkout (core state, loaded control files, and dependency-map views), without delaying the listening line, the desktop-protocol ready event (warm-up starts only after ready, through a new on_ready hook in desktop_protocol, which was not in the planned file list), or any request; ProjectStateCache.get is single-flight, so a request racing warm-up waits for the same build, with a 60 s fallback and published fallback results; failures are listed on stderr and never change a response; and the PR records first-visit times, about 50 to 80 ms after warm-up against 2 to 2.7 s cold. The owner checked it in LRH Console after Server > Restart: first clicks feel instant. The carried-over check that an edited title appears without a restart is still pending, and a server test covers it.'
 owner: "anthony"
 contributors:
 - "anthony"
@@ -92,6 +92,7 @@ In-repo: `lrh serve` starts no background work today (`src/lrh/serve.py`, `creat
 - `lrh validate`
 - `tests/smoke/desktop_protocol_smoke.py` (startup and ready timing).
 - The owner checks first-visit speed in LRH Console.
+- Pending owner check, carried over from `WI-LRH-CONSOLE-PAGE-SPEED`: edit a work item title in a registered project's checkout and confirm the next click shows it without a restart. A server test already covers this.
 
 ## Dependencies / Order
 

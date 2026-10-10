@@ -1508,6 +1508,114 @@ class TestLrhServeRoutes(unittest.TestCase):
             ("head-one", "head-two"),
         )
 
+    def test_warm_up_fills_the_cache_for_pages_and_maps(self) -> None:
+        base_url = self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        validations: list[object] = []
+        builds: list[object] = []
+        loads: list[object] = []
+        real_validate = serve.core_state.control_validator.validate_project
+        real_build = serve.dependency_map_snapshot.build_snapshot
+        real_load = serve.control_loader.load_project
+
+        result = serve.warm_caches(serve.ServeConfig(project_root=root))
+        with (
+            unittest.mock.patch.object(
+                serve.core_state.control_validator,
+                "validate_project",
+                lambda *a, **k: validations.append(a) or real_validate(*a, **k),
+            ),
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot,
+                "build_snapshot",
+                lambda *a, **k: builds.append(a) or real_build(*a, **k),
+            ),
+            unittest.mock.patch.object(
+                serve.control_loader,
+                "load_project",
+                lambda *a, **k: loads.append(a) or real_load(*a, **k),
+            ),
+        ):
+            self._read(base_url + "/project/main/work-items/WI-A")
+            self._read(base_url + "/project/main/dependency-maps/main")
+            # Project, design, and workstream pages read this entry; they
+            # need a registered project, so it is read directly here.
+            serve._load_project(root)
+
+        self.assertEqual(result, serve.WarmupResult(projects=1, failures=()))
+        self.assertEqual((validations, builds, loads), ([], [], []), "all warmed")
+
+    def test_warm_up_reports_each_failed_view(self) -> None:
+        self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+
+        with testing_support.capture_output() as captured:
+            thread = serve.start_cache_warmup(serve.ServeConfig(project_root=root))
+            thread.join(30)
+
+        self.assertFalse(thread.is_alive())
+        stderr = captured.stderr.getvalue()
+        self.assertIn("lrh serve: cache warm-up skipped ", stderr)
+        self.assertIn("broken.md: ViewDeclarationError", stderr)
+        self.assertIn("project(s) in ", stderr)
+        self.assertIn(", 1 item(s) failed", stderr)
+
+    def test_a_project_reached_two_ways_is_one_control_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir) / "real"
+            _write_viewer_project(root)
+            link = pathlib.Path(tmp_dir) / "linked"
+            link.mkdir()
+            (link / "project").symlink_to(root / "project", target_is_directory=True)
+
+            keys = {
+                serve._control_dir_key(root),
+                serve._control_dir_key(root / "project"),
+                serve._control_dir_key(link),
+            }
+
+        self.assertEqual(len(keys), 1)
+        self.assertNotIn(None, keys)
+
+    def test_a_directory_without_project_files_warms_nothing_and_reports_nothing(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with unittest.mock.patch.dict(
+                "os.environ",
+                {"XDG_CONFIG_HOME": tmp_dir, "LRH_CONFIG": "", "LRH_WORKSPACE": ""},
+            ):
+                result = serve.warm_caches(
+                    serve.ServeConfig(project_root=pathlib.Path(tmp_dir))
+                )
+
+        self.assertEqual(result, serve.WarmupResult(projects=0, failures=()))
+
+    def test_warm_up_messages_are_kept_to_one_short_line(self) -> None:
+        self.assertEqual(serve._short("x" * 10), "x" * 10)
+        self.assertEqual(len(serve._short("y" * 5000)), serve._WARMUP_MESSAGE_LIMIT)
+        self.assertTrue(serve._short("y" * 5000).endswith("…"))
+
+    def test_warm_up_failures_go_to_stderr_and_never_raise(self) -> None:
+        with (
+            unittest.mock.patch.object(
+                serve, "warm_caches", side_effect=RuntimeError("disk gone")
+            ),
+            testing_support.capture_output() as captured,
+        ):
+            thread = serve.start_cache_warmup(serve.ServeConfig())
+            thread.join(5)
+
+        self.assertTrue(thread.daemon)
+        self.assertFalse(thread.is_alive())
+        self.assertIn(
+            "lrh serve: cache warm-up failed: disk gone", captured.stderr.getvalue()
+        )
+
     def test_cached_pages_show_control_file_edits_on_the_next_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

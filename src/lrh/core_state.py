@@ -243,6 +243,22 @@ def control_fingerprint(project_dir: Path) -> str:
     return digest.hexdigest()
 
 
+# How long a caller waits on another thread's build before building for
+# itself, so one stalled build (a hung filesystem) never blocks every request.
+_FLIGHT_WAIT_SECONDS = 60.0
+
+
+class _Flight:
+    """One in-progress computation that concurrent callers can wait for."""
+
+    def __init__(self, fingerprint: str) -> None:
+        self.fingerprint = fingerprint
+        self.done = threading.Event()
+        self.value: object = None
+        self.failed = False
+        self.waiters = 0
+
+
 class ProjectStateCache:
     """A small, thread-safe cache of values computed from a project's control files.
 
@@ -250,6 +266,11 @@ class ProjectStateCache:
     only while that directory's :func:`control_fingerprint` is unchanged, so
     any change to a control file is seen on the next request. Long-running
     readers (``lrh serve``) use it; one-shot commands do not need it.
+
+    Computation is single-flight: callers that miss on the same key and
+    fingerprint while a value is being built wait for that build instead of
+    starting their own, so a request arriving during the startup warm-up
+    shares its work.
     """
 
     def __init__(self, max_entries: int = 64) -> None:
@@ -258,13 +279,16 @@ class ProjectStateCache:
         self._entries: collections.OrderedDict[tuple[str, str], tuple[str, object]] = (
             collections.OrderedDict()
         )
+        self._flights: dict[tuple[str, str], _Flight] = {}
 
     def get(self, name: str, project_dir: Path, compute: Callable[[], _T]) -> _T:
         """Return the cached value, or compute and store it.
 
         The fingerprint is taken before computing, so a file that changes
         while the value is being built makes the stored entry stale at once.
-        Exceptions propagate and are never cached.
+        Exceptions propagate and are never cached; a caller that waited on a
+        build that failed, or that is still running after
+        ``_FLIGHT_WAIT_SECONDS``, computes for itself.
         """
 
         key = (name, str(Path(project_dir).resolve()))
@@ -274,13 +298,61 @@ class ProjectStateCache:
             if hit is not None and hit[0] == fingerprint:
                 self._entries.move_to_end(key)
                 return hit[1]  # type: ignore[return-value]
-        value = compute()
+            flight = self._flights.get(key)
+            if flight is not None and flight.fingerprint == fingerprint:
+                owner = False
+                flight.waiters += 1
+            else:
+                flight = _Flight(fingerprint)
+                self._flights[key] = flight
+                owner = True
+        if not owner:
+            finished = flight.done.wait(_FLIGHT_WAIT_SECONDS)
+            if finished and not flight.failed:
+                return flight.value  # type: ignore[return-value]
+            value = compute()
+            # Publish the fallback build, unless the owner (or another
+            # fallback) already stored a value for this fingerprint.
+            self._store(key, fingerprint, value, replace=False)
+            return value
+        try:
+            value = compute()
+        except BaseException:
+            flight.failed = True
+            with self._lock:
+                if self._flights.get(key) is flight:
+                    del self._flights[key]
+            flight.done.set()
+            raise
+        flight.value = value
+        self._store(key, fingerprint, value, replace=True, flight=flight)
+        flight.done.set()
+        return value
+
+    def _store(
+        self,
+        key: tuple[str, str],
+        fingerprint: str,
+        value: object,
+        *,
+        replace: bool,
+        flight: _Flight | None = None,
+    ) -> None:
         with self._lock:
-            self._entries[key] = (fingerprint, value)
+            current = self._entries.get(key)
+            if replace or current is None or current[0] != fingerprint:
+                self._entries[key] = (fingerprint, value)
             self._entries.move_to_end(key)
             while len(self._entries) > self._max_entries:
                 self._entries.popitem(last=False)
-        return value
+            if flight is not None and self._flights.get(key) is flight:
+                del self._flights[key]
+
+    def reserve(self, entries: int) -> None:
+        """Grow the capacity to at least ``entries``; it never shrinks."""
+
+        with self._lock:
+            self._max_entries = max(self._max_entries, entries)
 
     def clear(self) -> None:
         with self._lock:

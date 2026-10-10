@@ -159,12 +159,11 @@ Facts the implementer needs:
      with the new names;
    - do not list the stubs, or list them only as deprecated.
 5. Update the old names to the new ones in:
-   - other skills that reference them. Today only
-     `src/lrh/skills/lrh-codex-session/SKILL.md` refers to
-     `/lrh-codex-export` (lines 50, 62, 113). It is
-     `lrh-session-id-codex/SKILL.md` if
-     `WI-SESSION-ID-CODEX-SKILL-RENAME` landed first. Update it and re-install
-     its three copies. Re-run
+   - other skills that reference them. `WI-SESSION-ID-CODEX-SKILL-RENAME`
+     has landed, so today only `src/lrh/skills/lrh-session-id-codex/SKILL.md`
+     refers to `/lrh-codex-export` (lines 58, 70, 121 as of that rename);
+     the `lrh-codex-session` stub does not. Update it and re-install its
+     three copies. Re-run
      `grep -rln 'lrh-codex-export\|lrh-antigravity-export' src/lrh/skills`
      before finishing, to catch any new references.
    - `docs/conversations/README.md`

@@ -622,7 +622,15 @@ def warm_caches(config: ServeConfig) -> int:
         root = _registered_project_root(workspace, result)
         if root is not None and root.exists():
             roots.append(root)
+    unique: dict[Path, Path] = {}
     for root in roots:
+        unique.setdefault(root.resolve(), root)
+    for root in unique.values():
+        try:
+            # Project, design, and workstream pages read the loaded project.
+            _load_project(root)
+        except (FileNotFoundError, OSError, ValueError):
+            pass
         try:
             repo_root = dependency_map_snapshot.repository_root(root)
             views = dependency_map_view.discover_views(repo_root)
@@ -630,10 +638,10 @@ def warm_caches(config: ServeConfig) -> int:
             continue
         for path in views:
             try:
-                _build_snapshot(repo_root, path.stem)
+                _cached_snapshot(repo_root, path.stem)
             except Exception:  # noqa: BLE001 - one bad view must not stop warm-up
                 continue
-    return len(roots)
+    return len(unique)
 
 
 def start_cache_warmup(config: ServeConfig) -> threading.Thread:
@@ -662,6 +670,24 @@ def start_cache_warmup(config: ServeConfig) -> threading.Thread:
     return thread
 
 
+def _cached_snapshot(
+    repo_root: Path, view_id: str
+) -> dependency_map_snapshot.DependencyMapSnapshot:
+    """The cached snapshot as built, before per-request time and HEAD."""
+
+    try:
+        project_dir = control_loader.find_project_dir(repo_root)
+    except FileNotFoundError:
+        # No control directory to fingerprint: build uncached, so the
+        # snapshot reports the problem exactly as it always has.
+        return dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    return _STATE_CACHE.get(
+        f"dependency-map:{view_id}",
+        project_dir,
+        lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
+    )
+
+
 def _build_snapshot(
     repo_root: Path, view_id: str
 ) -> dependency_map_snapshot.DependencyMapSnapshot:
@@ -673,17 +699,7 @@ def _build_snapshot(
     without any control-file change.
     """
 
-    try:
-        project_dir = control_loader.find_project_dir(repo_root)
-    except FileNotFoundError:
-        # No control directory to fingerprint: build uncached, so the
-        # snapshot reports the problem exactly as it always has.
-        return dependency_map_snapshot.build_snapshot(repo_root, view_id)
-    snapshot = _STATE_CACHE.get(
-        f"dependency-map:{view_id}",
-        project_dir,
-        lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
-    )
+    snapshot = _cached_snapshot(repo_root, view_id)
     return dataclasses.replace(
         snapshot,
         generated_at=datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
@@ -4151,20 +4167,21 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
 
-    def factory(project_root: Path) -> ThreadingHTTPServer:
-        server = _desktop_server_factory(
+    return desktop_protocol.run_desktop_protocol(
+        lambda project_root: _desktop_server_factory(
             project_root, theme=args.theme, interactive=args.interactive
-        )
-        start_cache_warmup(
+        ),
+        start_request_timeout=timeout,
+        # Warm only after ready, so the self-check and ready never compete
+        # with it, and a failed startup never starts it.
+        on_ready=lambda project_root: start_cache_warmup(
             ServeConfig(
                 project_root=project_root,
                 theme=args.theme,
                 interactive=args.interactive,
             )
-        )
-        return server
-
-    return desktop_protocol.run_desktop_protocol(factory, start_request_timeout=timeout)
+        ),
+    )
 
 
 def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int:

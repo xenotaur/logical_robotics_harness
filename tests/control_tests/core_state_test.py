@@ -1,7 +1,10 @@
 import os
 import tempfile
 import threading
+import time
 import unittest
+import unittest.mock
+from collections.abc import Callable
 from pathlib import Path
 from types import MappingProxyType
 
@@ -279,49 +282,59 @@ class TestProjectStateCache(unittest.TestCase):
             _write(archive / "RECORD.md", "one, edited\n")
             self.assertEqual(self._get(), first + 1)
 
+    def _flight_waiters(self, name: str) -> int:
+        key = (name, str(self.project_dir.resolve()))
+        with self.cache._lock:
+            flight = self.cache._flights.get(key)
+            return flight.waiters if flight is not None else -1
+
+    def _wait_for_waiters(self, name: str, count: int) -> None:
+        deadline = time.monotonic() + 5
+        while self._flight_waiters(name) < count:
+            self.assertLess(time.monotonic(), deadline, "waiters never blocked")
+            time.sleep(0.005)
+
+    def _start(self, target: Callable[[], None]) -> threading.Thread:
+        thread = threading.Thread(target=target, daemon=True)
+        thread.start()
+        return thread
+
+    def _join(self, *threads: threading.Thread) -> None:
+        for thread in threads:
+            thread.join(5)
+            self.assertFalse(thread.is_alive(), "a cache caller hung")
+
     def test_concurrent_misses_share_one_computation(self) -> None:
         release = threading.Event()
-        started = threading.Event()
         calls: list[str] = []
+        results: list[str] = []
 
         def slow() -> str:
             calls.append("compute")
-            started.set()
             release.wait(5)
             return "shared"
 
-        results: list[str] = []
-        owner = threading.Thread(
-            target=lambda: results.append(self.cache.get("v", self.project_dir, slow))
-        )
-        owner.start()
-        started.wait(5)
-        waiters = [
-            threading.Thread(
-                target=lambda: results.append(
-                    self.cache.get("v", self.project_dir, slow)
-                )
-            )
-            for _ in range(4)
-        ]
-        for waiter in waiters:
-            waiter.start()
+        def call() -> None:
+            results.append(self.cache.get("v", self.project_dir, slow))
+
+        owner = self._start(call)
+        self._wait_for_waiters("v", 0)
+        waiters = [self._start(call) for _ in range(4)]
+        # Every waiter is blocked on the owner's build before it finishes.
+        self._wait_for_waiters("v", 4)
         release.set()
-        for thread in [owner, *waiters]:
-            thread.join(5)
+        self._join(owner, *waiters)
         self.assertEqual(calls, ["compute"])
         self.assertEqual(results, ["shared"] * 5)
 
     def test_a_waiter_on_a_failed_build_computes_for_itself(self) -> None:
         release = threading.Event()
-        started = threading.Event()
+        errors: list[Exception] = []
+        waited: list[str] = []
 
         def failing() -> str:
-            started.set()
             release.wait(5)
             raise ValueError("boom")
-
-        errors: list[Exception] = []
 
         def own() -> None:
             try:
@@ -329,20 +342,35 @@ class TestProjectStateCache(unittest.TestCase):
             except ValueError as error:
                 errors.append(error)
 
-        owner = threading.Thread(target=own)
-        owner.start()
-        started.wait(5)
-        waited: list[str] = []
-        waiter = threading.Thread(
-            target=lambda: waited.append(
-                self.cache.get("v", self.project_dir, lambda: "own")
-            )
+        owner = self._start(own)
+        self._wait_for_waiters("v", 0)
+        waiter = self._start(
+            lambda: waited.append(self.cache.get("v", self.project_dir, lambda: "own"))
         )
-        waiter.start()
+        self._wait_for_waiters("v", 1)
         release.set()
-        owner.join(5)
-        waiter.join(5)
+        self._join(owner, waiter)
         self.assertEqual(len(errors), 1)
+        self.assertEqual(waited, ["own"])
+
+    def test_a_stalled_build_does_not_block_waiters_forever(self) -> None:
+        release = threading.Event()
+        self.addCleanup(release.set)
+        waited: list[str] = []
+
+        owner = self._start(
+            lambda: self.cache.get("v", self.project_dir, lambda: release.wait(5))
+        )
+        self._wait_for_waiters("v", 0)
+        with unittest.mock.patch.object(core_state, "_FLIGHT_WAIT_SECONDS", 0.05):
+            waiter = self._start(
+                lambda: waited.append(
+                    self.cache.get("v", self.project_dir, lambda: "own")
+                )
+            )
+            self._join(waiter)
+        release.set()
+        self._join(owner)
         self.assertEqual(waited, ["own"])
 
     def test_errors_are_not_cached(self) -> None:

@@ -76,11 +76,13 @@ lrh serve --desktop-protocol
   until another change. A cached dependency-map snapshot is
   served with the current time and git HEAD, exactly as a fresh build would
   be.
-- Right after it starts listening (in both modes), the server warms that
-  cache on one background thread: `/meta`'s projects first, then the served
-  project, then every project's dependency-map views. Startup and the
-  desktop-protocol ready event never wait for it. A request for a value the
-  warm-up is still building waits for that build rather than repeating it.
+- The server warms that cache on one background thread: `/meta`'s projects
+  first, then the served project, then every project's loaded control files
+  and dependency-map views. It starts after the `listening on` line, or with
+  `--desktop-protocol` only after `ready` is sent, so neither waits for it
+  and a failed startup never starts it. A request for a value the warm-up is
+  still building waits for that build rather than repeating it (up to 60
+  seconds, then builds it itself).
   It logs one line to stderr when done (`lrh serve: cache warmed for N
   project(s) in Xs`), or the error if it fails; responses are unaffected
   either way.

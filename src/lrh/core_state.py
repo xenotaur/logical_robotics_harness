@@ -243,6 +243,11 @@ def control_fingerprint(project_dir: Path) -> str:
     return digest.hexdigest()
 
 
+# How long a caller waits on another thread's build before building for
+# itself, so one stalled build (a hung filesystem) never blocks every request.
+_FLIGHT_WAIT_SECONDS = 60.0
+
+
 class _Flight:
     """One in-progress computation that concurrent callers can wait for."""
 
@@ -251,6 +256,7 @@ class _Flight:
         self.done = threading.Event()
         self.value: object = None
         self.failed = False
+        self.waiters = 0
 
 
 class ProjectStateCache:
@@ -281,7 +287,8 @@ class ProjectStateCache:
         The fingerprint is taken before computing, so a file that changes
         while the value is being built makes the stored entry stale at once.
         Exceptions propagate and are never cached; a caller that waited on a
-        build that failed computes for itself, so it sees its own error.
+        build that failed, or that is still running after
+        ``_FLIGHT_WAIT_SECONDS``, computes for itself.
         """
 
         key = (name, str(Path(project_dir).resolve()))
@@ -294,13 +301,14 @@ class ProjectStateCache:
             flight = self._flights.get(key)
             if flight is not None and flight.fingerprint == fingerprint:
                 owner = False
+                flight.waiters += 1
             else:
                 flight = _Flight(fingerprint)
                 self._flights[key] = flight
                 owner = True
         if not owner:
-            flight.done.wait()
-            if not flight.failed:
+            finished = flight.done.wait(_FLIGHT_WAIT_SECONDS)
+            if finished and not flight.failed:
                 return flight.value  # type: ignore[return-value]
             return compute()
         try:

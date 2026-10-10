@@ -1324,8 +1324,10 @@ class TestLrhServeRoutes(unittest.TestCase):
         root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
         validations: list[object] = []
         builds: list[object] = []
+        loads: list[object] = []
         real_validate = serve.core_state.control_validator.validate_project
         real_build = serve.dependency_map_snapshot.build_snapshot
+        real_load = serve.control_loader.load_project
 
         count = serve.warm_caches(serve.ServeConfig(project_root=root))
         with (
@@ -1339,12 +1341,20 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "build_snapshot",
                 lambda *a, **k: builds.append(a) or real_build(*a, **k),
             ),
+            unittest.mock.patch.object(
+                serve.control_loader,
+                "load_project",
+                lambda *a, **k: loads.append(a) or real_load(*a, **k),
+            ),
         ):
             self._read(base_url + "/project/main/work-items/WI-A")
             self._read(base_url + "/project/main/dependency-maps/main")
+            # Project, design, and workstream pages read this entry; they
+            # need a registered project, so it is read directly here.
+            serve._load_project(root)
 
-        self.assertGreaterEqual(count, 1)
-        self.assertEqual((validations, builds), ([], []), "both were warmed")
+        self.assertEqual(count, 1, "the served project is counted once")
+        self.assertEqual((validations, builds, loads), ([], [], []), "all warmed")
 
     def test_warm_up_failures_go_to_stderr_and_never_raise(self) -> None:
         with (

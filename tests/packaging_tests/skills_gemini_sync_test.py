@@ -8,7 +8,7 @@ instructions to Antigravity users. These tests compare every committed skill
 file-by-file against the Antigravity renderer's output from the canonical
 source.
 
-To fix a failure, regenerate the target (dry-run first):
+To fix a failure, regenerate the target (append `--dry-run` to preview first):
 
     lrh skills install --local --target antigravity --source current-repo --force
 """
@@ -19,7 +19,6 @@ import pathlib
 import unittest
 
 from lrh.skills import installer
-from lrh.skills.installer import SkillTarget
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCE_ROOT = REPO_ROOT / "src" / "lrh" / "skills"
@@ -32,35 +31,30 @@ REGEN_HINT = (
 
 
 def _source_skill_names() -> list[str]:
-    return sorted(
-        item.name
-        for item in SOURCE_ROOT.iterdir()
-        if item.is_dir() and not item.name.startswith("_")
-    )
-
-
-def _committed_files(skill_dir: pathlib.Path) -> dict[str, bytes]:
-    return {
-        path.relative_to(skill_dir).as_posix(): path.read_bytes()
-        for path in skill_dir.rglob("*")
-        if path.is_file()
-    }
+    return installer.resolve_skill_source(SOURCE_ROOT).skill_names()
 
 
 class GeminiSkillsSyncTest(unittest.TestCase):
     def test_committed_skill_set_matches_source(self) -> None:
         committed = sorted(
-            item.name for item in GEMINI_SKILLS_ROOT.iterdir() if item.is_dir()
+            item.name
+            for item in GEMINI_SKILLS_ROOT.iterdir()
+            if item.is_dir() or item.is_symlink()
         )
         self.assertEqual(committed, _source_skill_names(), REGEN_HINT)
 
     def test_every_committed_skill_equals_antigravity_render(self) -> None:
-        renderer = installer._renderer_for_target(SkillTarget.ANTIGRAVITY)
+        renderer = installer._renderer_for_target(installer.SkillTarget.ANTIGRAVITY)
         for name in _source_skill_names():
             with self.subTest(skill=name):
                 source_files = installer._collect_source_files(SOURCE_ROOT / name)
                 rendered = renderer.render(name, source_files)
-                committed = _committed_files(GEMINI_SKILLS_ROOT / name)
+                skill_dir = GEMINI_SKILLS_ROOT / name
+                # Mirror the installer: a symlinked skill dir or file is never
+                # dereferenced and counts as modified, not as up to date.
+                self.assertFalse(skill_dir.is_symlink(), REGEN_HINT)
+                self.assertEqual(installer._collect_fs_symlinks(skill_dir), set())
+                committed = installer._collect_fs_files(skill_dir)
                 self.assertEqual(sorted(committed), sorted(rendered), REGEN_HINT)
                 for rel_path, content in rendered.items():
                     with self.subTest(skill=name, file=rel_path):

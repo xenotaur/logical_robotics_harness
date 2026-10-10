@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_05_42_26_WS_LRH_SESSION_DEEP_LINKING_CONFIRM
 prompt_id: PROMPT(AD_HOC:WS_LRH_SESSION_DEEP_LINKING_CONFIRM)[2026-10-10T05:42:03+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_00_16_38_WS_LRH_SESSION_DEEP_LINKING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/812
-commit: 
+commit: 22d0fae80d2a0178ede94901a4bca746bcb18564
 created_at: 2026-10-10T05:42:26+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/812
-session_transcript: pending
+session_transcript: claude-app:d71d7175-7d16-4509-8b96-cdbaa1e937b5
 ---
 
 # Summary

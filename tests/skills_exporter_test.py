@@ -412,6 +412,26 @@ class TestManualOnlySkills(_SkillTreeMixin, unittest.TestCase):
             self.assertEqual(result.status, exporter.ExportStatus.FAILED)
             self.assertIn("must be true or false", " ".join(result.errors))
 
+    def test_valid_claude_marker_does_not_hide_bad_codex_policy(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "both-markers",
+            skill_md=(
+                "---\nname: both-markers\ndescription: Q.\n"
+                "disable-model-invocation: true\n---\nB\n"
+            ),
+            extra_files={
+                "agents/openai.yaml": "policy:\n  allow_implicit_invocation:\n"
+            },
+        )
+        report = exporter.export_skills(
+            out_dir=self._make_out(), source=source, skill_names=["both-markers"]
+        )
+        result = self._result(report, "both-markers")
+        self.assertEqual(result.status, exporter.ExportStatus.FAILED)
+        self.assertIn("allow_implicit_invocation", " ".join(result.errors))
+
     def test_absent_manual_only_markers_do_not_fail(self) -> None:
         source = self._make_source()
         self._write_skill(
@@ -508,7 +528,7 @@ class TestWhenToUse(_SkillTreeMixin, unittest.TestCase):
         body = skill_md.split("---\n", 2)[2]
         self.assertEqual(body, "## When to use\n\nGuidance.\n\nPlain body.\n")
 
-    def test_section_skips_h1_inside_code_fence(self) -> None:
+    def test_section_goes_to_top_when_body_does_not_open_with_h1(self) -> None:
         _result, skill_md = self._export_one(
             "fence-skill",
             f"---\nname: fence-skill\ndescription: {'d' * 1020}\n"
@@ -518,8 +538,8 @@ class TestWhenToUse(_SkillTreeMixin, unittest.TestCase):
         body = skill_md.split("---\n", 2)[2]
         self.assertEqual(
             body,
-            "```\n# not a heading\n```\n# Real\n\n"
-            "## When to use\n\nGuidance.\n\nText.\n",
+            "## When to use\n\nGuidance.\n\n"
+            "```\n# not a heading\n```\n# Real\n\nText.\n",
         )
 
     def test_fold_one_over_limit_becomes_section(self) -> None:
@@ -534,37 +554,39 @@ class TestWhenToUse(_SkillTreeMixin, unittest.TestCase):
         self.assertIn("## When to use", skill_md)
         self._notice(result, "when_to_use_section")
 
-    def test_section_placement_follows_markdown_structure(self) -> None:
+    def test_section_placement_follows_opening_title(self) -> None:
         insert = exporter._insert_when_to_use_section
+        top = "## When to use\n\nG\n\n"
         cases = {
-            "tilde inside backtick fence": (
-                "```\n~~~\n# inside\n```\n# Real\nText\n",
-                "```\n~~~\n# inside\n```\n# Real\n\n" "## When to use\n\nG\n\nText\n",
+            "leading blank lines before title": (
+                "\n\n# Title\nText\n",
+                "\n\n# Title\n\n## When to use\n\nG\n\nText\n",
             ),
-            "short fence inside longer fence": (
-                "````\n```\n# inside\n```\n````\n# Real\n",
-                "````\n```\n# inside\n```\n````\n# Real\n\n" "## When to use\n\nG\n",
-            ),
-            "unclosed fence": (
-                "```\n# inside\n",
-                "## When to use\n\nG\n\n```\n# inside\n",
-            ),
-            "indented heading": (
+            "indented title": (
                 "   # Title\nBody\n",
                 "   # Title\n\n## When to use\n\nG\n\nBody\n",
             ),
-            "four-space indent is not a heading": (
-                "    # code\n",
-                "## When to use\n\nG\n\n    # code\n",
-            ),
-            "heading at end without newline": (
+            "title at end without newline": (
                 "# Title",
                 "# Title\n\n## When to use\n\nG\n",
             ),
-            "crlf body": (
-                "# Title\r\n\r\nBody\r\n",
-                "# Title\r\n\r\n## When to use\r\n\r\nG\r\n\r\nBody\r\n",
+            "fence before title": (
+                "```\n# inside\n```\n# Real\n",
+                top + "```\n# inside\n```\n# Real\n",
             ),
+            "backtick info string before title": (
+                "``` a`b\n# Real\n",
+                top + "``` a`b\n# Real\n",
+            ),
+            "html comment before title": (
+                "<!--\n# example\n-->\n# Real\nText\n",
+                top + "<!--\n# example\n-->\n# Real\nText\n",
+            ),
+            "four-space indent is not a title": (
+                "    # code\n",
+                top + "    # code\n",
+            ),
+            "h2 is not a title": ("## Sub\n", top + "## Sub\n"),
             "line separator is not a line break": (
                 "# Title\u2028more\nBody\n",
                 "# Title\u2028more\n\n## When to use\n\nG\n\nBody\n",
@@ -573,6 +595,17 @@ class TestWhenToUse(_SkillTreeMixin, unittest.TestCase):
         for label, (body, expected) in cases.items():
             with self.subTest(label=label):
                 self.assertEqual(insert(body, "G"), expected)
+
+    def test_section_matches_crlf_body_line_endings(self) -> None:
+        insert = exporter._insert_when_to_use_section
+        self.assertEqual(
+            insert("# Title\r\n\r\nBody\r\n", "one\ntwo"),
+            "# Title\r\n\r\n## When to use\r\n\r\none\r\ntwo\r\n\r\nBody\r\n",
+        )
+        self.assertEqual(
+            insert("Body\r\n", "one\ntwo"),
+            "## When to use\r\n\r\none\r\ntwo\r\n\r\nBody\r\n",
+        )
 
     def test_canonical_skills_never_drop_when_to_use(self) -> None:
         out = self._make_out()

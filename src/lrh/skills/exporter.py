@@ -51,11 +51,8 @@ MAX_DESCRIPTION_LENGTH = 1024
 MAX_COMPATIBILITY_LENGTH = 500
 _WHEN_TO_USE = "when_to_use"
 _WHEN_TO_USE_HEADING = "## When to use"
-# Markdown line structure for placing the generated section: lines split on
-# "\n" only, CommonMark fences (3+ backticks or tildes, up to 3 spaces of
-# indent), and ATX H1 headings (up to 3 spaces of indent).
+# Lines split on "\n" only, and an ATX H1 heading (up to 3 spaces of indent).
 _LINE_RE = re.compile(r"[^\n]*\n|[^\n]+$")
-_FENCE_RE = re.compile(r" {0,3}(`{3,}|~{3,})")
 _H1_RE = re.compile(r" {0,3}#(?:[ \t]|$)")
 # Upload limits documented by the OpenAI Skills API guide. They are assumed to
 # apply to ChatGPT uploads until manual dogfooding confirms otherwise.
@@ -486,6 +483,14 @@ def _validate_optional_portable_fields(
 def _is_manual_only(
     metadata: dict[str, Any], source_files: dict[str, bytes], errors: list[str]
 ) -> bool:
+    # Validate both markers before combining them, so a valid Claude marker
+    # cannot hide a malformed Codex policy.
+    claude_manual = _claude_manual_only(metadata, errors)
+    codex_manual = _codex_manual_only(source_files, errors)
+    return claude_manual or codex_manual
+
+
+def _claude_manual_only(metadata: dict[str, Any], errors: list[str]) -> bool:
     disable_flag = metadata.get("disable-model-invocation")
     if "disable-model-invocation" in metadata and not isinstance(disable_flag, bool):
         # A quoted "true" or a blank (null) value would otherwise read as not
@@ -495,8 +500,10 @@ def _is_manual_only(
             " remove the key if the skill is not manual-only"
         )
         return False
-    if disable_flag is True:
-        return True
+    return disable_flag is True
+
+
+def _codex_manual_only(source_files: dict[str, bytes], errors: list[str]) -> bool:
     openai_yaml = source_files.get(_OPENAI_YAML)
     if openai_yaml is None:
         return False
@@ -575,49 +582,37 @@ def _when_to_use_plan(metadata: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def _insert_when_to_use_section(body: str, guidance: str) -> str:
-    """Add a `## When to use` section after the body's first H1 heading.
+    """Add a `## When to use` section after the body's opening H1 title.
 
-    Falls back to the top of the body when there is no H1 outside a fenced
-    code block. The section uses the body's line ending (CRLF or LF).
-    Existing body text is kept as is; the only other change is a line break
-    after an H1 that ends the body without one.
+    The H1 counts only when it is the body's first non-blank line, so text
+    inside a code block, HTML block, or comment is never mistaken for the
+    title; otherwise the section goes at the top of the body. The section
+    uses the body's line ending (CRLF or LF), including inside multi-line
+    guidance. Existing body text is kept as is; the only other change is a
+    line break after an H1 that ends the body without one.
     """
     lines = _LINE_RE.findall(body)
-    newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
-    fence: str | None = None
-    for index, line in enumerate(lines):
-        text = line.rstrip("\r\n")
-        fence_match = _FENCE_RE.match(text)
-        if fence is not None:
-            if (
-                fence_match
-                and fence_match.group(1)[0] == fence[0]
-                and len(fence_match.group(1)) >= len(fence)
-                and not text[fence_match.end() :].strip()
-            ):
-                fence = None
-            continue
-        if fence_match:
-            fence = fence_match.group(1)
-            continue
-        if not _H1_RE.match(text):
-            continue
+    first = next((index for index, line in enumerate(lines) if line.strip()), None)
+    if first is not None and _H1_RE.match(lines[first].rstrip("\r\n")):
+        line = lines[first]
         newline = "\r\n" if line.endswith("\r\n") else "\n"
         heading = line if line.endswith("\n") else line + newline
-        rest = lines[index + 1 :]
+        rest = lines[first + 1 :]
         section = _when_to_use_lines(guidance, newline)
         if rest and rest[0].strip():
             section.append(newline)
-        return "".join(lines[:index] + [heading, newline] + section + rest)
+        return "".join(lines[:first] + [heading, newline] + section + rest)
+    newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
     section = _when_to_use_lines(guidance, newline)
     return "".join(section + [newline] + lines)
 
 
 def _when_to_use_lines(guidance: str, newline: str) -> list[str]:
+    text = guidance.replace("\r\n", "\n").replace("\n", newline)
     return [
         f"{_WHEN_TO_USE_HEADING}{newline}",
         newline,
-        f"{guidance}{newline}",
+        f"{text}{newline}",
     ]
 
 

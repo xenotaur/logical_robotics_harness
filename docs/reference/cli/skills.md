@@ -152,9 +152,9 @@ reported, except `when_to_use`, whose guidance is carried into the bundle:
   whitespace stripped) fit in 1024 characters, the bundled `description`
   becomes that combined text;
 - otherwise `description` is kept unchanged and the guidance is added as a
-  generated `## When to use` section after the body's first `#` (H1)
-  heading outside a code block (or at the top of the body when it has none),
-  with a notice.
+  generated `## When to use` section after the body's `#` (H1) title when
+  that title is the body's first non-blank line, or at the top of the body
+  otherwise, with a notice.
 
 Existing skill body text is never rewritten; the generated section is the only
 addition.

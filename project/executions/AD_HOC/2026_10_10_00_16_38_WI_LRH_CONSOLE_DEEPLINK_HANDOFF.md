@@ -26,4 +26,4 @@ Wrote project/work_items/proposed/WI-LRH-CONSOLE-DEEPLINK-HANDOFF.md (deliverabl
 
 # Follow-up
 
-Follow-up: implement the item via /lrh-implement; a manual click check needs a branch build of the Console app.
+Follow-up: implement the item via /lrh-implement after WI-LRH-SESSION-DEEPLINK-HELPER creates the shared route definition; a manual click check needs a branch build of the Console app.

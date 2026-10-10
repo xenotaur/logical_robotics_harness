@@ -26,4 +26,4 @@ Wrote project/work_items/proposed/WI-LRH-SESSION-DEEPLINK-HELPER.md (deliverable
 
 # Follow-up
 
-Follow-up: implement the item via /lrh-implement; decide whether the route is defined once and shared with the Rust allowlist.
+Follow-up: implement the item via /lrh-implement; the route is defined once in src/lrh/conversations/session_links.json and shared with the Rust allowlist.

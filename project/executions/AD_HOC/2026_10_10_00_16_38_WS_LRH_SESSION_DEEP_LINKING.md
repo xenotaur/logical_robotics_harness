@@ -26,4 +26,4 @@ Wrote project/workstreams/proposed/WS-LRH-SESSION-DEEP-LINKING.md (status propos
 
 # Follow-up
 
-Follow-up: focus and roadmap links are empty and listed as an open question; the Codex route (codex://threads/<UUID>) and any Antigravity route are unverified.
+Follow-up: focus and roadmap links are empty and listed as an open question; any Antigravity route is unknown (the Codex route was later verified by hand).

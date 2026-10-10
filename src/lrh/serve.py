@@ -2330,39 +2330,60 @@ def _config_for_project_selector(
     """Return the config scoped to the project a selector names.
 
     A selector the Meta registry resolves to a local checkout scopes to that
-    checkout. Otherwise only ``main``, the served project's own selector,
-    falls back to the served project; a registered project without a local
-    checkout raises a 409 ``ProjectSelectorError`` and anything else a 404, so
-    a page never shows the served project's data under another project's name.
+    checkout. ``main``, the served project's own selector, falls back to the
+    served project only when no Meta workspace exists or the registry reads
+    cleanly and no record matches it. A registered project without a local
+    checkout raises a 409 ``ProjectSelectorError`` and anything else,
+    including an ambiguous selector or an unreadable registry, a 404, so a
+    page never shows the served project's data under another project's name.
     """
 
     try:
         workspace = meta_workspace.resolve_meta_workspace(
             cwd=config.resolved_project_root()
         )
-        selection = meta_workspace.inspect_registered_project_in_workspace(
-            workspace,
-            selector=project_selector,
-        )
-    except (
-        meta_workspace.MetaRegistryError,
-        meta_workspace.MetaWorkspaceResolutionError,
-        ValueError,
-    ) as error:
+    except (meta_workspace.MetaWorkspaceResolutionError, ValueError) as error:
         if project_selector == SERVED_PROJECT_SELECTOR:
             return config
-        message = (
-            str(error)
-            if isinstance(error, meta_workspace.MetaRegistryError)
-            else f"No Meta registry is available to resolve {project_selector!r}."
-        )
         raise ProjectSelectorError(
             project_selector,
             status=404,
             error="project_not_found",
-            message=message,
+            message=f"No Meta registry is available to resolve {project_selector!r}.",
+        ) from error
+    except meta_workspace.MetaRegistryError as error:
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
+        ) from error
+    try:
+        selection = meta_workspace.inspect_registered_project_in_workspace(
+            workspace,
+            selector=project_selector,
+        )
+    except (meta_workspace.MetaRegistryError, ValueError) as error:
+        if project_selector == SERVED_PROJECT_SELECTOR and _registry_has_no_match(
+            workspace, project_selector
+        ):
+            return config
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
         ) from error
     resolved_path = selection.resolved_project_path
+    if (
+        resolved_path is None
+        and selection.resolved_repo_path is not None
+        and selection.record.project_dir is None
+    ):
+        # A record without project_dir keeps its control files in the
+        # conventional project/ directory, as _registered_project_control_root
+        # assumes for the dashboard.
+        resolved_path = selection.resolved_repo_path / "project"
     if resolved_path is None:
         registry_name = selection.record.registry_name
         raise ProjectSelectorError(
@@ -2380,6 +2401,21 @@ def _config_for_project_selector(
         port=config.port,
         project_root=resolved_path,
         allow_nonlocal_host=config.allow_nonlocal_host,
+    )
+
+
+def _registry_has_no_match(
+    workspace: meta_workspace.MetaWorkspace, project_selector: str
+) -> bool:
+    """Return whether the registry reads cleanly and no record matches."""
+
+    try:
+        records = meta_workspace.list_registered_projects_in_workspace(workspace)
+    except meta_workspace.MetaRegistryError:
+        return False
+    return not any(
+        project_selector in (record.project_id, record.short_name, record.registry_name)
+        for record in records
     )
 
 

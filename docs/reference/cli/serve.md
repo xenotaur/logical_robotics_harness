@@ -119,9 +119,11 @@ The dependency-map routes and the
 
 - A registry name, short name, or project ID that the Meta registry resolves
   to a local checkout reads that checkout. The served project's own registry
-  entry works this way too.
-- `main` reads the served project when no registered project matches it. It
-  is the served project's own selector, for a checkout served outside a Meta
+  entry works this way too. A record without a `project_dir` reads the
+  checkout's `project/` directory.
+- `main` reads the served project when there is no Meta workspace, or when
+  the registry reads cleanly and no registered project matches `main`. It is
+  the served project's own selector, for a checkout served outside a Meta
   workspace.
 - A registered project with no local checkout, such as one registered with
   only a `repo_locator`, returns 409 Conflict. The HTML routes render a page
@@ -129,9 +131,10 @@ The dependency-map routes and the
   command that binds one: `lrh meta set <name> --local-repo-path PATH`. The
   JSON route returns an object whose `error` is `no_local_checkout`, with
   `project`, `message`, and `next_action` fields.
-- Any other `project_id` returns 404: a "Project not found" page from the
-  HTML routes, or an object whose `error` is `project_not_found` from the
-  JSON route.
+- Any other `project_id` returns 404, including an ambiguous selector or a
+  registry that cannot be read: a "Project not found" page from the HTML
+  routes, or an object whose `error` is `project_not_found` from the JSON
+  route. The `message` gives the registry's reason.
 
 These routes never show the served project's data under another project's
 name.

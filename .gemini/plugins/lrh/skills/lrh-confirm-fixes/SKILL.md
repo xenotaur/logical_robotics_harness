@@ -1,23 +1,22 @@
 ---
 name: lrh-confirm-fixes
-description: >
-  Pre-merge verification and thread-resolution pass for an LRH pull request.
-  Independently verifies pushed review fixes against the current HEAD diff
-  (never against the execution record's claims), resolves the review threads
-  the diff plainly satisfies, surfaces the exceptions (unaddressed, partial,
-  ambiguous, or problematic threads), and ends at a merge-readiness verdict.
-  Ends at a verdict and merge one-liner rather than executing it as part of
-  this skill's own workflow. Provide the PR URL as the argument, optionally
-  followed by --subagent (dispatch verification to a cold-context subagent)
-  and/or --surface-human (leave human-reviewer threads surfaced-only, never
-  pre-selected for resolution). Omit the PR URL to auto-detect from the
-  current branch.
-when_to_use: >
-  Invoke only as the pre-merge verification link after review-response work has
-  been applied, or from /lrh-land while landing a specific open PR. Do not use
-  as a general review trigger, and never use it to manually retrigger hosted
-  GitHub review agents.
-argument-hint: "[pr-url] [--subagent] [--surface-human]"
+description: 'Pre-merge verification and thread-resolution pass for an LRH pull request.
+  Independently verifies pushed review fixes against the current HEAD diff (never
+  against the execution record''s claims), resolves the review threads the diff plainly
+  satisfies, surfaces the exceptions (unaddressed, partial, ambiguous, or problematic
+  threads), and ends at a merge-readiness verdict. Ends at a verdict and merge one-liner
+  rather than executing it as part of this skill''s own workflow. Provide the PR URL
+  as the argument, optionally followed by --subagent (dispatch verification to a cold-context
+  subagent) and/or --surface-human (leave human-reviewer threads surfaced-only, never
+  pre-selected for resolution). Omit the PR URL to auto-detect from the current branch.
+
+  '
+when_to_use: 'Invoke only as the pre-merge verification link after review-response
+  work has been applied, or from /lrh-land while landing a specific open PR. Do not
+  use as a general review trigger, and never use it to manually retrigger hosted GitHub
+  review agents.
+
+  '
 ---
 
 # lrh-confirm-fixes Skill
@@ -27,7 +26,7 @@ pre-merge pass that independently verifies pushed review fixes actually
 resolved reviewers' comments, resolves the review threads the current `HEAD`
 diff plainly satisfies, and surfaces everything else — unaddressed, partial,
 ambiguous, or problematic threads — as the report's headline. It ends at a
-merge-readiness verdict and a `gh pr merge` one-liner. This skill's own
+merge-readiness verdict and an `lrh vcs merge` one-liner. This skill's own
 workflow ends there — it does not itself run the merge or trigger closeout —
 but if the human then gives unambiguous in-session authorization to the
 presented one-liner, the agent may execute it; the classification test for
@@ -96,6 +95,31 @@ Load this before running any step:
 ---
 
 ## Execution Steps
+### Restricted network recovery
+
+For local-only work—file reads and edits, local Git inspection, parsing,
+formatting, linting, tests, and `lrh validate`—use normal execution. For
+commands contacting GitHub or a remote Git server, use this bounded procedure:
+
+1. Confirm the absolute project root with `git rev-parse --show-toplevel` and
+   `pwd`, and preserve the short, redacted error category.
+2. For a read-only or otherwise idempotent remote command that failed because
+   of DNS, HTTPS, or sandbox networking, request approved network execution
+   and retry that exact command once.
+3. For a mutating remote command, do not blindly retry: first reconcile remote
+   state to determine whether the request was accepted (for example, check
+   whether the PR or ref already exists). Retry only when the evidence shows
+   that no mutation was accepted; otherwise report the resulting state.
+4. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker rather than looping, broadening the command,
+   or silently substituting `--no-remote`.
+
+Do not refresh, replace, expose, or reauthorize credentials for DNS,
+connection, or sandbox-policy failures. Diagnose authentication separately
+only after the execution path can reach GitHub. The canonical maintainer
+procedure is `src/lrh/skills/_shared/github-network-execution.md`; this
+section is self-contained for installed client skills.
+
 
 Work through these steps in order. Do not skip Step 4 (confirm gate).
 
@@ -433,27 +457,34 @@ the resulting `HEAD`, not the pre-push commit (Step 8).
 
 ### Step 8 — Readiness report
 
-Re-fetch CI against the post-push `HEAD` SHA:
+Re-fetch CI against the post-push `HEAD` SHA — including this first read,
+through `check_ci_predicate` from `references/confirm-fixes-workflow.md`
+§ Bounded background-poll wait, never a bare `gh pr checks` call.
+`check_ci_predicate` is a shell function, not a command on `PATH`: paste its
+full definition from that section into the same shell first (a fresh shell
+without it exits `127`, which is none of the predicate's return codes):
 
 ```bash
-git rev-parse HEAD
-gh pr checks <pr-url> --required --json name,state,bucket
+# check_ci_predicate() { ... }   # defined first, verbatim from the reference
+check_ci_predicate <pr-url> "$(git rev-parse HEAD)"
 ```
 
-If this exits non-zero with a message matching "no required checks
-reported", run the same branch-rules distinguishing check as Step 2 (see
-`references/confirm-fixes-workflow.md`) before deciding whether to fall
-back or treat CI as pending. **This risk is sharpest here**: Step 8 runs
-immediately after Step 7 pushes the `_CONFIRM` commit, so required checks
-on the fresh `HEAD` are more likely than usual to not have started
-reporting yet — falling back to the unfiltered aggregate in that window
-could report a false green built only from optional checks.
+`0` is green, `1` is a terminal failure, and `2` is pending. A bare
+`gh pr checks` read cannot tell which commit its checks belong to, and
+Step 8 runs immediately after Step 7 pushes the `_CONFIRM` commit — the
+window in which the PR can still report the *previous* head's all-pass
+checks, or no checks at all. The predicate returns `2` in both cases (the
+PR's `headRefOid` does not yet match, or the check list is empty) instead
+of a false green. It also applies the same branch-rules distinguishing
+check as Step 2 when `--required` reports "no required checks reported",
+so falling back to the unfiltered aggregate never builds a green from
+optional checks while required checks on the fresh `HEAD` have not
+started reporting yet.
 
-If CI is genuinely pending (not the exit-code-1 ambiguity above, but a
-real in-progress check), wait using the bounded background-poll mechanism
-in `references/confirm-fixes-workflow.md` § Bounded background-poll wait
-— a single backgrounded shell command, capped at 900 seconds — rather
-than repeatedly re-attempting this step in the foreground.
+If the predicate returns `2`, wait using the bounded background-poll
+mechanism in that same section — a single backgrounded shell command,
+capped at 900 seconds, passing the same expected SHA — rather than
+repeatedly re-attempting this step in the foreground.
 
 **Also re-run a REVIEW-LANDED check against the `_CONFIRM` commit itself —
 this gates the verdict, not just who may act on it.** Step 7's commit is
@@ -605,11 +636,15 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
 
 - **Green** — "All threads resolved, CI green, review landed clean on
   `<sha>` → ready to merge." Include the one-liner, locked to the exact
-  commit just checked: `gh pr merge <pr-url> --match-head-commit <sha>`
+  commit just checked: `lrh vcs merge <pr-url> --match-head-commit <sha>`
   plus whichever merge-mode flag (`--merge`, `--squash`, `--rebase`) this
-  project treats as standard. `--match-head-commit` makes the merge fail
-  rather than silently merge a newer, unchecked commit if one lands between
-  this report and whoever ends up running it.
+  project treats as standard. `lrh vcs merge` refuses unless the PR is open
+  and its head is exactly `<sha>`, issues the merge once without retrying,
+  and reads the PR back (exit `0` merged, `1` accepted but not yet merged,
+  `2` refused or failed — read the message, since exit `2` does not always
+  mean nothing merged). Locking to the SHA makes the merge fail rather
+  than silently merge a newer, unchecked commit if one lands between this
+  report and whoever ends up running it.
 
   **Before applying the classification below, check whether an assistant
   role governs this invocation and defers to a stricter ceiling.** If this
@@ -663,7 +698,7 @@ Report to the user:
 - The final verdict and the `HEAD` SHA it was checked against
 - What was resolved (author, one-line description) and what was surfaced
   (bucket, rationale)
-- The `gh pr merge` one-liner, only if the verdict is green
+- The `lrh vcs merge` one-liner, only if the verdict is green
 - Next step after merging, only if the verdict is green: run
   `/lrh-closeout <pr-url>` to land the execution record, resolve the work
   item, and update the control plane
@@ -719,7 +754,7 @@ Before reporting completion, verify:
       invocation and imposes a stricter `repo:merge` prohibition or
       `merge:human` obligation that overrides this skill's general default
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
-- [ ] No `gh pr merge` was executed by this skill's own workflow — reported
+- [ ] No merge command (`lrh vcs merge`) was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous
       in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, not a
       guess
@@ -729,7 +764,7 @@ Before reporting completion, verify:
 ## What This Skill Does Not Do
 
 - Does not merge the PR as part of this skill's own workflow — the readiness
-  verdict and `gh pr merge` one-liner are its output. Whether the merge that
+  verdict and `lrh vcs merge` one-liner are its output. Whether the merge that
   follows is executed by the human or by the agent is governed by
   `DEC-AGENT-EXECUTED-MERGE-GATE`, not by this skill.
 - Does not *invoke* `/lrh-closeout` — closeout runs post-merge, this skill

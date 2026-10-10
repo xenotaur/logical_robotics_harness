@@ -458,27 +458,34 @@ the resulting `HEAD`, not the pre-push commit (Step 8).
 
 ### Step 8 — Readiness report
 
-Re-fetch CI against the post-push `HEAD` SHA:
+Re-fetch CI against the post-push `HEAD` SHA — including this first read,
+through `check_ci_predicate` from `references/confirm-fixes-workflow.md`
+§ Bounded background-poll wait, never a bare `gh pr checks` call.
+`check_ci_predicate` is a shell function, not a command on `PATH`: paste its
+full definition from that section into the same shell first (a fresh shell
+without it exits `127`, which is none of the predicate's return codes):
 
 ```bash
-git rev-parse HEAD
-gh pr checks <pr-url> --required --json name,state,bucket
+# check_ci_predicate() { ... }   # defined first, verbatim from the reference
+check_ci_predicate <pr-url> "$(git rev-parse HEAD)"
 ```
 
-If this exits non-zero with a message matching "no required checks
-reported", run the same branch-rules distinguishing check as Step 2 (see
-`references/confirm-fixes-workflow.md`) before deciding whether to fall
-back or treat CI as pending. **This risk is sharpest here**: Step 8 runs
-immediately after Step 7 pushes the `_CONFIRM` commit, so required checks
-on the fresh `HEAD` are more likely than usual to not have started
-reporting yet — falling back to the unfiltered aggregate in that window
-could report a false green built only from optional checks.
+`0` is green, `1` is a terminal failure, and `2` is pending. A bare
+`gh pr checks` read cannot tell which commit its checks belong to, and
+Step 8 runs immediately after Step 7 pushes the `_CONFIRM` commit — the
+window in which the PR can still report the *previous* head's all-pass
+checks, or no checks at all. The predicate returns `2` in both cases (the
+PR's `headRefOid` does not yet match, or the check list is empty) instead
+of a false green. It also applies the same branch-rules distinguishing
+check as Step 2 when `--required` reports "no required checks reported",
+so falling back to the unfiltered aggregate never builds a green from
+optional checks while required checks on the fresh `HEAD` have not
+started reporting yet.
 
-If CI is genuinely pending (not the exit-code-1 ambiguity above, but a
-real in-progress check), wait using the bounded background-poll mechanism
-in `references/confirm-fixes-workflow.md` § Bounded background-poll wait
-— a single backgrounded shell command, capped at 900 seconds — rather
-than repeatedly re-attempting this step in the foreground.
+If the predicate returns `2`, wait using the bounded background-poll
+mechanism in that same section — a single backgrounded shell command,
+capped at 900 seconds, passing the same expected SHA — rather than
+repeatedly re-attempting this step in the foreground.
 
 **Also re-run a REVIEW-LANDED check against the `_CONFIRM` commit itself —
 this gates the verdict, not just who may act on it.** Step 7's commit is

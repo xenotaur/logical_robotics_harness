@@ -2,10 +2,10 @@
 execution_id: 2026_10_10_00_08_41_WI_LOCAL_AGENT_001_T1_BRIEF_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LOCAL_AGENT_001_T1_BRIEF_REVIEW)[2026-10-10T00:06:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_09_23_55_33_WI_LOCAL_AGENT_001_T1_BRIEF
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/809
-commit:
+commit: f360acd9eb71cd028c253430e6ce5688952fa8cb
 created_at: 2026-10-10T00:08:41+00:00
 agent: claude_app
 instruction_source: lrh-land Step 4 review-response for PR 809; owner chose to fix threads 1 and 3 and option (a) for thread 2

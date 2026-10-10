@@ -178,7 +178,10 @@ can vary between zlib builds).
   `policy.allow_implicit_invocation`), when present, must be `true` or
   `false`, so a quoted `"true"` or an empty value fails rather than silently
   exporting a manual-only skill; an absent key means the skill is not
-  manual-only;
+  manual-only. Both markers are checked even when one already marks the
+  skill manual-only, so a manual-only skill with a malformed or unreadable
+  `agents/openai.yaml` fails validation (and stops the export) instead of
+  being skipped;
 - source symlinks are rejected, never followed;
 - archive paths must be safe and relative, with no case-insensitive duplicates;
 - bundles must stay within the upload limits documented by the OpenAI Skills

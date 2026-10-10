@@ -122,6 +122,35 @@ lrh serve --desktop-protocol
 - `/api/meta` returns the same bands as JSON, in the same order, with a
   `read_at` timestamp. Each project's `triage_lane` is its band's `status`.
 
+## Project selectors
+
+The dependency-map routes and the
+`/project/<project_id>/work-items/<work_item_id>` and
+`.../work-items/<work_item_id>/prompt` pages read the project that
+`<project_id>` names:
+
+- A registry name, short name, or project ID that the Meta registry resolves
+  to a local checkout reads that checkout. The served project's own registry
+  entry works this way too. A record without a `project_dir` reads the
+  checkout's `project/` directory.
+- `main` reads the served project when there is no Meta workspace, or when
+  the registry reads cleanly and no registered project matches `main`. It is
+  the served project's own selector, for a checkout served outside a Meta
+  workspace.
+- A registered project with no local checkout, such as one registered with
+  only a `repo_locator`, returns 409 Conflict. The HTML routes render a page
+  in the frame that says the project has no local checkout and gives the
+  command that binds one: `lrh meta set <name> --local-repo-path PATH`. The
+  JSON route returns an object whose `error` is `no_local_checkout`, with
+  `project`, `message`, and `next_action` fields.
+- Any other `project_id` returns 404, including an ambiguous selector or a
+  registry that cannot be read: a "Project not found" page from the HTML
+  routes, or an object whose `error` is `project_not_found` from the JSON
+  route. The `message` gives the registry's reason.
+
+These routes never show the served project's data under another project's
+name.
+
 ## Dependency-map routes
 
 - `/project/<project_id>/dependency-maps`: the project's declared views, or an
@@ -148,9 +177,9 @@ lrh serve --desktop-protocol
   `DependencyMapSnapshot` JSON for a view declared in
   `project/views/dependency_maps/<view>.md`. It returns 404 for an unknown
   view, 422 for an invalid declaration, and 500 if the view or the project's
-  control files cannot be read. As with the other `/project/<project_id>/`
-  routes, a `project_id` that the Meta registry cannot resolve to a local
-  checkout falls back to the served project. HEAD builds the snapshot as GET
+  control files cannot be read. A `project_id` that names no readable
+  project returns a JSON error instead, as described in
+  [Project selectors](#project-selectors). HEAD builds the snapshot as GET
   does, so the two always agree. `lrh dependency-map snapshot <view>` prints
   the same JSON; see the [dependency-map reference](dependency-map.md).
 

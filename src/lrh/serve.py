@@ -170,20 +170,22 @@ def dependency_map_payload(
 ) -> tuple[int, dict[str, object]]:
     """Answer ``/api/project/<project_id>/dependency-maps/<view>`` read-only.
 
-    Like the other ``/project/<project_id>/`` routes, a ``project_id`` that the
-    Meta registry cannot resolve to a local checkout falls back to the served
-    project. Returns the versioned snapshot JSON, 404 for a malformed path or
-    an unknown view, 422 for an invalid view declaration, or 500 if the
-    project's control files cannot be loaded.
+    Returns the versioned snapshot JSON, 404 for a malformed path, an unknown
+    project, or an unknown view, 409 for a registered project with no local
+    checkout, 422 for an invalid view declaration, or 500 if the project's
+    control files cannot be loaded.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
     if len(parts) != 3 or parts[1] != "dependency-maps":
         return 404, {"error": "not_found"}
     project_selector, _, view_id = parts
-    repo_root = _config_for_project_selector(
-        config, project_selector
-    ).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, project_selector
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status, error.to_payload()
     try:
         snapshot = _build_snapshot(repo_root, view_id)
     except FileNotFoundError:
@@ -204,12 +206,16 @@ def render_dependency_map_page(
     """Render a dependency-map view, or the project's list of views.
 
     Returns 404 for an unknown view, 422 for an invalid declaration, and 500
-    if the sources cannot be read; the last two render an explanatory page.
+    if the sources cannot be read; the last two render an explanatory page, as
+    do an unknown project (404) and a project with no local checkout (409).
     """
 
-    repo_root = _config_for_project_selector(
-        config, project_selector
-    ).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, project_selector
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status, render_project_selector_error_page(error)
     base = f"/project/{_url_quote(project_selector)}/dependency-maps"
     if view_id is None:
         return 200, _dependency_map_document(
@@ -306,7 +312,12 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
     if len(parts) != 3 or parts[1] != "dependency-maps":
         return 404
-    repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
+    try:
+        repo_root = _config_for_project_selector(
+            config, parts[0]
+        ).resolved_project_root()
+    except ProjectSelectorError as error:
+        return error.status
     try:
         _build_snapshot(repo_root, parts[2])
     except FileNotFoundError:
@@ -2246,6 +2257,9 @@ def render_project_work_item_page(
 
     try:
         scoped_config = _config_for_project_selector(config, project_id)
+    except ProjectSelectorError as error:
+        return error.status, render_project_selector_error_page(error)
+    try:
         state = core_state.load_core_project_state(
             scoped_config.resolved_project_root(), cache=_STATE_CACHE
         )
@@ -2313,34 +2327,179 @@ renderer.</p>
     return 200, page
 
 
+SERVED_PROJECT_SELECTOR = "main"
+
+
+class ProjectSelectorError(Exception):
+    """A ``/project/<project_id>/`` selector names no locally readable project.
+
+    ``status`` is 404 when nothing matches the selector, and 409 when it names
+    a registered project that has no local checkout to read.
+    """
+
+    def __init__(
+        self,
+        selector: str,
+        *,
+        status: int,
+        error: str,
+        message: str,
+        registry_name: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.selector = selector
+        self.status = status
+        self.error = error
+        self.message = message
+        self.registry_name = registry_name
+
+    @property
+    def next_action(self) -> str | None:
+        """The command that binds a local checkout, for a no-checkout error."""
+
+        if self.registry_name is None:
+            return None
+        return f"lrh meta set {shlex.quote(self.registry_name)} --local-repo-path PATH"
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the JSON error body the API routes send."""
+
+        payload: dict[str, object] = {
+            "error": self.error,
+            "project": self.selector,
+            "message": self.message,
+        }
+        if self.next_action is not None:
+            payload["next_action"] = self.next_action
+        return payload
+
+
 def _config_for_project_selector(
     config: ServeConfig, project_selector: str
 ) -> ServeConfig:
-    """Return project-scoped config for a project selector when possible."""
+    """Return the config scoped to the project a selector names.
+
+    A selector the Meta registry resolves to a local checkout scopes to that
+    checkout. ``main``, the served project's own selector, falls back to the
+    served project only when no Meta workspace exists or the registry reads
+    cleanly and no record matches it. A registered project without a local
+    checkout raises a 409 ``ProjectSelectorError`` and anything else,
+    including an ambiguous selector or an unreadable registry, a 404, so a
+    page never shows the served project's data under another project's name.
+    """
 
     try:
         workspace = meta_workspace.resolve_meta_workspace(
             cwd=config.resolved_project_root()
         )
+    except (meta_workspace.MetaWorkspaceResolutionError, ValueError) as error:
+        if project_selector == SERVED_PROJECT_SELECTOR:
+            return config
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=f"No Meta registry is available to resolve {project_selector!r}.",
+        ) from error
+    except meta_workspace.MetaRegistryError as error:
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
+        ) from error
+    try:
         selection = meta_workspace.inspect_registered_project_in_workspace(
             workspace,
             selector=project_selector,
         )
-    except (
-        meta_workspace.MetaRegistryError,
-        meta_workspace.MetaWorkspaceResolutionError,
-        ValueError,
-    ):
-        return config
+    except (meta_workspace.MetaRegistryError, ValueError) as error:
+        if project_selector == SERVED_PROJECT_SELECTOR and _registry_has_no_match(
+            workspace, project_selector
+        ):
+            return config
+        raise ProjectSelectorError(
+            project_selector,
+            status=404,
+            error="project_not_found",
+            message=str(error),
+        ) from error
     resolved_path = selection.resolved_project_path
+    if (
+        resolved_path is None
+        and selection.resolved_repo_path is not None
+        and selection.record.project_dir is None
+    ):
+        # A record without project_dir keeps its control files in the
+        # conventional project/ directory, as _registered_project_control_root
+        # assumes for the dashboard.
+        resolved_path = selection.resolved_repo_path / "project"
     if resolved_path is None:
-        return config
+        registry_name = selection.record.registry_name
+        raise ProjectSelectorError(
+            project_selector,
+            status=409,
+            error="no_local_checkout",
+            message=(
+                f"Project {registry_name!r} is registered but has no local "
+                "checkout, so its project files cannot be read."
+            ),
+            registry_name=registry_name,
+        )
     return ServeConfig(
         host=config.host,
         port=config.port,
         project_root=resolved_path,
         allow_nonlocal_host=config.allow_nonlocal_host,
     )
+
+
+def _registry_has_no_match(
+    workspace: meta_workspace.MetaWorkspace, project_selector: str
+) -> bool:
+    """Return whether the registry reads cleanly and no record matches."""
+
+    try:
+        records = meta_workspace.list_registered_projects_in_workspace(workspace)
+    except meta_workspace.MetaRegistryError:
+        return False
+    return not any(
+        project_selector in (record.project_id, record.short_name, record.registry_name)
+        for record in records
+    )
+
+
+def render_project_selector_error_page(error: ProjectSelectorError) -> str:
+    """Render the page for a selector that names no locally readable project."""
+
+    selector = html.escape(error.selector)
+    if error.next_action is None:
+        title = "Project not found"
+        detail = (
+            f"<p>{html.escape(error.message)}</p>"
+            '<p><a href="/meta">Open the meta triage dashboard</a> to see the '
+            "registered projects.</p>"
+        )
+    else:
+        title = "No local checkout"
+        name = html.escape(error.registry_name or error.selector)
+        detail = (
+            f"<p>Project <code>{name}</code> is registered, but it has no local "
+            "checkout, so LRH cannot read its project files.</p>"
+            "<p>Bind a local checkout, then reload this page:</p>"
+            f"<p><code>{html.escape(error.next_action)}</code></p>"
+        )
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{html.escape(title)}</title>{_base_styles()}</head>
+<body>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header"><p class="lrh-eyebrow">{selector}</p>
+    <h1>{html.escape(title)}</h1>{detail}</header>
+  </div>
+</body>
+</html>
+"""
 
 
 def render_workbench_artifact(
@@ -3444,7 +3603,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                         parts[2] if len(parts) == 3 else None,
                         self._query_values(),
                     )
-                    if status_code == 404:
+                    if status_code == 404 and not body:
                         self._write_json(404, {"error": "not_found"})
                     else:
                         self._write_text(status_code, "text/html; charset=utf-8", body)
@@ -3471,8 +3630,8 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     status_code, body = render_project_work_item_page(
                         config, parts[0], parts[2]
                     )
-                    if status_code == 200:
-                        self._write_text(200, "text/html; charset=utf-8", body)
+                    if status_code == 200 or body.startswith("<!doctype html>"):
+                        self._write_text(status_code, "text/html; charset=utf-8", body)
                     else:
                         self._write_json(status_code, json.loads(body))
                     return
@@ -3483,6 +3642,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 ):
                     try:
                         scoped_config = _config_for_project_selector(config, parts[0])
+                    except ProjectSelectorError as error:
+                        self._write_text(
+                            error.status,
+                            "text/html; charset=utf-8",
+                            render_project_selector_error_page(error),
+                        )
+                        return
+                    try:
                         artifact = render_workbench_artifact(
                             scoped_config, "prompt", parts[2]
                         )
@@ -3565,6 +3732,11 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
                 if len(parts) in (2, 3) and parts[1] == "dependency-maps":
+                    try:
+                        _config_for_project_selector(config, parts[0])
+                    except ProjectSelectorError as error:
+                        self._write_head(error.status, "text/html; charset=utf-8")
+                        return
                     status_code = (
                         dependency_map_head_status(config, remainder)
                         if len(parts) == 3

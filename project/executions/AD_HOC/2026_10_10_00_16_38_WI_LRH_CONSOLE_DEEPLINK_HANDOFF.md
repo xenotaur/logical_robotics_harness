@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DEEPLINK_HANDOFF)[2026-10-10T00:14:39+00
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/812
 commit: 
 created_at: 2026-10-10T00:16:38+00:00
 agent: claude_app

@@ -28,7 +28,7 @@ If you only need the LRH closeout pointer and do not want to archive transcript
 content, run:
 
 ```text
-/lrh-codex-session
+/lrh-session-id-codex
 ```
 
 That skill wraps:
@@ -57,8 +57,8 @@ In Codex, run:
 ```
 
 When `CODEX_THREAD_ID` is available, the skill resolves it through the same
-shared resolver used by `/lrh-codex-session`. If the environment does not expose
-a thread id, provide one explicitly:
+shared resolver used by `/lrh-session-id-codex`. If the environment does not
+expose a thread id, provide one explicitly:
 
 ```text
 /lrh-codex-export 019fc43f-e2d9-7503-88cb-9d9a8136c111

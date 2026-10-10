@@ -453,12 +453,15 @@ gate and ask with a structured diff.
 proceeding to Step 4.** `/lrh-implement`'s own Step 9 passes
 `--pr <pr-url-from-step-8>` to `record-execution`, and backfills `pr:` and
 `rerun_of:` on its Step 7.5 diff-mode `_SELFREVIEW` record when one exists,
-so this should already hold. Check it anyway, and if `pr:` is empty, set it
-to the Step 8 PR URL on the record before Step 4: `/lrh-land`'s Step 1
-primary-record search matches on `pr: <pr-url>`. A primary record without it
-is invisible to that search. `/lrh-land` would fall back to an `AD_HOC` backfill, and closeout's
-matrix does not resolve a WI for `AD_HOC`, so the target `WI-ID` would stay
-`proposed` even after the PR merges.
+so this should already hold. Check it anyway. If `pr:` is empty, set it to
+the Step 8 PR URL on the record, then commit and push the corrected record
+to the open PR before Step 4. Step 9 has already pushed, so an uncommitted
+fix would sit outside the PR head and leave `/lrh-land` a dirty worktree.
+`/lrh-land`'s Step 1 primary-record search matches on `pr: <pr-url>`. A
+primary record without it is invisible to that search. `/lrh-land` would
+fall back to an `AD_HOC` backfill, and closeout's matrix does not resolve a
+WI for `AD_HOC`, so the target `WI-ID` would stay `proposed` even after the
+PR merges.
 
 **If Step 1.5 matched a prior `execution_id` for `--rerun-of` (the rerun
 case), add it to that same Step 9 call:** `lrh prompt record-execution ...

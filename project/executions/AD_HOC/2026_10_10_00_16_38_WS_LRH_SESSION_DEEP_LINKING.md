@@ -7,7 +7,7 @@ rerun_of:
 pr: 
 commit: 
 created_at: 2026-10-10T00:16:38+00:00
-agent: claude
+agent: claude_app
 instruction_source: project/workstreams/proposed/WS-LRH-SESSION-DEEP-LINKING.md
 session_transcript: pending
 ---

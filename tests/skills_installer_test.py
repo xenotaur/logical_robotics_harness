@@ -627,6 +627,46 @@ class TestInstallSkills(unittest.TestCase):
         self.assertIn("installed artifact is a symlink", diff_text)
         self.assertNotIn("do not read this manifest target", diff_text)
 
+    def _make_source_with_hidden_dir(self) -> Path:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: sample-skill\ndescription: Sample skill.\n---\n\n# S\n"
+        )
+        (source_dir / ".git" / "objects").mkdir(parents=True)
+        (source_dir / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+        return source_dir
+
+    def test_hidden_source_directory_is_not_installed(self) -> None:
+        source_dir = self._make_source_with_hidden_dir()
+        skills_dir = self._make_skills_dir()
+
+        report = installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual([r.name for r in report.results], ["sample-skill"])
+        self.assertFalse((skills_dir / ".git").exists())
+
+    def test_hidden_source_directory_is_not_reported_by_status(self) -> None:
+        source_dir = self._make_source_with_hidden_dir()
+
+        report = installer.inspect_skills(
+            skills_dir=self._make_skills_dir(), source=source_dir
+        )
+
+        self.assertEqual([r.name for r in report.results], ["sample-skill"])
+
+    def test_hidden_symlink_in_source_still_raises(self) -> None:
+        source_dir = self._make_source_with_hidden_dir()
+        elsewhere = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, elsewhere, True)
+        (source_dir / ".hidden-link").symlink_to(elsewhere)
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(
+                skills_dir=self._make_skills_dir(), source=source_dir
+            )
+
 
 class TestResolveInstallTargets(unittest.TestCase):
     def test_claude_user_target(self) -> None:

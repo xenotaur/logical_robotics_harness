@@ -60,6 +60,12 @@ otherwise it defaults to user scope.
 When `--source` is omitted, LRH uses `project/agent_skills.yaml` if present;
 otherwise it defaults to `lrh-package`.
 
+Each top-level directory in the source is a skill, except directories whose
+names start with `_` (shared support files) or `.` (tool metadata such as
+`.git/` or `.vscode/`). `install`, `status`, `check`, and `export` all skip
+those directories. A symlinked top-level entry is still refused, even when its
+name starts with `.`.
+
 ## Install Options
 
 `lrh skills install` accepts:
@@ -139,8 +145,19 @@ named with `--skill`, with a notice that ChatGPT may select it automatically.
 with `SKILL.md` and any `references/`, `scripts/`, and `assets/`. `agents/` is
 never bundled. Other top-level entries, hidden files, and Python caches are
 skipped and reported. `SKILL.md` frontmatter keeps only `name`, `description`,
-`license`, `compatibility`, and `metadata`; all other keys are dropped and
-reported. Skill body text is not rewritten.
+`license`, `compatibility`, and `metadata`; other keys are dropped and
+reported, except `when_to_use`, whose guidance is carried into the bundle:
+
+- if `description`, one space, and `when_to_use` (each with surrounding
+  whitespace stripped) fit in 1024 characters, the bundled `description`
+  becomes that combined text;
+- otherwise `description` is kept unchanged and the guidance is added as a
+  generated `## When to use` section after the body's first `#` (H1)
+  heading outside a code block (or at the top of the body when it has none),
+  with a notice.
+
+Existing skill body text is never rewritten; the generated section is the only
+addition.
 
 **Determinism.** Archive entries are sorted, with fixed timestamps
 (1980-01-01), permissions, and compression settings, so identical sources
@@ -153,11 +170,15 @@ can vary between zlib builds).
 - `name` must match the directory name, use lowercase letters, digits, and
   single hyphens, and be at most 64 characters;
 - `description` must be a non-empty string of at most 1024 characters;
-- optional `license` must be a string, `compatibility` a string of at most 500
-  characters, and `metadata` a mapping of string keys to string values;
+- optional `license` must be a string, `compatibility` a string of 1 to 500
+  characters (the Agent Skills specification's bound) that is not only
+  whitespace, and `metadata` a mapping of string keys to string values;
+- optional `when_to_use` must be a non-blank string;
 - manual-only markers (`disable-model-invocation`,
-  `policy.allow_implicit_invocation`) must be booleans, so a quoted `"true"`
-  fails rather than silently exporting a manual-only skill;
+  `policy.allow_implicit_invocation`), when present, must be `true` or
+  `false`, so a quoted `"true"` or an empty value fails rather than silently
+  exporting a manual-only skill; an absent key means the skill is not
+  manual-only;
 - source symlinks are rejected, never followed;
 - archive paths must be safe and relative, with no case-insensitive duplicates;
 - bundles must stay within the upload limits documented by the OpenAI Skills
@@ -175,8 +196,9 @@ existing directory at a destination `<skill-name>.zip` path stops the export
 before anything is written.
 
 **Notices** are non-blocking and printed per skill: dropped frontmatter keys,
-skipped entries, manual-only status, an earlier bundle for a skipped manual-only
-skill still present in `--out`, and workflows that use local `git`, the
+`when_to_use` guidance moved into a generated section, skipped entries,
+manual-only status, an earlier bundle for a skipped manual-only skill still
+present in `--out`, and workflows that use local `git`, the
 GitHub `gh` CLI, the `lrh` CLI, or shell commands, which ChatGPT online cannot
 run against your local repository or machine.
 

@@ -158,12 +158,13 @@ class TestExportSkills(_SkillTreeMixin, unittest.TestCase):
         frontmatter = yaml.safe_load(skill_md.split("---")[1])
         self.assertEqual(
             frontmatter,
-            {"name": "demo-skill", "description": "Demo.", "license": "MIT"},
+            {"name": "demo-skill", "description": "Demo. Tests.", "license": "MIT"},
         )
         self.assertTrue(skill_md.endswith("\nBody text stays exactly.\n"))
         notice = self._notice(self._result(report, "demo-skill"), "stripped_metadata")
-        for key in ("allowed-tools", "argument-hint", "context", "when_to_use"):
+        for key in ("allowed-tools", "argument-hint", "context"):
             self.assertIn(key, notice.message)
+        self.assertNotIn("when_to_use", notice.message)
 
     def test_non_string_frontmatter_key_is_stripped_without_error(self) -> None:
         source = self._make_source()
@@ -386,7 +387,40 @@ class TestManualOnlySkills(_SkillTreeMixin, unittest.TestCase):
         for name in ("quoted-claude", "quoted-codex"):
             result = self._result(report, name)
             self.assertEqual(result.status, exporter.ExportStatus.FAILED)
-            self.assertIn("must be a boolean", " ".join(result.errors))
+            self.assertIn("must be true or false", " ".join(result.errors))
+
+    def test_blank_manual_only_markers_fail_safe(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "blank-claude",
+            skill_md=(
+                "---\nname: blank-claude\ndescription: Q.\n"
+                "disable-model-invocation:\n---\nB\n"
+            ),
+        )
+        self._write_skill(
+            source,
+            "blank-codex",
+            extra_files={
+                "agents/openai.yaml": "policy:\n  allow_implicit_invocation:\n"
+            },
+        )
+        report = exporter.export_skills(out_dir=self._make_out(), source=source)
+        for name in ("blank-claude", "blank-codex"):
+            result = self._result(report, name)
+            self.assertEqual(result.status, exporter.ExportStatus.FAILED)
+            self.assertIn("must be true or false", " ".join(result.errors))
+
+    def test_absent_manual_only_markers_do_not_fail(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "no-markers",
+            extra_files={"agents/openai.yaml": "policy:\n  other: 1\n"},
+        )
+        report = exporter.export_skills(out_dir=self._make_out(), source=source)
+        self.assertEqual(report.results[0].status, exporter.ExportStatus.EXPORTED)
 
     def test_empty_openai_yaml_is_not_manual_only(self) -> None:
         source = self._make_source()
@@ -403,6 +437,165 @@ class TestManualOnlySkills(_SkillTreeMixin, unittest.TestCase):
         )
         report = exporter.export_skills(out_dir=self._make_out(), source=source)
         self.assertEqual(report.results[0].status, exporter.ExportStatus.FAILED)
+
+
+class TestWhenToUse(_SkillTreeMixin, unittest.TestCase):
+    def _export_one(
+        self, name: str, skill_md: str
+    ) -> tuple[exporter.SkillExportResult, str]:
+        source = self._make_source()
+        self._write_skill(source, name, skill_md=skill_md)
+        out = self._make_out()
+        report = exporter.export_skills(out_dir=out, source=source)
+        result = self._result(report, name)
+        self.assertEqual(result.status, exporter.ExportStatus.EXPORTED, result.errors)
+        return result, self._archive_read(out / f"{name}.zip", f"{name}/SKILL.md")
+
+    def test_short_guidance_folds_into_description_with_single_space(self) -> None:
+        result, skill_md = self._export_one(
+            "fold-skill",
+            "---\nname: fold-skill\ndescription: >\n  Does a thing.\n"
+            "when_to_use: >\n  Use it for tests.\n---\n# fold-skill\n\nBody.\n",
+        )
+        frontmatter = yaml.safe_load(skill_md.split("---")[1])
+        self.assertEqual(frontmatter["description"], "Does a thing. Use it for tests.")
+        self.assertNotIn("## When to use", skill_md)
+        self.assertTrue(skill_md.endswith("# fold-skill\n\nBody.\n"))
+        codes = {notice.code for notice in result.notices}
+        self.assertNotIn("when_to_use_section", codes)
+        self.assertNotIn("stripped_metadata", codes)
+
+    def test_fold_exactly_at_limit_stays_folded(self) -> None:
+        guidance = "g" * (exporter.MAX_DESCRIPTION_LENGTH - len("D.") - 1)
+        _result, skill_md = self._export_one(
+            "edge-skill",
+            "---\nname: edge-skill\ndescription: D.\n"
+            f"when_to_use: {guidance}\n---\nB\n",
+        )
+        frontmatter = yaml.safe_load(skill_md.split("---")[1])
+        self.assertEqual(
+            len(frontmatter["description"]), exporter.MAX_DESCRIPTION_LENGTH
+        )
+        self.assertNotIn("## When to use", skill_md)
+
+    def test_over_limit_guidance_becomes_section_after_first_h1(self) -> None:
+        description = "d" * 1000
+        guidance = "Only when explicitly asked. Do not invoke proactively."
+        result, skill_md = self._export_one(
+            "long-skill",
+            f"---\nname: long-skill\ndescription: {description}\n"
+            f"when_to_use: {guidance}\n---\n\n# long-skill Skill\n\nOriginal body.\n",
+        )
+        frontmatter = yaml.safe_load(skill_md.split("---")[1])
+        self.assertEqual(frontmatter["description"], description)
+        self.assertNotIn("when_to_use", frontmatter)
+        body = skill_md.split("---\n", 2)[2]
+        self.assertEqual(
+            body,
+            "\n# long-skill Skill\n\n## When to use\n\n"
+            f"{guidance}\n\nOriginal body.\n",
+        )
+        self._notice(result, "when_to_use_section")
+        stripped = [n for n in result.notices if n.code == "stripped_metadata"]
+        self.assertFalse(stripped)
+
+    def test_section_without_h1_goes_to_top(self) -> None:
+        _result, skill_md = self._export_one(
+            "noh1-skill",
+            f"---\nname: noh1-skill\ndescription: {'d' * 1020}\n"
+            "when_to_use: Guidance.\n---\nPlain body.\n",
+        )
+        body = skill_md.split("---\n", 2)[2]
+        self.assertEqual(body, "## When to use\n\nGuidance.\n\nPlain body.\n")
+
+    def test_section_skips_h1_inside_code_fence(self) -> None:
+        _result, skill_md = self._export_one(
+            "fence-skill",
+            f"---\nname: fence-skill\ndescription: {'d' * 1020}\n"
+            "when_to_use: Guidance.\n---\n"
+            "```\n# not a heading\n```\n# Real\n\nText.\n",
+        )
+        body = skill_md.split("---\n", 2)[2]
+        self.assertEqual(
+            body,
+            "```\n# not a heading\n```\n# Real\n\n"
+            "## When to use\n\nGuidance.\n\nText.\n",
+        )
+
+    def test_fold_one_over_limit_becomes_section(self) -> None:
+        guidance = "g" * (exporter.MAX_DESCRIPTION_LENGTH - len("D."))
+        result, skill_md = self._export_one(
+            "over-skill",
+            "---\nname: over-skill\ndescription: D.\n"
+            f"when_to_use: {guidance}\n---\nB\n",
+        )
+        frontmatter = yaml.safe_load(skill_md.split("---")[1])
+        self.assertEqual(frontmatter["description"], "D.")
+        self.assertIn("## When to use", skill_md)
+        self._notice(result, "when_to_use_section")
+
+    def test_section_placement_follows_markdown_structure(self) -> None:
+        insert = exporter._insert_when_to_use_section
+        cases = {
+            "tilde inside backtick fence": (
+                "```\n~~~\n# inside\n```\n# Real\nText\n",
+                "```\n~~~\n# inside\n```\n# Real\n\n" "## When to use\n\nG\n\nText\n",
+            ),
+            "short fence inside longer fence": (
+                "````\n```\n# inside\n```\n````\n# Real\n",
+                "````\n```\n# inside\n```\n````\n# Real\n\n" "## When to use\n\nG\n",
+            ),
+            "unclosed fence": (
+                "```\n# inside\n",
+                "## When to use\n\nG\n\n```\n# inside\n",
+            ),
+            "indented heading": (
+                "   # Title\nBody\n",
+                "   # Title\n\n## When to use\n\nG\n\nBody\n",
+            ),
+            "four-space indent is not a heading": (
+                "    # code\n",
+                "## When to use\n\nG\n\n    # code\n",
+            ),
+            "heading at end without newline": (
+                "# Title",
+                "# Title\n\n## When to use\n\nG\n",
+            ),
+            "crlf body": (
+                "# Title\r\n\r\nBody\r\n",
+                "# Title\r\n\r\n## When to use\r\n\r\nG\r\n\r\nBody\r\n",
+            ),
+            "line separator is not a line break": (
+                "# Title\u2028more\nBody\n",
+                "# Title\u2028more\n\n## When to use\n\nG\n\nBody\n",
+            ),
+        }
+        for label, (body, expected) in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(insert(body, "G"), expected)
+
+    def test_canonical_skills_never_drop_when_to_use(self) -> None:
+        out = self._make_out()
+        report = exporter.export_skills(out_dir=out)
+        self.assertFalse(report.has_failures)
+        sectioned = set()
+        for result in report.results:
+            if result.status is not exporter.ExportStatus.EXPORTED:
+                continue
+            for notice in result.notices:
+                if notice.code == "stripped_metadata":
+                    self.assertNotIn("when_to_use", notice.message)
+                if notice.code == "when_to_use_section":
+                    sectioned.add(result.name)
+            skill_md = self._archive_read(
+                out / f"{result.name}.zip", f"{result.name}/SKILL.md"
+            )
+            frontmatter = yaml.safe_load(skill_md.split("---")[1])
+            self.assertLessEqual(
+                len(frontmatter["description"]), exporter.MAX_DESCRIPTION_LENGTH
+            )
+            self.assertEqual(result.name in sectioned, "## When to use" in skill_md)
+        self.assertIn("lrh-export-claude", sectioned)
 
 
 class TestCapabilityNotices(_SkillTreeMixin, unittest.TestCase):
@@ -537,10 +730,34 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
 
     def test_malformed_optional_portable_fields_fail(self) -> None:
         cases = {
-            "bad-license": "license: 5\n",
-            "bad-compat": "compatibility: " + "c" * 501 + "\n",
-            "bad-metadata": "metadata: [1, 2]\n",
-            "bad-metadata-value": "metadata:\n  key: 3\n",
+            "bad-license": ("license: 5\n", "license must be a string"),
+            "bad-compat": ("compatibility: " + "c" * 501 + "\n", "limit is 500"),
+            "empty-compat": (
+                "compatibility: ''\n",
+                "compatibility must be a non-blank",
+            ),
+            "blank-compat": (
+                "compatibility: '   '\n",
+                "compatibility must be a non-blank",
+            ),
+            "bad-metadata": ("metadata: [1, 2]\n", "metadata must map"),
+            "bad-metadata-value": ("metadata:\n  key: 3\n", "metadata must map"),
+        }
+        for name, (extra, fragment) in cases.items():
+            with self.subTest(name=name):
+                source = self._make_source()
+                self._write_skill(
+                    source,
+                    name,
+                    skill_md=f"---\nname: {name}\ndescription: X.\n{extra}---\nB\n",
+                )
+                self._assert_fails_without_writing(source, fragment)
+
+    def test_blank_or_non_string_when_to_use_fails(self) -> None:
+        cases = {
+            "null-wtu": "when_to_use:\n",
+            "blank-wtu": "when_to_use: '   '\n",
+            "list-wtu": "when_to_use: [a, b]\n",
         }
         for name, extra in cases.items():
             with self.subTest(name=name):
@@ -550,7 +767,9 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
                     name,
                     skill_md=f"---\nname: {name}\ndescription: X.\n{extra}---\nB\n",
                 )
-                self._assert_fails_without_writing(source, "frontmatter")
+                self._assert_fails_without_writing(
+                    source, "when_to_use must be a non-blank string"
+                )
 
     def test_valid_optional_portable_fields_are_kept(self) -> None:
         source = self._make_source()
@@ -569,6 +788,7 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
         frontmatter = yaml.safe_load(skill_md.split("---")[1])
         self.assertEqual(frontmatter["metadata"], {"owner": "lrh"})
         self.assertEqual(frontmatter["compatibility"], "Needs nothing.")
+        self.assertEqual(frontmatter["license"], "MIT")
 
     def test_one_failure_blocks_all_writes(self) -> None:
         source = self._make_source()
@@ -687,6 +907,19 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
             exporter.export_skills(out_dir=out, source=source)
 
 
+class TestHiddenSourceEntries(_SkillTreeMixin, unittest.TestCase):
+    def test_hidden_directory_is_not_a_skill(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "demo-skill")
+        (source / ".git" / "objects").mkdir(parents=True)
+        (source / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+        out = self._make_out()
+        report = exporter.export_skills(out_dir=out, source=source)
+        self.assertFalse(report.has_failures)
+        self.assertEqual([r.name for r in report.results], ["demo-skill"])
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ["demo-skill.zip"])
+
+
 class TestExportSafety(_SkillTreeMixin, unittest.TestCase):
     def test_symlinked_file_inside_skill_is_rejected(self) -> None:
         source = self._make_source()
@@ -764,6 +997,7 @@ class TestChatGPTSkillRenderer(unittest.TestCase):
         )
         self.assertEqual(sorted(rendered), ["SKILL.md", "references/r.md"])
         self.assertNotIn(b"when_to_use", rendered["SKILL.md"])
+        self.assertIn(b"description: D. W.", rendered["SKILL.md"])
 
     def test_renderer_leaves_frontmatterless_skill_md_unchanged(self) -> None:
         rendered = exporter.ChatGPTSkillRenderer().render(

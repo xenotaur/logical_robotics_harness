@@ -92,6 +92,7 @@ In-repo: `lrh serve` starts no background work today (`src/lrh/serve.py`, `creat
 - `lrh validate`
 - `tests/smoke/desktop_protocol_smoke.py` (startup and ready timing).
 - The owner checks first-visit speed in LRH Console.
+- Pending owner check, carried over from `WI-LRH-CONSOLE-PAGE-SPEED`: edit a work item title in a registered project's checkout and confirm the next click shows it without a restart. A server test already covers this.
 
 ## Dependencies / Order
 

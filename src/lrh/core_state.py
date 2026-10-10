@@ -9,10 +9,15 @@ mutation or runtime execution authority.
 
 from __future__ import annotations
 
+import collections
+import hashlib
+import os
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Mapping
+from typing import Mapping, TypeVar
 
 from lrh.control import execution_readiness
 from lrh.control import loader as control_loader
@@ -195,11 +200,99 @@ class CoreProjectState:
     workstreams_by_id: Mapping[str, WorkstreamState]
 
 
+_T = TypeVar("_T")
+
+
+def control_fingerprint(project_dir: Path) -> str:
+    """A cheap fingerprint of every file under a ``project/`` control directory.
+
+    It covers each file's relative path, size, modification time (in
+    nanoseconds), and inode, so an added, deleted, renamed, edited, or
+    atomically replaced file changes it. Only metadata is read, never
+    contents: an edit that keeps the size and lands within the same
+    filesystem timestamp tick is not detected.
+    """
+
+    digest = hashlib.sha256()
+    root = str(project_dir)
+    entries: list[tuple[str, int, int, int]] = []
+    # The loader and validator read through symlinked directories, so the
+    # fingerprint follows them too, visiting each real directory once.
+    seen: set[tuple[int, int]] = set()
+    for directory, dirnames, filenames in os.walk(root, followlinks=True):
+        try:
+            info = os.stat(directory)
+        except OSError:
+            dirnames[:] = []
+            continue
+        if (info.st_dev, info.st_ino) in seen:
+            dirnames[:] = []
+            continue
+        seen.add((info.st_dev, info.st_ino))
+        dirnames.sort()
+        for name in filenames:
+            path = os.path.join(directory, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            relative = os.path.relpath(path, root)
+            entries.append((relative, stat.st_size, stat.st_mtime_ns, stat.st_ino))
+    for entry in sorted(entries):
+        digest.update(repr(entry).encode("utf-8"))
+    return digest.hexdigest()
+
+
+class ProjectStateCache:
+    """A small, thread-safe cache of values computed from a project's control files.
+
+    Each entry is keyed by a name and a ``project/`` directory, and is reused
+    only while that directory's :func:`control_fingerprint` is unchanged, so
+    any change to a control file is seen on the next request. Long-running
+    readers (``lrh serve``) use it; one-shot commands do not need it.
+    """
+
+    def __init__(self, max_entries: int = 64) -> None:
+        self._max_entries = max_entries
+        self._lock = threading.Lock()
+        self._entries: collections.OrderedDict[tuple[str, str], tuple[str, object]] = (
+            collections.OrderedDict()
+        )
+
+    def get(self, name: str, project_dir: Path, compute: Callable[[], _T]) -> _T:
+        """Return the cached value, or compute and store it.
+
+        The fingerprint is taken before computing, so a file that changes
+        while the value is being built makes the stored entry stale at once.
+        Exceptions propagate and are never cached.
+        """
+
+        key = (name, str(Path(project_dir).resolve()))
+        fingerprint = control_fingerprint(Path(key[1]))
+        with self._lock:
+            hit = self._entries.get(key)
+            if hit is not None and hit[0] == fingerprint:
+                self._entries.move_to_end(key)
+                return hit[1]  # type: ignore[return-value]
+        value = compute()
+        with self._lock:
+            self._entries[key] = (fingerprint, value)
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._max_entries:
+                self._entries.popitem(last=False)
+        return value
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+
+
 def load_core_project_state(
     root: Path,
     *,
     validation_report: control_validator.ValidationReport | None = None,
     validate: bool = True,
+    cache: ProjectStateCache | None = None,
 ) -> CoreProjectState:
     """Load deterministic shared project state from a repository or project root.
 
@@ -207,8 +300,18 @@ def load_core_project_state(
     structural errors return diagnostics instead of raising from loader indexing.
     Callers that already validated may pass ``validation_report`` to avoid
     re-running validation, or set ``validate=False`` when they intentionally want
-    loader-only interpretation.
+    loader-only interpretation. A ``cache`` reuses the result while the
+    project's control files are unchanged; the result is immutable, so sharing
+    it is safe.
     """
+
+    if cache is not None and validation_report is None:
+        project_dir = control_loader.find_project_dir(root)
+        return cache.get(
+            f"core-state:validate={validate}",
+            project_dir,
+            lambda: load_core_project_state(root, validate=validate),
+        )
 
     project_dir = control_loader.find_project_dir(root)
     project_root = _infer_project_root(project_dir)

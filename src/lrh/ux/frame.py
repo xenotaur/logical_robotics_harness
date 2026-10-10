@@ -361,6 +361,17 @@ FRAME_STYLES = """
   .lrh-scopename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lrh-search-slot { flex: 1; }
   /* The in-page theme switch, added by the --interactive script. */
+  .lrh-loading-overlay { display: none; }
+  .lrh-loading .lrh-loading-overlay {
+    display: block; position: fixed; top: 0.75rem; left: 50%;
+    transform: translateX(-50%); z-index: 20;
+    padding: 0.35rem 0.9rem; border-radius: var(--lrh-radius-pill);
+    background: var(--lrh-color-surface-overlay);
+    color: var(--lrh-color-text-primary);
+    border: 1px solid var(--lrh-color-border-strong);
+  }
+  .lrh-loading body { cursor: progress; }
+  .lrh-loading .lrh-main { opacity: 0.55; }
   .lrh-theme-switch { display: inline-flex; }
   .lrh-theme-switch button {
     background: var(--lrh-color-surface-panel);

@@ -1,3 +1,4 @@
+import datetime
 import http.client
 import io
 import json
@@ -10,6 +11,7 @@ import struct
 import sys
 import tempfile
 import threading
+import types
 import unittest
 import unittest.mock
 import urllib.error
@@ -1235,6 +1237,106 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload["exports"][0]["errors"], ["manifest"])
         self.assertNotIn("SECRET_TOKEN_VALUE", body)
         self.assertNotIn("do not list", body)
+
+    def test_repeat_requests_reuse_cached_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            real = serve.core_state.control_validator.validate_project
+            calls: list[object] = []
+
+            def counting(*args: object, **kwargs: object) -> object:
+                calls.append(args)
+                return real(*args, **kwargs)
+
+            with unittest.mock.patch.object(
+                serve.core_state.control_validator, "validate_project", counting
+            ):
+                for _ in range(3):
+                    self._read(base_url + "/project/main/work-items/WI-B")
+                self.assertEqual(len(calls), 1)
+                work_item = root / "project" / "work_items" / "active" / "WI-B.md"
+                work_item.write_text(work_item.read_text() + "\nMore.\n")
+                self._read(base_url + "/project/main/work-items/WI-B")
+                self.assertEqual(len(calls), 2)
+
+    def test_cached_dependency_map_follows_edits_and_reads_head_fresh(self) -> None:
+        base_url = self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        api = base_url + "/api/project/main/dependency-maps/main"
+        work_item = root / "project" / "work_items" / "active" / "WI-A.md"
+
+        first = json.loads(self._read(api)[2])
+        work_item.write_text(
+            work_item.read_text().replace("title: Alpha", "title: Moved")
+        )
+        head = {"value": "head-one"}
+        real_build = serve.dependency_map_snapshot.build_snapshot
+        builds: list[str] = []
+
+        def counting_build(*args: object, **kwargs: object) -> object:
+            builds.append("build")
+            return real_build(*args, **kwargs)
+
+        later = datetime.datetime(2030, 1, 2, 3, 4, 5, tzinfo=datetime.UTC)
+
+        class _LaterDateTime(datetime.datetime):
+            @classmethod
+            def now(cls, tz: datetime.tzinfo | None = None) -> datetime.datetime:
+                return later if tz is not None else later.replace(tzinfo=None)
+
+        # Only serve's clock moves; the snapshot build keeps the real one.
+        later_clock = types.SimpleNamespace(**vars(datetime))
+        later_clock.datetime = _LaterDateTime
+
+        with (
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot,
+                "project_identity",
+                lambda repo_root: serve.dependency_map_snapshot.ProjectIdentity(
+                    name=repo_root.name, checkout_id="local:test", head=head["value"]
+                ),
+            ),
+            unittest.mock.patch.object(
+                serve.dependency_map_snapshot, "build_snapshot", counting_build
+            ),
+        ):
+            second = json.loads(self._read(api)[2])
+            head["value"] = "head-two"
+            with unittest.mock.patch.object(serve, "datetime", later_clock):
+                third = json.loads(self._read(api)[2])
+
+        titles = {node["id"]: node["title"] for node in second["nodes"]}
+        self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
+        self.assertEqual(titles["WI-A"], "Moved")
+        self.assertEqual(builds, ["build"], "the third request is a cache hit")
+        # A cache hit is stamped with the time it is served, like a fresh build.
+        self.assertEqual(third["generated_at"], "2030-01-02T03:04:05+00:00")
+        self.assertNotEqual(second["generated_at"], third["generated_at"])
+        self.assertEqual(
+            (second["project"]["head"], third["project"]["head"]),
+            ("head-one", "head-two"),
+        )
+
+    def test_cached_pages_show_control_file_edits_on_the_next_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            work_item = root / "project" / "work_items" / "active" / "WI-B.md"
+
+            _s, _t, before = self._read(base_url + "/project/main/work-items/WI-B")
+            _s, _t, again = self._read(base_url + "/project/main/work-items/WI-B")
+            work_item.write_text(
+                work_item.read_text().replace("title: Beta", "title: Renamed beta")
+            )
+            _s, _t, after = self._read(base_url + "/project/main/work-items/WI-B")
+
+        self.assertIn("Beta", before)
+        self.assertEqual(again, before.replace(*_rendered_times(before, again)))
+        self.assertNotIn("Renamed beta", before)
+        self.assertIn("Renamed beta", after)
 
     def test_project_api_returns_read_only_project_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -2565,6 +2667,14 @@ def _find_meta_project(
             if project["display_name"] == display_name:
                 return project
     raise AssertionError(f"project {display_name!r} not found in meta payload")
+
+
+def _rendered_times(first: str, second: str) -> tuple[str, str]:
+    """The frame's render-time stamps of two pages, which differ by design."""
+
+    pattern = re.compile(r"Rendered [0-9:]+ UTC")
+    a, b = pattern.search(first), pattern.search(second)
+    return (a.group(0) if a else "", b.group(0) if b else "")
 
 
 def _meta_lane(payload: dict, status: str) -> dict:

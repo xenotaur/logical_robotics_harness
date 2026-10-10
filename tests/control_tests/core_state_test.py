@@ -1,4 +1,6 @@
+import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import MappingProxyType
@@ -212,6 +214,124 @@ depends_on:
             )
             self.assertEqual(state.planning.diagnostics, ())
             self.assertEqual(state.prompt_inputs.active_leaf_work_item_ids, ())
+
+
+class TestProjectStateCache(unittest.TestCase):
+    """The cache reuses a value only while the control files are unchanged."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        _write_representative_project(self.root)
+        self.project_dir = self.root / "project"
+        self.cache = core_state.ProjectStateCache()
+        self.calls = 0
+
+    def _get(self) -> int:
+        def compute() -> int:
+            self.calls += 1
+            return self.calls
+
+        return self.cache.get("value", self.project_dir, compute)
+
+    def _work_item(self) -> Path:
+        return self.project_dir / "work_items" / "active" / "WI-A.md"
+
+    def test_an_unchanged_project_is_computed_once(self) -> None:
+        self.assertEqual([self._get(), self._get(), self._get()], [1, 1, 1])
+
+    def test_every_kind_of_file_change_invalidates(self) -> None:
+        path = self._work_item()
+        changes = {
+            "edit, same size": lambda: (
+                path.write_text(path.read_text().replace("WI-A", "WI-Z", 1)),
+                os.utime(path, ns=(1_000_000_000, 1_000_000_000)),
+            ),
+            "edit, new size": lambda: path.write_text(path.read_text() + "\nmore\n"),
+            "add": lambda: _write(path.with_name("NOTES.md"), "notes\n"),
+            "rename": lambda: path.with_name("NOTES.md").rename(
+                path.with_name("NOTES2.md")
+            ),
+            "delete": lambda: path.with_name("NOTES2.md").unlink(),
+            "atomic replace": lambda: (
+                _write(path.with_name("tmp.md"), path.read_text()),
+                os.replace(path.with_name("tmp.md"), path),
+            ),
+        }
+        expected = self._get()
+        for name, change in changes.items():
+            with self.subTest(change=name):
+                change()
+                expected += 1
+                self.assertEqual(self._get(), expected)
+                self.assertEqual(self._get(), expected, "and is cached again")
+
+    def test_changes_inside_a_symlinked_directory_invalidate(self) -> None:
+        with tempfile.TemporaryDirectory() as archive_dir:
+            archive = Path(archive_dir)
+            _write(archive / "RECORD.md", "one\n")
+            (self.project_dir / "archive").symlink_to(archive, target_is_directory=True)
+            # A link back up must not loop the walk.
+            (archive / "loop").symlink_to(self.project_dir, target_is_directory=True)
+            first = self._get()
+            self.assertEqual(self._get(), first)
+            _write(archive / "RECORD.md", "one, edited\n")
+            self.assertEqual(self._get(), first + 1)
+
+    def test_errors_are_not_cached(self) -> None:
+        def fail() -> int:
+            raise ValueError("boom")
+
+        with self.assertRaises(ValueError):
+            self.cache.get("value", self.project_dir, fail)
+        self.assertEqual(self._get(), 1)
+
+    def test_names_and_projects_are_separate_entries(self) -> None:
+        self.cache.get("a", self.project_dir, lambda: "a")
+        self.assertEqual(self.cache.get("b", self.project_dir, lambda: "b"), "b")
+        with tempfile.TemporaryDirectory() as other:
+            other_dir = Path(other) / "project"
+            _write_representative_project(Path(other))
+            self.assertEqual(self.cache.get("a", other_dir, lambda: "other"), "other")
+        self.assertEqual(self.cache.get("a", self.project_dir, lambda: "x"), "a")
+
+    def test_the_oldest_entries_are_evicted(self) -> None:
+        cache = core_state.ProjectStateCache(max_entries=2)
+        for name in ("a", "b", "c"):
+            cache.get(name, self.project_dir, lambda name=name: name)
+        self.assertEqual(cache.get("a", self.project_dir, lambda: "new"), "new")
+        self.assertEqual(cache.get("c", self.project_dir, lambda: "new"), "c")
+
+    def test_concurrent_readers_share_one_cache(self) -> None:
+        results: list[int] = []
+        lock = threading.Lock()
+
+        def read() -> None:
+            value = self._get()
+            with lock:
+                results.append(value)
+
+        self._get()
+        threads = [threading.Thread(target=read) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(results, [1] * 8)
+
+    def test_cached_core_state_equals_an_uncached_load(self) -> None:
+        cached = core_state.load_core_project_state(self.root, cache=self.cache)
+
+        self.assertEqual(cached, core_state.load_core_project_state(self.root))
+        self.assertIs(
+            core_state.load_core_project_state(self.root, cache=self.cache), cached
+        )
+        path = self._work_item()
+        path.write_text(path.read_text().replace("status: active", "status: blocked"))
+        reloaded = core_state.load_core_project_state(self.root, cache=self.cache)
+        self.assertIsNot(reloaded, cached)
+        self.assertEqual(reloaded, core_state.load_core_project_state(self.root))
 
 
 def _write_representative_project(

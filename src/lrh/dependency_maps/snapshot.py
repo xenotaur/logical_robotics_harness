@@ -477,7 +477,7 @@ def _build(
         view_id=declaration.id,
         view_title=declaration.title,
         view_source=declaration.source,
-        project=_identity(repo_root),
+        project=project_identity(repo_root),
         source_fingerprint=source_fingerprint(repo_root),
         generated_at=generated.isoformat(timespec="seconds"),
         lanes=tuple(lanes),
@@ -713,7 +713,9 @@ def _relative(item: WorkItem, repo_root: pathlib.Path) -> str:
         return item.path.name
 
 
-def _identity(repo_root: pathlib.Path) -> ProjectIdentity:
+def project_identity(repo_root: pathlib.Path) -> ProjectIdentity:
+    """The checkout's name, stable ID, and current git HEAD (None outside git)."""
+
     checkout = hashlib.sha256(str(repo_root).encode("utf-8")).hexdigest()[:16]
     head: str | None
     try:

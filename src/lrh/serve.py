@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import hashlib
 import html
@@ -22,6 +23,7 @@ from lrh import core_state, desktop_protocol
 from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
+from lrh.control import models as control_models
 from lrh.conversations import export_inspector
 from lrh.dependency_maps import layout as dependency_map_layout
 from lrh.dependency_maps import render as dependency_map_render
@@ -183,7 +185,7 @@ def dependency_map_payload(
         config, project_selector
     ).resolved_project_root()
     try:
-        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+        snapshot = _build_snapshot(repo_root, view_id)
     except FileNotFoundError:
         return 404, {"error": "not_found", "view": view_id}
     except dependency_map_view.ViewDeclarationError as err:
@@ -214,7 +216,7 @@ def render_dependency_map_page(
             "Dependency maps", _dependency_map_index(repo_root, base)
         )
     try:
-        snapshot = dependency_map_snapshot.build_snapshot(repo_root, view_id)
+        snapshot = _build_snapshot(repo_root, view_id)
     except FileNotFoundError:
         return 404, ""
     except dependency_map_view.ViewDeclarationError as err:
@@ -306,7 +308,7 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
         return 404
     repo_root = _config_for_project_selector(config, parts[0]).resolved_project_root()
     try:
-        dependency_map_snapshot.build_snapshot(repo_root, parts[2])
+        _build_snapshot(repo_root, parts[2])
     except FileNotFoundError:
         return 404
     except dependency_map_view.ViewDeclarationError:
@@ -571,11 +573,59 @@ def render_index(
     )
 
 
+# One cache per process: every value is keyed by its project directory and
+# reused only while that directory's control files are unchanged.
+_STATE_CACHE = core_state.ProjectStateCache()
+
+
+def _load_project(project_root: Path) -> control_models.ProjectState:
+    """``control_loader.load_project``, cached while control files are unchanged."""
+
+    return _STATE_CACHE.get(
+        "loaded-project",
+        control_loader.find_project_dir(project_root),
+        lambda: control_loader.load_project(project_root),
+    )
+
+
+def _build_snapshot(
+    repo_root: Path, view_id: str
+) -> dependency_map_snapshot.DependencyMapSnapshot:
+    """A dependency-map snapshot, cached while control files are unchanged.
+
+    A cache hit is served exactly as a fresh build would be: with the current
+    ``generated_at`` time (the fingerprint has just confirmed the data is
+    current) and a freshly read project identity, since git HEAD can move
+    without any control-file change.
+    """
+
+    try:
+        project_dir = control_loader.find_project_dir(repo_root)
+    except FileNotFoundError:
+        # No control directory to fingerprint: build uncached, so the
+        # snapshot reports the problem exactly as it always has.
+        return dependency_map_snapshot.build_snapshot(repo_root, view_id)
+    snapshot = _STATE_CACHE.get(
+        f"dependency-map:{view_id}",
+        project_dir,
+        lambda: dependency_map_snapshot.build_snapshot(repo_root, view_id),
+    )
+    return dataclasses.replace(
+        snapshot,
+        generated_at=datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        project=dependency_map_snapshot.project_identity(
+            dependency_map_snapshot.repository_root(repo_root)
+        ),
+    )
+
+
 def project_viewer_payload(config: ServeConfig) -> dict[str, Any]:
     """Return a deterministic read-only project viewer summary."""
 
     try:
-        state = core_state.load_core_project_state(config.resolved_project_root())
+        state = core_state.load_core_project_state(
+            config.resolved_project_root(), cache=_STATE_CACHE
+        )
     except FileNotFoundError as err:
         project_root = config.resolved_project_root()
         return {
@@ -1159,7 +1209,7 @@ def _project_design_summaries(
     if project_root is None:
         return []
     try:
-        loaded = control_loader.load_project(project_root)
+        loaded = _load_project(project_root)
     except (FileNotFoundError, OSError, ValueError):
         return []
     return [
@@ -1175,7 +1225,7 @@ def _project_workstream_summaries(
     if project_root is None:
         return []
     try:
-        loaded = control_loader.load_project(project_root)
+        loaded = _load_project(project_root)
     except (FileNotFoundError, OSError, ValueError):
         return []
     return [{"id": item.id, "title": item.title} for item in loaded.workstreams]
@@ -1190,7 +1240,7 @@ def render_design_detail_page(
             {"error": "not_found", "project": project_selector}, indent=2
         )
     try:
-        loaded = control_loader.load_project(project_root)
+        loaded = _load_project(project_root)
     except (FileNotFoundError, OSError, ValueError) as error:
         return 404, json.dumps({"error": "not_found", "message": str(error)})
     proposal = loaded.design_proposals_by_id.get(design_id)
@@ -1260,7 +1310,7 @@ def render_workstream_detail_page(
             {"error": "not_found", "project": project_selector}, indent=2
         )
     try:
-        loaded = control_loader.load_project(project_root)
+        loaded = _load_project(project_root)
     except (FileNotFoundError, OSError, ValueError) as error:
         return 404, json.dumps({"error": "not_found", "message": str(error)})
     workstream = loaded.workstreams_by_id.get(workstream_id)
@@ -2197,7 +2247,7 @@ def render_project_work_item_page(
     try:
         scoped_config = _config_for_project_selector(config, project_id)
         state = core_state.load_core_project_state(
-            scoped_config.resolved_project_root()
+            scoped_config.resolved_project_root(), cache=_STATE_CACHE
         )
         item = _resolve_workbench_item(state, work_item_id)
     except (FileNotFoundError, OSError, ValueError) as error:
@@ -2300,7 +2350,9 @@ def render_workbench_artifact(
 ) -> WorkbenchArtifact:
     """Render one prompt, run-packet, or run-report preview without writes."""
 
-    state = core_state.load_core_project_state(config.resolved_project_root())
+    state = core_state.load_core_project_state(
+        config.resolved_project_root(), cache=_STATE_CACHE
+    )
     item = _resolve_workbench_item(state, work_item_id)
     project_root = config.resolved_project_root()
     if kind == "prompt":

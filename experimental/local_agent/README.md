@@ -2,13 +2,15 @@
 
 Temporary research code for `WI-LOCAL-AGENT-001`, part of the toy ladder in
 `PROP-LOCAL-AGENT-DOGFOOD`. Each rung gets a little more authority than the one
-before it. This package currently implements the first rung:
+before it. This package implements the first two rungs:
 
 - **T0 ask:** ask the local model a question about a repository and get a cited
   answer streamed back from tracked files.
+- **T1 brief:** get a structured briefing on one work item, checked against
+  LRH's own readiness diagnostics.
 
-T1 (brief a work item) comes next. Evidence is collected automatically, and a
-run takes only a one-key rating from you.
+Evidence is collected automatically, and a run takes only a one-key rating from
+you.
 
 ## Quick start
 
@@ -26,9 +28,48 @@ experimental/local_agent/run ask "What blocks this?" --wi WI-LOCAL-AGENT-001
 experimental/local_agent/run ask "How are runs stored?" \
     --files experimental/local_agent/recorder.py
 
+# Brief a work item (T1), checked against LRH's readiness diagnostics.
+experimental/local_agent/run brief WI-LOCAL-AGENT-001
+
 # See how it has been going.
 experimental/local_agent/run log
 ```
+
+`brief <WI-ID>` is `ask --wi <WI-ID>` with a fixed briefing prompt
+(`prompts/brief_v1.md`). The tool itself prints a **Readiness (from LRH
+diagnostics)** section first: prompt and execution readiness, with blocking
+reasons, warnings, and issues. It is stored at the start of the answer. The
+model never writes readiness, so its prose cannot contradict LRH.
+
+The model's briefing follows in four sections: Summary, Scope and next steps,
+Dependencies and risks, and Open questions. Claims cite `S<n>:L<a>-L<b>`, and
+anything taken from the diagnostics cites `[diagnostics]`. The briefing must
+end with exactly one line:
+
+```text
+READINESS: prompt_ready=<yes|no> execution_ready=<yes|no>
+```
+
+The tool compares that line with LRH's diagnostics. Light Markdown around the
+line (bold, code, a quote or list marker, a final period) is ignored. It
+records `readiness_check` with one of these statuses:
+
+- `agrees`
+- `contradicts`: any line disagrees
+- `missing`: no such line
+- `misplaced`: an agreeing line that is not the last line
+- `duplicated`: more than one agreeing line
+- `unavailable`: there are no diagnostics
+
+The footer shows the result, and `log` flags every status except `agrees` and
+`unavailable`. The line is an attention check. The readiness itself comes from
+the tool's section, not the model.
+
+`brief` takes the same options as `ask` (`--repo`, `--commit`,
+`--project-dir`, `--yes`, `--no-rate`, and the backend options), except
+`--wi`, `--files`, and `--allow-flagged`. Brief runs export like ask runs: the
+question, answer, and rating note are included only with `--include-output`
+on a rated run whose text has no sensitivity finding.
 
 `ask` first prints the sources it will send, on stderr, and asks for
 confirmation (skip it with `--yes`). It then streams the answer and prints a
@@ -166,13 +207,15 @@ They make no network or live-model calls.
 
 `packet`, `task`, `b0`, `run`, and `evaluate` belong to the superseded stage-0
 pilot (`experiments/01_local_agent_briefing/`, now marked superseded). They are
-kept until T1 reworks briefing, but they are not part of the current procedure.
+not part of the current procedure; T1 `brief` replaces their briefing, and they
+can be removed in a later cleanup. `log` counts their runs as kind `pilot`.
 
 ## Layout
 
 | Module | Role |
 |---|---|
 | `ask.py`, `prompts/ask_v1.md` | T0: context modes, one streamed call, rating, `log` summary |
+| `brief.py`, `prompts/brief_v1.md` | T1: briefing preset on `ask --wi`, with the readiness check |
 | `settings.py` | Versioned defaults: budgets, model pin, store location, exclusions |
 | `sources.py` | Pinned, tracked-only source reads with provenance and exclusions |
 | `context.py` | Work-item packet assembly from existing LRH readiness and context APIs |

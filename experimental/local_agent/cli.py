@@ -29,6 +29,7 @@ import sys
 
 from local_agent import (
     ask,
+    brief,
     briefing,
     context,
     export,
@@ -122,6 +123,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_backend_args(asker)
+
+    briefer = sub.add_parser(
+        "brief", help="T1: brief a work item, checked against LRH readiness"
+    )
+    briefer.add_argument("work_item", help="work item id (WI-...)")
+    briefer.add_argument(
+        "--repo", type=pathlib.Path, default=pathlib.Path("."), help="checkout"
+    )
+    briefer.add_argument("--commit", default="HEAD", help="revision to read")
+    briefer.add_argument(
+        "--project-dir", default=".", help="subdirectory holding project/"
+    )
+    briefer.add_argument(
+        "--no-rate", action="store_true", help="skip the rating prompt"
+    )
+    briefer.add_argument(
+        "--yes", action="store_true", help="send without the confirmation prompt"
+    )
+    _add_backend_args(briefer)
 
     rater = sub.add_parser("rate", help="rate a run: g(ood), o(k), or b(ad)")
     rater.add_argument("run_id")
@@ -292,13 +312,42 @@ def _confirm_allowed(ctx: ask.AskContext) -> bool:
     return answer.strip() == "yes"
 
 
+def _kind(args: argparse.Namespace) -> str:
+    return brief.KIND_BRIEF if args.command == "brief" else ask.KIND_ASK
+
+
+def _record_failure(
+    args: argparse.Namespace,
+    store: recorder.Store,
+    question: str,
+    outcome: str,
+    detail: str,
+    ctx: ask.AskContext | None = None,
+) -> str:
+    """Log a run that stopped before the model call, as ask or brief."""
+    record = {"work_item_id": args.wi} if _kind(args) == brief.KIND_BRIEF else None
+    prompt_version = (
+        brief.PROMPT_VERSION if _kind(args) == brief.KIND_BRIEF else ask.PROMPT_VERSION
+    )
+    return ask.record_failure(
+        store,
+        question,
+        outcome,
+        detail,
+        ctx=ctx,
+        kind=_kind(args),
+        record=record,
+        prompt_version=prompt_version,
+    )
+
+
 def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
     budgets = _budgets(args)
     try:
         allow_flagged = _parse_allow_flagged(args.allow_flagged)
     except ValueError as error:
-        run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", f"arguments: {error}"
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", f"arguments: {error}"
         )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
@@ -308,8 +357,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             if args.yes
             else "--allow-flagged needs an interactive terminal on stdin and stderr"
         )
-        run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", detail
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", detail
         )
         print(f"error: {detail} (run {run_id})", file=sys.stderr)
         return 2
@@ -324,8 +373,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             allow_flagged=allow_flagged,
         )
     except (readiness.WorkItemReadinessError, sources.SourceError) as error:
-        run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", f"context: {error}"
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", f"context: {error}"
         )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
@@ -334,8 +383,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
     if reason:
         excluded = "; ".join(f"{e['path']} ({e['reason']})" for e in ctx.excluded)
         detail = f"{reason}: {excluded}" if excluded else reason
-        run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", detail, ctx=ctx
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", detail, ctx=ctx
         )
         print(f"not sent (run {run_id})", file=sys.stderr)
         return 2
@@ -343,7 +392,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
     if ctx.allowed_flagged:
         # Typed "yes" only, before any adapter or model call (Decision 3).
         if not _confirm_allowed(ctx):
-            run_id = ask.record_failure(
+            run_id = _record_failure(
+                args,
                 store,
                 args.question,
                 "cancelled",
@@ -359,16 +409,26 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         except (EOFError, KeyboardInterrupt):
             declined = True
         if declined:
-            run_id = ask.record_failure(
-                store, args.question, "cancelled", "declined before sending", ctx=ctx
+            run_id = _record_failure(
+                args,
+                store,
+                args.question,
+                "cancelled",
+                "declined before sending",
+                ctx=ctx,
             )
             print(f"\nnot sent (run {run_id})", file=sys.stderr)
             return 1
     try:
         adapter = _adapter(args)
     except (OSError, UnicodeDecodeError) as error:
-        run_id = ask.record_failure(
-            store, args.question, "missing_prerequisite", f"adapter: {error}", ctx=ctx
+        run_id = _record_failure(
+            args,
+            store,
+            args.question,
+            "missing_prerequisite",
+            f"adapter: {error}",
+            ctx=ctx,
         )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
@@ -378,8 +438,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             if error.kind == model.KIND_MISSING_PREREQUISITE
             else "backend_error"
         )
-        run_id = ask.record_failure(
-            store, args.question, outcome, f"adapter: {error}", ctx=ctx
+        run_id = _record_failure(
+            args, store, args.question, outcome, f"adapter: {error}", ctx=ctx
         )
         print(f"error: {error} (run {run_id})", file=sys.stderr)
         return 2
@@ -389,14 +449,24 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
         sys.stdout.flush()
 
     try:
-        run_id = ask.run_ask(
-            store=store,
-            question=args.question,
-            ctx=ctx,
-            adapter=adapter,
-            budgets=budgets,
-            on_text=stream,
-        )
+        if _kind(args) == brief.KIND_BRIEF:
+            run_id = brief.run_brief(
+                store=store,
+                work_item=args.wi,
+                ctx=ctx,
+                adapter=adapter,
+                budgets=budgets,
+                on_text=stream,
+            )
+        else:
+            run_id = ask.run_ask(
+                store=store,
+                question=args.question,
+                ctx=ctx,
+                adapter=adapter,
+                budgets=budgets,
+                on_text=stream,
+            )
     except KeyboardInterrupt:
         print("\ncancelled (recorded)", file=sys.stderr)
         return 130
@@ -433,6 +503,14 @@ def _dispatch(args: argparse.Namespace) -> int:
     store = recorder.Store(args.store or recorder.default_store_root())
 
     if args.command == "ask":
+        return _run_ask(args, store)
+
+    if args.command == "brief":
+        # T1: ask --wi with the briefing preset; no file overrides.
+        args.question = brief.question(args.work_item)
+        args.wi = args.work_item
+        args.files = None
+        args.allow_flagged = []
         return _run_ask(args, store)
 
     if args.command == "rate":

@@ -167,7 +167,7 @@ def inspect_run(store: recorder.Store, run_id: str) -> str:
     events, truncated = store.events(run_id)
     packet_manifest = _verified_packet_manifest(store, run)
     lines = [
-        f"run {run_id} ({run.get('kind', 'brief')})",
+        f"run {run_id} ({run.get('kind', 'pilot')})",
         f"  work item: {run.get('work_item_id')}  task: {run.get('task_id')}  "
         f"condition: {run.get('condition')}",
         f"  source commit: {run.get('source_commit')}",
@@ -185,6 +185,9 @@ def inspect_run(store: recorder.Store, run_id: str) -> str:
         )
     for omitted in packet_manifest.get("omitted_sources", []):  # type: ignore[union-attr]
         lines.append(f"    omitted {omitted['path']}: {omitted['reason']}")
+    if run.get("readiness_check"):
+        readiness = json.dumps(run.get("readiness_check"), sort_keys=True)
+        lines.append(f"  readiness: {readiness}")
     if run.get("rating"):
         lines.append(f"  rating: {json.dumps(run.get('rating'), sort_keys=True)}")
     lines.append(f"  events: {len(events)}{' (truncated tail)' if truncated else ''}")
@@ -342,7 +345,8 @@ def export_run(
     parsed = output.get("briefing") if isinstance(output, dict) else None
     manual = output.get("manual_text") if isinstance(output, dict) else None
     answer = output.get("answer") if isinstance(output, dict) else None
-    if run.get("kind") == "ask":
+    # T1 brief runs are ask runs with a preset; both hold an "answer".
+    if run.get("kind") in ("ask", "brief"):
         _export_ask(exported, excluded, run, answer, include_output)
     elif manual is not None:
         _export_manual_text(exported, excluded, manual, evaluation, include_output)

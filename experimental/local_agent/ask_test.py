@@ -662,6 +662,13 @@ class RatingAndLogTest(AskTestBase):
             self.store.update_run(run_id, usage=usage)
         self.assertIn("p90 9.0s", ask.summarize(self.store))
 
+    def test_runs_without_a_kind_count_as_pilot(self) -> None:
+        from local_agent import export
+
+        legacy = self.store.start_run({"outcome": "completed"})
+        self.assertIn("(pilot 1)", ask.summarize(self.store))
+        self.assertIn(f"run {legacy} (pilot)", export.inspect_run(self.store, legacy))
+
     def test_summary_without_runs(self) -> None:
         self.assertIn("no runs", ask.summarize(self.store))
 

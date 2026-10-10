@@ -349,8 +349,10 @@ def source_summary(ctx: AskContext) -> str:
     return "\n".join(lines)
 
 
-def render_prompt(question: str, ctx: AskContext) -> str:
-    template = briefing.load_prompt_template(PROMPT_VERSION)
+def render_prompt(
+    question: str, ctx: AskContext, prompt_version: str = PROMPT_VERSION
+) -> str:
+    template = briefing.load_prompt_template(prompt_version)
     values = {"QUESTION": question.strip(), "CONTEXT": ctx.text}
     # One pass, so placeholder text inside the question is never expanded.
     return re.sub(r"\{\{(QUESTION|CONTEXT)\}\}", lambda m: values[m[1]], template)
@@ -371,24 +373,36 @@ def run_ask(
     adapter: model.ModelAdapter,
     budgets: settings.Budgets,
     on_text: Callable[[str], None] | None = None,
+    kind: str = KIND_ASK,
+    prompt_version: str = PROMPT_VERSION,
+    post_check: Callable[[str, AskContext], dict[str, object]] | None = None,
+    record: dict[str, object] | None = None,
+    preamble: str = "",
 ) -> str:
     """Answer one question with one call; return the run id.
 
     The run is recorded whatever happens. ``completed`` means inference
     produced a non-empty answer, not that the answer is correct.
+
+    Presets such as T1 ``brief`` reuse this with their own ``kind``,
+    ``prompt_version``, extra ``record`` fields, and a ``post_check`` whose
+    fields are stored with any non-empty answer. A ``preamble`` (tool-written,
+    not model-written) is streamed before the model's text and stored at the
+    start of the answer; checks see only the model's text.
     """
-    prompt = render_prompt(question, ctx)
+    prompt = render_prompt(question, ctx, prompt_version)
     template_hash = hashlib.sha256(
-        briefing.load_prompt_template(PROMPT_VERSION).encode("utf-8")
+        briefing.load_prompt_template(prompt_version).encode("utf-8")
     ).hexdigest()
     run_id = store.start_run(
         {
             "record_schema_version": settings.RECORD_SCHEMA_VERSION,
             "prototype_version": settings.PROTOTYPE_VERSION,
-            "kind": KIND_ASK,
+            "kind": kind,
             "question": question,
+            **(record or {}),
             **context_fields(ctx),
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prompt_version,
             "prompt_template_sha256": template_hash,
             "model": adapter.describe(),
             "budgets": budgets.as_dict(),
@@ -414,7 +428,9 @@ def run_ask(
         # The owner has already seen streamed text; keep it for review.
         if streamed:
             store.write_json(
-                run_id, "output.json", {"answer": "".join(streamed), "partial": True}
+                run_id,
+                "output.json",
+                {"answer": preamble + "".join(streamed), "partial": True},
             )
 
     try:
@@ -438,6 +454,8 @@ def run_ask(
                 estimated_input_tokens=estimated,
             )
         store.append_event(run_id, "model_request", estimated_input_tokens=estimated)
+        if preamble and on_text is not None:
+            on_text(preamble)
         try:
             response = adapter.generate(
                 model.ModelRequest(
@@ -460,19 +478,25 @@ def run_ask(
             response.output_tokens is not None
             and response.output_tokens > budgets.max_output_tokens
         )
-        output: dict[str, object] = {"answer": response.text}
+        output: dict[str, object] = {"answer": preamble + response.text}
         if cut_off:
             # Stopped by the output limit: as incomplete as a broken stream.
             output["partial"] = True
         store.write_json(run_id, "output.json", output)
         store.append_event(run_id, "model_response", **usage)
         citations = briefing.check_text_citations(response.text, ctx.source_refs)
+        checked = (
+            post_check(response.text, ctx)
+            if post_check is not None and response.text.strip()
+            else {}
+        )
         if cut_off:
             return finish(
                 "budget_exhausted",
                 "answer hit the output token limit (partial answer kept)",
                 usage=usage,
                 citations=citations,
+                **checked,
             )
         if not response.text.strip():
             detail = "empty answer"
@@ -484,6 +508,7 @@ def run_ask(
             "answer produced (not human-accepted)",
             usage=usage,
             citations=citations,
+            **checked,
         )
     except KeyboardInterrupt:
         keep_partial()
@@ -515,6 +540,9 @@ def record_failure(
     outcome: str,
     detail: str,
     ctx: AskContext | None = None,
+    kind: str = KIND_ASK,
+    record: dict[str, object] | None = None,
+    prompt_version: str = PROMPT_VERSION,
 ) -> str:
     """Log an ``ask`` that stopped before a model call (context, adapter, or
     confirmation); return the run id. Nothing was sent to the model.
@@ -526,10 +554,11 @@ def record_failure(
         {
             "record_schema_version": settings.RECORD_SCHEMA_VERSION,
             "prototype_version": settings.PROTOTYPE_VERSION,
-            "kind": KIND_ASK,
+            "kind": kind,
+            **(record or {}),
             "question": question,
             **(context_fields(ctx) if ctx is not None else {}),
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prompt_version,
             "outcome": None,
             "rating": None,
         }
@@ -571,6 +600,9 @@ def footer(store: recorder.Store, run_id: str) -> str:
             f"citations {citations['citations_resolved']}/"
             f"{citations['citations_total']} resolve"
         )
+    readiness = run.get("readiness_check")
+    if isinstance(readiness, dict):
+        parts.append(f"readiness {readiness.get('status')}")
     if run.get("outcome") != "completed":
         parts.append(str(run.get("outcome_detail")))
     return " · ".join(parts)
@@ -581,7 +613,12 @@ def _is_flagged(run: dict[str, object]) -> bool:
     unresolved = isinstance(citations, dict) and bool(
         citations.get("unresolved_citations")
     )
-    return run.get("outcome") != "completed" or unresolved
+    readiness = run.get("readiness_check")
+    disagrees = isinstance(readiness, dict) and readiness.get("status") not in (
+        "agrees",
+        "unavailable",
+    )
+    return run.get("outcome") != "completed" or unresolved or disagrees
 
 
 def _counts(counter: dict[str, int]) -> str:
@@ -599,7 +636,8 @@ def summarize(store: recorder.Store, limit: int = 10) -> str:
     if not runs:
         return "no runs recorded yet\n"
     outcomes = collections.Counter(str(run.get("outcome")) for run in runs)
-    kinds = collections.Counter(str(run.get("kind", "brief")) for run in runs)
+    # Runs without a kind come from the superseded stage-0 pilot.
+    kinds = collections.Counter(str(run.get("kind", "pilot")) for run in runs)
     ratings = collections.Counter(
         (
             str(run["rating"]["value"])
@@ -646,7 +684,7 @@ def summarize(store: recorder.Store, limit: int = 10) -> str:
     for run in sorted(runs, key=lambda r: str(r.get("created_at")))[-limit:]:
         rating = run.get("rating")
         rated = rating["value"] if isinstance(rating, dict) else "-"
-        label = run.get("question") or run.get("work_item_id") or ""
+        label = run.get("work_item_id") or run.get("question") or ""
         label = str(label).replace("\n", " ")
         if len(label) > 60:
             label = label[:57] + "..."

@@ -13,6 +13,8 @@ import shlex
 import socket
 import socketserver
 import sys
+import threading
+import time
 import urllib.parse
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -586,6 +588,78 @@ def _load_project(project_root: Path) -> control_models.ProjectState:
         control_loader.find_project_dir(project_root),
         lambda: control_loader.load_project(project_root),
     )
+
+
+def warm_caches(config: ServeConfig) -> int:
+    """Fill the project-state cache the way the first page visits would.
+
+    Covers the served project and every registered project with a local
+    checkout (their core state, as ``/meta`` loads it) and each project's
+    dependency-map views. Returns how many projects were visited. Errors for
+    one project or view never stop the others; pages report them as usual.
+    """
+
+    roots: list[Path] = [config.resolved_project_root()]
+    # Same order as a fresh LRH Console: the app opens on /meta first. A
+    # request racing the warm-up then waits on the same builds (single-flight)
+    # instead of competing with them.
+    meta_dashboard_payload(config)
+    project_viewer_payload(config)
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        loads = meta_workspace.list_registered_project_loads_in_workspace(workspace)
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ):
+        loads = ()
+    for result in loads:
+        if result.record is None:
+            continue
+        root = _registered_project_root(workspace, result)
+        if root is not None and root.exists():
+            roots.append(root)
+    for root in roots:
+        try:
+            repo_root = dependency_map_snapshot.repository_root(root)
+            views = dependency_map_view.discover_views(repo_root)
+        except (OSError, ValueError):
+            continue
+        for path in views:
+            try:
+                _build_snapshot(repo_root, path.stem)
+            except Exception:  # noqa: BLE001 - one bad view must not stop warm-up
+                continue
+    return len(roots)
+
+
+def start_cache_warmup(config: ServeConfig) -> threading.Thread:
+    """Warm the cache on a daemon thread, so startup and requests never wait.
+
+    A request for a value the warm-up is still building waits for that build
+    (the cache is single-flight). Failures go to stderr and change nothing.
+    """
+
+    def run() -> None:
+        started = time.perf_counter()
+        try:
+            count = warm_caches(config)
+        except Exception as err:  # noqa: BLE001 - warm-up is best effort
+            print(f"lrh serve: cache warm-up failed: {err}", file=sys.stderr)
+            return
+        elapsed = time.perf_counter() - started
+        print(
+            f"lrh serve: cache warmed for {count} project(s) in {elapsed:.1f}s",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    thread = threading.Thread(target=run, name="lrh-serve-warmup", daemon=True)
+    thread.start()
+    return thread
 
 
 def _build_snapshot(
@@ -1409,9 +1483,7 @@ def _operational_card_from_load_result(
                 ),
             )
         )
-    project_root = _registered_project_control_root(workspace, record)
-    if inspect_result is not None and source_state in {"live", "missing_project"}:
-        project_root = inspect_result.resolved_project_path
+    project_root = _registered_project_root(workspace, result, inspect_result)
     should_load_project_payload = project_root is not None and source_state not in {
         "missing_repo",
         "needs_local_checkout",
@@ -1596,6 +1668,27 @@ def _diagnostics_for_source_state(
     if source_state == "missing_project":
         return ("PROJECT_CONTROL_DIR_NOT_FOUND",)
     return ("PROJECT_SOURCE_STATE_INACCESSIBLE",)
+
+
+_UNSET: Any = object()
+
+
+def _registered_project_root(
+    workspace: meta_workspace.MetaWorkspace,
+    result: meta_workspace.MetaProjectLoadResult,
+    inspect_result: meta_workspace.MetaInspectResult | None = _UNSET,
+) -> Path | None:
+    """The local project root ``/meta`` reads for one registry load result."""
+
+    if inspect_result is _UNSET:
+        inspect_result = _inspect_registered_project(workspace, result.registry_name)
+    if inspect_result is not None and _source_state_from_inspect_result(
+        inspect_result
+    ) in {"live", "missing_project"}:
+        return inspect_result.resolved_project_path
+    if result.record is None:
+        return None
+    return _registered_project_control_root(workspace, result.record)
 
 
 def _registered_project_control_root(
@@ -4057,12 +4150,21 @@ def _run_desktop_protocol_cli(
             f"{desktop_protocol.MIN_START_REQUEST_TIMEOUT_SECONDS:g} and "
             f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
         )
-    return desktop_protocol.run_desktop_protocol(
-        lambda project_root: _desktop_server_factory(
+
+    def factory(project_root: Path) -> ThreadingHTTPServer:
+        server = _desktop_server_factory(
             project_root, theme=args.theme, interactive=args.interactive
-        ),
-        start_request_timeout=timeout,
-    )
+        )
+        start_cache_warmup(
+            ServeConfig(
+                project_root=project_root,
+                theme=args.theme,
+                interactive=args.interactive,
+            )
+        )
+        return server
+
+    return desktop_protocol.run_desktop_protocol(factory, start_request_timeout=timeout)
 
 
 def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int:
@@ -4091,6 +4193,7 @@ def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int
         "(read-only safe-default viewer)",
         flush=True,
     )
+    start_cache_warmup(config)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

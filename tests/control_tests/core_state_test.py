@@ -279,6 +279,72 @@ class TestProjectStateCache(unittest.TestCase):
             _write(archive / "RECORD.md", "one, edited\n")
             self.assertEqual(self._get(), first + 1)
 
+    def test_concurrent_misses_share_one_computation(self) -> None:
+        release = threading.Event()
+        started = threading.Event()
+        calls: list[str] = []
+
+        def slow() -> str:
+            calls.append("compute")
+            started.set()
+            release.wait(5)
+            return "shared"
+
+        results: list[str] = []
+        owner = threading.Thread(
+            target=lambda: results.append(self.cache.get("v", self.project_dir, slow))
+        )
+        owner.start()
+        started.wait(5)
+        waiters = [
+            threading.Thread(
+                target=lambda: results.append(
+                    self.cache.get("v", self.project_dir, slow)
+                )
+            )
+            for _ in range(4)
+        ]
+        for waiter in waiters:
+            waiter.start()
+        release.set()
+        for thread in [owner, *waiters]:
+            thread.join(5)
+        self.assertEqual(calls, ["compute"])
+        self.assertEqual(results, ["shared"] * 5)
+
+    def test_a_waiter_on_a_failed_build_computes_for_itself(self) -> None:
+        release = threading.Event()
+        started = threading.Event()
+
+        def failing() -> str:
+            started.set()
+            release.wait(5)
+            raise ValueError("boom")
+
+        errors: list[Exception] = []
+
+        def own() -> None:
+            try:
+                self.cache.get("v", self.project_dir, failing)
+            except ValueError as error:
+                errors.append(error)
+
+        owner = threading.Thread(target=own)
+        owner.start()
+        started.wait(5)
+        waited: list[str] = []
+        waiter = threading.Thread(
+            target=lambda: waited.append(
+                self.cache.get("v", self.project_dir, lambda: "own")
+            )
+        )
+        waiter.start()
+        release.set()
+        owner.join(5)
+        waiter.join(5)
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(waited, ["own"])
+
     def test_errors_are_not_cached(self) -> None:
         def fail() -> int:
             raise ValueError("boom")

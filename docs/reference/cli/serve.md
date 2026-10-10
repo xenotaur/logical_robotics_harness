@@ -76,6 +76,14 @@ lrh serve --desktop-protocol
   until another change. A cached dependency-map snapshot is
   served with the current time and git HEAD, exactly as a fresh build would
   be.
+- Right after it starts listening (in both modes), the server warms that
+  cache on one background thread: `/meta`'s projects first, then the served
+  project, then every project's dependency-map views. Startup and the
+  desktop-protocol ready event never wait for it. A request for a value the
+  warm-up is still building waits for that build rather than repeating it.
+  It logs one line to stderr when done (`lrh serve: cache warmed for N
+  project(s) in Xs`), or the error if it fails; responses are unaffected
+  either way.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode. Its JSON includes the
   `theme`.

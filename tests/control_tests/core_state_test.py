@@ -352,6 +352,8 @@ class TestProjectStateCache(unittest.TestCase):
         self._join(owner, waiter)
         self.assertEqual(len(errors), 1)
         self.assertEqual(waited, ["own"])
+        # The fallback build was published: the next caller hits the cache.
+        self.assertEqual(self.cache.get("v", self.project_dir, lambda: "new"), "own")
 
     def test_a_stalled_build_does_not_block_waiters_forever(self) -> None:
         release = threading.Event()
@@ -389,6 +391,17 @@ class TestProjectStateCache(unittest.TestCase):
             _write_representative_project(Path(other))
             self.assertEqual(self.cache.get("a", other_dir, lambda: "other"), "other")
         self.assertEqual(self.cache.get("a", self.project_dir, lambda: "x"), "a")
+
+    def test_reserve_grows_capacity_and_never_shrinks_it(self) -> None:
+        cache = core_state.ProjectStateCache(max_entries=1)
+        cache.reserve(3)
+        cache.reserve(2)
+        for name in ("a", "b", "c"):
+            cache.get(name, self.project_dir, lambda name=name: name)
+        self.assertEqual(
+            [cache.get(n, self.project_dir, lambda: "new") for n in ("a", "b", "c")],
+            ["a", "b", "c"],
+        )
 
     def test_the_oldest_entries_are_evicted(self) -> None:
         cache = core_state.ProjectStateCache(max_entries=2)

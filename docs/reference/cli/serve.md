@@ -83,9 +83,11 @@ lrh serve --desktop-protocol
   and a failed startup never starts it. A request for a value the warm-up is
   still building waits for that build rather than repeating it (up to 60
   seconds, then builds it itself).
-  It logs one line to stderr when done (`lrh serve: cache warmed for N
-  project(s) in Xs`), or the error if it fails; responses are unaffected
-  either way.
+  It logs each item it could not warm (for example an invalid view) and then
+  one summary line to stderr (`lrh serve: cache warmed for N project(s) in
+  Xs`, with how many items failed, if any), or the error if it fails
+  entirely; responses are unaffected either way. Before warming, it grows the
+  cache to fit everything it warms, so warmed entries are not evicted.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode. Its JSON includes the
   `theme`.

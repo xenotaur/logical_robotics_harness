@@ -590,21 +590,34 @@ def _load_project(project_root: Path) -> control_models.ProjectState:
     )
 
 
-def warm_caches(config: ServeConfig) -> int:
+@dataclass(frozen=True)
+class WarmupResult:
+    """What one cache warm-up covered, and anything that failed."""
+
+    projects: int
+    failures: tuple[str, ...]
+
+
+def _control_dir_key(root: Path) -> Path:
+    """The ``project/`` directory a root resolves to, for de-duplication."""
+
+    try:
+        return control_loader.find_project_dir(root)
+    except FileNotFoundError:
+        return root.resolve()
+
+
+def warm_caches(config: ServeConfig) -> WarmupResult:
     """Fill the project-state cache the way the first page visits would.
 
-    Covers the served project and every registered project with a local
-    checkout (their core state, as ``/meta`` loads it) and each project's
-    dependency-map views. Returns how many projects were visited. Errors for
-    one project or view never stop the others; pages report them as usual.
+    Covers ``/meta``'s projects (core state), the served project, and, for
+    every project with a local checkout, its loaded control files and
+    dependency-map views. The cache is first sized for everything warmed, so
+    later entries never evict earlier ones. Errors for one project or view
+    never stop the others; they are returned for the caller to report.
     """
 
     roots: list[Path] = [config.resolved_project_root()]
-    # Same order as a fresh LRH Console: the app opens on /meta first. A
-    # request racing the warm-up then waits on the same builds (single-flight)
-    # instead of competing with them.
-    meta_dashboard_payload(config)
-    project_viewer_payload(config)
     try:
         workspace = meta_workspace.resolve_meta_workspace(
             cwd=config.resolved_project_root(),
@@ -622,45 +635,68 @@ def warm_caches(config: ServeConfig) -> int:
         root = _registered_project_root(workspace, result)
         if root is not None and root.exists():
             roots.append(root)
+    # One entry per control directory: a project can be reached through its
+    # repository root and through a nested project_dir.
     unique: dict[Path, Path] = {}
     for root in roots:
-        unique.setdefault(root.resolve(), root)
+        unique.setdefault(_control_dir_key(root), root)
+    plan: list[tuple[Path, Path | None, tuple[Path, ...]]] = []
     for root in unique.values():
-        try:
-            # Project, design, and workstream pages read the loaded project.
-            _load_project(root)
-        except (FileNotFoundError, OSError, ValueError):
-            pass
         try:
             repo_root = dependency_map_snapshot.repository_root(root)
             views = dependency_map_view.discover_views(repo_root)
         except (OSError, ValueError):
+            plan.append((root, None, ()))
+            continue
+        plan.append((root, repo_root, views))
+    # Core state and loaded project per project, plus one snapshot per view;
+    # doubled so ordinary browsing never pushes warmed entries out.
+    _STATE_CACHE.reserve(2 * sum(2 + len(views) for _r, _rr, views in plan))
+
+    failures: list[str] = []
+    # Same order as a fresh LRH Console: the app opens on /meta first. A
+    # request racing the warm-up then waits on the same builds (single-flight)
+    # instead of competing with them.
+    meta_dashboard_payload(config)
+    project_viewer_payload(config)
+    for root, repo_root, views in plan:
+        try:
+            # Project, design, and workstream pages read the loaded project.
+            _load_project(root)
+        except (FileNotFoundError, OSError, ValueError) as err:
+            failures.append(f"{root}: {err}")
+        if repo_root is None:
             continue
         for path in views:
             try:
                 _cached_snapshot(repo_root, path.stem)
-            except Exception:  # noqa: BLE001 - one bad view must not stop warm-up
-                continue
-    return len(unique)
+            except Exception as err:  # noqa: BLE001 - one bad view must not stop
+                failures.append(f"{path}: {type(err).__name__}: {err}")
+    return WarmupResult(projects=len(plan), failures=tuple(failures))
 
 
 def start_cache_warmup(config: ServeConfig) -> threading.Thread:
     """Warm the cache on a daemon thread, so startup and requests never wait.
 
     A request for a value the warm-up is still building waits for that build
-    (the cache is single-flight). Failures go to stderr and change nothing.
+    (the cache is single-flight). Each failure goes to stderr, and the final
+    line says how many there were; responses never change.
     """
 
     def run() -> None:
         started = time.perf_counter()
         try:
-            count = warm_caches(config)
+            result = warm_caches(config)
         except Exception as err:  # noqa: BLE001 - warm-up is best effort
             print(f"lrh serve: cache warm-up failed: {err}", file=sys.stderr)
             return
+        for failure in result.failures:
+            print(f"lrh serve: cache warm-up skipped {failure}", file=sys.stderr)
         elapsed = time.perf_counter() - started
+        problems = f", {len(result.failures)} item(s) failed" if result.failures else ""
         print(
-            f"lrh serve: cache warmed for {count} project(s) in {elapsed:.1f}s",
+            f"lrh serve: cache warmed for {result.projects} project(s) in "
+            f"{elapsed:.1f}s{problems}",
             file=sys.stderr,
             flush=True,
         )

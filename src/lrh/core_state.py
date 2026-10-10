@@ -310,7 +310,11 @@ class ProjectStateCache:
             finished = flight.done.wait(_FLIGHT_WAIT_SECONDS)
             if finished and not flight.failed:
                 return flight.value  # type: ignore[return-value]
-            return compute()
+            value = compute()
+            # Publish the fallback build, unless the owner (or another
+            # fallback) already stored a value for this fingerprint.
+            self._store(key, fingerprint, value, replace=False)
+            return value
         try:
             value = compute()
         except BaseException:
@@ -321,15 +325,34 @@ class ProjectStateCache:
             flight.done.set()
             raise
         flight.value = value
+        self._store(key, fingerprint, value, replace=True, flight=flight)
+        flight.done.set()
+        return value
+
+    def _store(
+        self,
+        key: tuple[str, str],
+        fingerprint: str,
+        value: object,
+        *,
+        replace: bool,
+        flight: _Flight | None = None,
+    ) -> None:
         with self._lock:
-            self._entries[key] = (fingerprint, value)
+            current = self._entries.get(key)
+            if replace or current is None or current[0] != fingerprint:
+                self._entries[key] = (fingerprint, value)
             self._entries.move_to_end(key)
             while len(self._entries) > self._max_entries:
                 self._entries.popitem(last=False)
-            if self._flights.get(key) is flight:
+            if flight is not None and self._flights.get(key) is flight:
                 del self._flights[key]
-        flight.done.set()
-        return value
+
+    def reserve(self, entries: int) -> None:
+        """Grow the capacity to at least ``entries``; it never shrinks."""
+
+        with self._lock:
+            self._max_entries = max(self._max_entries, entries)
 
     def clear(self) -> None:
         with self._lock:

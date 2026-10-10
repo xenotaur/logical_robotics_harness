@@ -1329,7 +1329,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         real_build = serve.dependency_map_snapshot.build_snapshot
         real_load = serve.control_loader.load_project
 
-        count = serve.warm_caches(serve.ServeConfig(project_root=root))
+        result = serve.warm_caches(serve.ServeConfig(project_root=root))
         with (
             unittest.mock.patch.object(
                 serve.core_state.control_validator,
@@ -1353,8 +1353,37 @@ class TestLrhServeRoutes(unittest.TestCase):
             # need a registered project, so it is read directly here.
             serve._load_project(root)
 
-        self.assertEqual(count, 1, "the served project is counted once")
+        self.assertEqual(result, serve.WarmupResult(projects=1, failures=()))
         self.assertEqual((validations, builds, loads), ([], [], []), "all warmed")
+
+    def test_warm_up_reports_each_failed_view(self) -> None:
+        self._interactive_server(True)
+        root = pathlib.Path(os.environ["XDG_CONFIG_HOME"])
+        _write(
+            root / "project" / "views" / "dependency_maps" / "broken.md",
+            '---\nid: "broken"\ntitle: "Broken"\n---\n',
+        )
+
+        with testing_support.capture_output() as captured:
+            thread = serve.start_cache_warmup(serve.ServeConfig(project_root=root))
+            thread.join(30)
+
+        self.assertFalse(thread.is_alive())
+        stderr = captured.stderr.getvalue()
+        self.assertIn("lrh serve: cache warm-up skipped ", stderr)
+        self.assertIn("broken.md: ViewDeclarationError", stderr)
+        self.assertIn("project(s) in ", stderr)
+        self.assertIn(", 1 item(s) failed", stderr)
+
+    def test_a_project_reached_two_ways_is_one_control_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+
+            self.assertEqual(
+                serve._control_dir_key(root),
+                serve._control_dir_key(root / "project"),
+            )
 
     def test_warm_up_failures_go_to_stderr_and_never_raise(self) -> None:
         with (

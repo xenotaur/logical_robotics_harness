@@ -2,10 +2,10 @@
 id: WI-IMPLEMENT-SELFREVIEW-PR-BACKFILL
 title: "Link /lrh-implement's primary and diff-mode _SELFREVIEW records to the PR (pr: and rerun_of backfill)"
 type: operation
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #808 (merge commit bbb02bc4f50f87987ebd6e3f0bbf2d86bcc1dbd6); planning PR #804.'
 owner: anthony
 contributors:
   - anthony

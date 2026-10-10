@@ -2,10 +2,10 @@
 execution_id: 2026_10_10_00_13_31_LRH_CONSOLE_PAGE_SPEED
 prompt_id: PROMPT(WI-LRH-CONSOLE-PAGE-SPEED:LRH_CONSOLE_PAGE_SPEED)[2026-10-09T23:45:49+00:00]
 work_item: WI-LRH-CONSOLE-PAGE-SPEED
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/811
-commit:
+commit: 0b01ec1217efc3704b8fb4ca6a19d33db8a53587
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/811"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
@@ -45,6 +45,11 @@ were one parse per file through the pure-Python loader.
   navigations.
 - **Timings, warm** (owner's registry, `main` to branch): about 2.5 s to about 55 ms on every
   page. First requests are about 3x faster. `validate_project` dropped from 2.6 s to about 0.5 s.
+
+**Superseded in review round 1** (`54d34970`, see
+`2026_10_10_00_30_59_LRH_CONSOLE_PAGE_SPEED_REVIEW.md`): libyaml was dropped and parsing is
+PyYAML's pure loader again, so the libyaml description and the first-request and validation
+timings above no longer describe what shipped. Repeat requests remain about 55 ms.
 
 # Validation
 

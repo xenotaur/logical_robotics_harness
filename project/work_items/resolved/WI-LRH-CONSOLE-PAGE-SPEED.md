@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-PAGE-SPEED"
 title: "Make LRH Console pages fast: libyaml, parse once, cache project state, show loading"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #811 (commit 0b01ec12). All acceptance criteria are met: a before-and-after timing table on the owner registry is in the PR; repeat requests are served from core_state.ProjectStateCache at about 55 ms against about 2.5 s before, far past 5x; any control-file add, edit, delete, rename, or atomic replace, including inside symlinked directories, is seen on the next request, with tests; validation results and pages are identical with and without the cache, and cached dependency maps get the current time and git HEAD; and --interactive pages dim and show a Loading status after 300 ms. Changed from the Required Changes, with owner approval: libyaml was added and then dropped, because it disagrees with the pure loader on some inputs (tabs, [a?b]) and lrh validate must not depend on which loader is installed; parse-once was superseded, since profiling showed the cost was frontmatter lint, now memoized; and the loading cue is script-based, keeping the desktop main window capability-free. First visits remain about 2 to 2.7 s for /meta and /; WI-LRH-CONSOLE-CACHE-WARMUP is filed for that.'
 owner: "anthony"
 contributors:
 - "anthony"

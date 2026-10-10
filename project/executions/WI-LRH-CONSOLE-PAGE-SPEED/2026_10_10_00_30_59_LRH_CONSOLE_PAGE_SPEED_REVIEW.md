@@ -2,10 +2,10 @@
 execution_id: 2026_10_10_00_30_59_LRH_CONSOLE_PAGE_SPEED_REVIEW
 prompt_id: PROMPT(WI-LRH-CONSOLE-PAGE-SPEED:LRH_CONSOLE_PAGE_SPEED_REVIEW)[2026-10-10T00:30:59+00:00]
 work_item: WI-LRH-CONSOLE-PAGE-SPEED
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/811
-commit:
+commit: 0b01ec1217efc3704b8fb4ca6a19d33db8a53587
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/811"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

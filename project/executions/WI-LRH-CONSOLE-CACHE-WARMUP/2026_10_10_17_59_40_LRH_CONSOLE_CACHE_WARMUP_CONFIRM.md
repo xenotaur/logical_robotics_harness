@@ -2,10 +2,10 @@
 execution_id: 2026_10_10_17_59_40_LRH_CONSOLE_CACHE_WARMUP_CONFIRM
 prompt_id: PROMPT(WI-LRH-CONSOLE-CACHE-WARMUP:LRH_CONSOLE_CACHE_WARMUP_CONFIRM)[2026-10-10T17:59:40+00:00]
 work_item: WI-LRH-CONSOLE-CACHE-WARMUP
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/817
-commit:
+commit: 3cff4c292ce3792cfeaaceb45c18af745d901dc4
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/817"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

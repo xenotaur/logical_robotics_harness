@@ -43,7 +43,7 @@ that displays or records links.
 - A pure Python helper, `lrh.conversations.deeplink.link_for(pointer)`, that
   returns a deep link or None, plus one real consumer that exercises it.
 - A Rust handoff in `apps/desktop/src-tauri` that opens only allowlisted
-  session links through `/usr/bin/open`.
+  session links through the same fixed per-platform opener the browser handoff uses.
 - Documenting which routes are verified and which are unknown.
 
 ## Prior Art Check

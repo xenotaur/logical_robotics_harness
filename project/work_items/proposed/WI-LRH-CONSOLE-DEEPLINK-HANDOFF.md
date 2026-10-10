@@ -32,7 +32,7 @@ forbidden_actions:
 acceptance:
   - "A new validate_session_link accepts only links that match an entry in src/lrh/conversations/session_links.json, embedded with include_str!, by exact scheme, host, path shape and UUID format, with no credentials, query or fragment, and has no hard-coded vendor routes of its own"
   - "The Rust tests run the same accept and reject vectors as the Python tests, from that file"
-  - "An allowlisted link clicked in the Console is opened with /usr/bin/open using fixed arguments, behind the same one-per-second rate limit"
+  - "An allowlisted link clicked in the Console is opened by a fixed platform opener with fixed arguments (/usr/bin/open on macOS, /usr/bin/xdg-open on other unix, an error elsewhere), matching browser.rs, behind the same one-per-second rate limit"
   - "validate_url and is_external_link behave exactly as before: other non-http(s) schemes, look-alike hosts, extra path segments and javascript: links are still refused"
   - "capabilities/main-window.json still grants no permissions, and the CSP is unchanged"
   - "A failed handoff is recorded in LinkHandoff's last result"
@@ -66,8 +66,8 @@ Today a `claude://` click in the Console does nothing. `on_navigation`
 (`browser.rs:39`) rejects every other scheme. The restriction is deliberate:
 page content must not be able to launch arbitrary apps, and the main window has no
 app commands (`capabilities/main-window.json`). The handoff therefore needs its own
-exact-shape allowlist and the same fixed-argument `/usr/bin/open` launch used at
-`browser.rs:116`. The Claude (`claude://claude.ai/epitaxy/local_<uuid>`) and Codex
+exact-shape allowlist and the same fixed-argument, platform-specific launch used at
+`browser.rs:115-131` (`/usr/bin/open` on macOS, `/usr/bin/xdg-open` on other unix). The Claude (`claude://claude.ai/epitaxy/local_<uuid>`) and Codex
 (`codex://threads/<uuid>`) routes were both verified by hand with `open`. The
 allowlist is built from `src/lrh/conversations/session_links.json`, created by `WI-LRH-SESSION-DEEPLINK-HELPER`, so
 the Python builder and this allowlist cannot drift. The crate already depends on
@@ -95,7 +95,7 @@ the Python builder and this allowlist cannot drift. The crate already depends on
 ## Required Changes
 
 1. In `browser.rs`, load `src/lrh/conversations/session_links.json` with `include_str!` and `serde_json`, and add `validate_session_link(url: &Url) -> Result<(), String>` accepting exactly the links that file describes (today `claude://claude.ai/epitaxy/local_<uuid>` and `codex://threads/<uuid>`) and nothing else (no credentials, query or fragment; strict UUID format; no extra path segments). No vendor route is written in the Rust source, and a malformed definition fails at first use in a test, not silently.
-2. Add a launch function that runs `/usr/bin/open <url>` with fixed arguments and no shell, following the pattern at `browser.rs:116`.
+2. Add a launch function with the same platform split as `browser.rs:115-131`: `/usr/bin/open <url>` on macOS and `/usr/bin/xdg-open <url>` on other unix, each with fixed arguments and no shell, and an error on non-unix platforms. Do not hard-code `/usr/bin/open`, which would break the Console's existing Linux support.
 3. In `shell.rs`, extend `LinkHandoff::offer` so a URL that fails `is_external_link` but passes `validate_session_link` is handed off, using the same rate limiter and the same `last` result.
 4. Leave `validate_url`, `is_external_link`, `new_window_response`, the CSP and `capabilities/main-window.json` unchanged.
 5. Add Rust unit tests in `browser.rs` and `shell.rs` that run the file's accept and reject vectors, plus extra cases for look-alike hosts, extra path segments, query strings, credentials, non-UUID ids, `javascript:` and other schemes, and a test in `tests/capability_boundaries_test.rs` that the main window still gets no app commands.

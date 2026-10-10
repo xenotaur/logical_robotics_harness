@@ -61,8 +61,11 @@ class GeminiSkillsSyncTest(unittest.TestCase):
                         self.assertEqual(committed[rel_path], content, REGEN_HINT)
 
     def test_plugin_manifest_matches_installer(self) -> None:
+        manifest_path = PLUGIN_ROOT / "plugin.json"
+        # The installer treats a symlinked manifest as modified; never follow it.
+        self.assertFalse(manifest_path.is_symlink(), REGEN_HINT)
         self.assertEqual(
-            (PLUGIN_ROOT / "plugin.json").read_bytes(),
+            manifest_path.read_bytes(),
             installer._antigravity_plugin_manifest(),
             REGEN_HINT,
         )

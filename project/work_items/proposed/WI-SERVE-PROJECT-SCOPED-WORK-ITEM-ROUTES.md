@@ -71,16 +71,16 @@ stop-work gate.
 
 1. **Download links.** `render_project_work_item_page` builds
    `prompt_download = "/workbench/prompt?work_item=<wi>&download=1"`
-   (`src/lrh/serve.py:2296`). The preview page that
+   (`src/lrh/serve.py:2460`). The preview page that
    `/project/<id>/work-items/<wi>/prompt` renders through
    `render_workbench_artifact_page` links to
-   `/workbench/{kind}?work_item=...&download=1` (`src/lrh/serve.py:2217`).
-   `_write_workbench_artifact` (`src/lrh/serve.py:3874`) renders those routes
+   `/workbench/{kind}?work_item=...&download=1` (`src/lrh/serve.py:2381`).
+   `_write_workbench_artifact` (`src/lrh/serve.py:4038`) renders those routes
    with the served `config`. On project Alpha's page, either download returns
    the served project's prompt for the same work-item ID, or a 404. This is the
    PR #813 bug class: one project's data under another project's name. The
    same preview page's "Back to workbench" (`/workbench`) and "Back to viewer
-   context" (`/#work-item-<wi>`) links (`src/lrh/serve.py:2215-2216`) also
+   context" (`/#work-item-<wi>`) links (`src/lrh/serve.py:2379-2380`) also
    take the user out of the named project and back into the served
    project's pages.
 2. **Missing bound checkout.** On the routes that use it (dependency maps,

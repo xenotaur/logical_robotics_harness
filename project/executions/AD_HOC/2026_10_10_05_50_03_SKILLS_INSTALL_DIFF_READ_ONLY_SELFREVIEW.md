@@ -8,7 +8,7 @@ pr:
 commit: 
 created_at: 2026-10-10T05:50:03+00:00
 agent: claude_app
-instruction_source: /lrh-self-review diff-mode from /lrh-implement Step 7.5 for PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY)[2026-10-10T05:35:27+00:00]
+instruction_source: lrh-self-review diff-mode from /lrh-implement Step 7.5 for PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY)[2026-10-10T05:35:27+00:00]
 session_transcript: pending
 ---
 

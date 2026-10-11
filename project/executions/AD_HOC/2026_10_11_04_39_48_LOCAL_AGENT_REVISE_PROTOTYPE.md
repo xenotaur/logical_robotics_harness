@@ -2,10 +2,10 @@
 execution_id: 2026_10_11_04_39_48_LOCAL_AGENT_REVISE_PROTOTYPE
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_REVISE_PROTOTYPE)[2026-10-11T04:38:54+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/826
-commit:
+commit: cf6e6dbed88ccd6064224e142c0a18b707a07ca9
 created_at: 2026-10-11T04:39:48+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner chose "revise" for WI-LOCAL-AGENT-001 and asked for the follow-up PRs first; this is the prototype PR

@@ -45,6 +45,7 @@ pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         shell::save_settings,
         shell::get_server_details,
         shell::restart_server,
+        shell::reset_window_state,
     ])
 }
 
@@ -66,13 +67,24 @@ pub fn run() {
         })
         .on_menu_event(|app, event| shell::handle_menu(app, event.id().as_ref()))
         .on_window_event(|window, event| {
-            // On macOS, closing the main window keeps the app and its server
-            // running; the Dock icon brings the window back.
-            if cfg!(target_os = "macos") && window.label() == shell::MAIN_WINDOW {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
+            if window.label() != shell::MAIN_WINDOW {
+                return;
+            }
+            match event {
+                // The main window remembers its size and position.
+                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                    shell::main_window_changed(window);
                 }
+                WindowEvent::CloseRequested { api, .. } => {
+                    shell::save_main_window(window);
+                    // On macOS, closing the main window keeps the app and its
+                    // server running; the Dock icon brings the window back.
+                    if cfg!(target_os = "macos") {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                _ => {}
             }
         })
         .build(context())

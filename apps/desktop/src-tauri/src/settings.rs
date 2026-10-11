@@ -304,9 +304,242 @@ impl ConfigStore {
     }
 }
 
+/// File holding the main window's last size and position.
+pub const WINDOW_STATE_FILE: &str = "window-state.json";
+/// The main window's default size, about 1.4 times the original 1100 by 760.
+pub const DEFAULT_WINDOW_WIDTH: f64 = 1540.0;
+pub const DEFAULT_WINDOW_HEIGHT: f64 = 1064.0;
+/// The default never takes more than this share of a display's work area.
+const DEFAULT_WINDOW_SHARE: f64 = 0.9;
+/// A saved frame smaller than this is treated as corrupt.
+const MIN_WINDOW_WIDTH: f64 = 400.0;
+const MIN_WINDOW_HEIGHT: f64 = 300.0;
+
+/// A rectangle in logical (point) screen coordinates: a window frame (its
+/// outer position and inner size) or a display's work area.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowFrame {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl WindowFrame {
+    fn is_plausible(&self) -> bool {
+        [self.x, self.y, self.width, self.height]
+            .iter()
+            .all(|value| value.is_finite())
+            && self.width >= MIN_WINDOW_WIDTH
+            && self.height >= MIN_WINDOW_HEIGHT
+    }
+
+    fn contains(&self, inner: &WindowFrame) -> bool {
+        inner.x >= self.x
+            && inner.y >= self.y
+            && inner.x + inner.width <= self.x + self.width
+            && inner.y + inner.height <= self.y + self.height
+    }
+
+    fn overlap(&self, other: &WindowFrame) -> f64 {
+        let width = (self.x + self.width).min(other.x + other.width) - self.x.max(other.x);
+        let height = (self.y + self.height).min(other.y + other.height) - self.y.max(other.y);
+        width.max(0.0) * height.max(0.0)
+    }
+}
+
+/// The default frame on a display: the default size, never more than 90% of
+/// the work area, centered in it.
+pub fn default_window_frame(area: &WindowFrame) -> WindowFrame {
+    let width = DEFAULT_WINDOW_WIDTH.min(area.width * DEFAULT_WINDOW_SHARE);
+    let height = DEFAULT_WINDOW_HEIGHT.min(area.height * DEFAULT_WINDOW_SHARE);
+    WindowFrame {
+        x: area.x + (area.width - width) / 2.0,
+        y: area.y + (area.height - height) / 2.0,
+        width,
+        height,
+    }
+}
+
+/// Where the main window opens: the saved frame when it is fully on a
+/// connected display, otherwise the saved frame moved (and shrunk if needed)
+/// fully onto the display it overlaps most, or the primary one; with no
+/// usable saved frame, the default on the primary display.
+pub fn place_window(
+    saved: Option<WindowFrame>,
+    areas: &[WindowFrame],
+    primary: &WindowFrame,
+) -> WindowFrame {
+    let Some(saved) = saved.filter(WindowFrame::is_plausible) else {
+        return default_window_frame(primary);
+    };
+    if areas.iter().any(|area| area.contains(&saved)) {
+        return saved;
+    }
+    let area = areas
+        .iter()
+        .filter(|area| saved.overlap(area) > 0.0)
+        .max_by(|a, b| saved.overlap(a).total_cmp(&saved.overlap(b)))
+        .unwrap_or(primary);
+    let width = saved.width.min(area.width);
+    let height = saved.height.min(area.height);
+    WindowFrame {
+        x: saved.x.clamp(area.x, area.x + area.width - width),
+        y: saved.y.clamp(area.y, area.y + area.height - height),
+        width,
+        height,
+    }
+}
+
+/// Reads and writes the main window's saved frame. It holds only geometry,
+/// never leaves this machine, and a missing or unreadable file just means
+/// the default frame is used.
+#[derive(Debug, Clone)]
+pub struct WindowStateStore {
+    path: PathBuf,
+}
+
+impl WindowStateStore {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        WindowStateStore { path: path.into() }
+    }
+
+    /// The store inside an app config directory, next to the configuration.
+    pub fn in_dir(dir: &Path) -> Self {
+        Self::new(dir.join(WINDOW_STATE_FILE))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// The saved frame, or None if there is none or it cannot be used.
+    pub fn load(&self) -> Option<WindowFrame> {
+        let text = std::fs::read_to_string(&self.path).ok()?;
+        serde_json::from_str::<WindowFrame>(&text)
+            .ok()
+            .filter(WindowFrame::is_plausible)
+    }
+
+    /// Writes the frame atomically, so a crash never leaves half a file.
+    pub fn save(&self, frame: &WindowFrame) -> Result<(), String> {
+        let dir = self
+            .path
+            .parent()
+            .ok_or_else(|| "window state path has no directory".to_string())?;
+        std::fs::create_dir_all(dir)
+            .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
+        let text = serde_json::to_string(frame)
+            .map_err(|error| format!("could not encode window state: {error}"))?;
+        let temp = self.path.with_extension("json.tmp");
+        std::fs::write(&temp, format!("{text}\n"))
+            .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
+        std::fs::rename(&temp, &self.path)
+            .map_err(|error| format!("could not replace {}: {error}", self.path.display()))
+    }
+
+    /// Forgets the saved frame. Having none is not an error.
+    pub fn clear(&self) -> Result<(), String> {
+        match std::fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("could not remove {}: {error}", self.path.display())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn frame(x: f64, y: f64, width: f64, height: f64) -> WindowFrame {
+        WindowFrame {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    #[test]
+    fn the_default_window_is_larger_but_fits_the_display() {
+        let big = frame(0.0, 25.0, 2560.0, 1415.0);
+        assert_eq!(
+            default_window_frame(&big),
+            frame(510.0, 200.5, 1540.0, 1064.0),
+            "1.4 times 1100 by 760, centered"
+        );
+        let laptop = frame(0.0, 25.0, 1440.0, 875.0);
+        let small = default_window_frame(&laptop);
+        assert_eq!(
+            (small.width, small.height),
+            (1296.0, 787.5),
+            "90% of the area"
+        );
+        assert!(laptop.contains(&small));
+    }
+
+    #[test]
+    fn a_saved_frame_on_a_connected_display_is_restored_as_is() {
+        let areas = [
+            frame(0.0, 25.0, 1440.0, 875.0),
+            frame(1440.0, 0.0, 2560.0, 1440.0),
+        ];
+        let saved = frame(1600.0, 100.0, 1500.0, 1000.0);
+        assert_eq!(place_window(Some(saved), &areas, &areas[0]), saved);
+    }
+
+    #[test]
+    fn a_frame_off_every_display_moves_fully_onto_one() {
+        let laptop = frame(0.0, 25.0, 1440.0, 875.0);
+        // Saved on an external display that is now gone.
+        let gone = frame(1600.0, 100.0, 1500.0, 1000.0);
+        let placed = place_window(Some(gone), &[laptop], &laptop);
+        assert!(laptop.contains(&placed), "{placed:?}");
+        assert_eq!(
+            (placed.width, placed.height),
+            (1440.0, 875.0),
+            "shrunk to fit"
+        );
+        // Hanging half off the right edge of the one display it overlaps.
+        let hanging = frame(1000.0, 100.0, 800.0, 600.0);
+        let placed = place_window(Some(hanging), &[laptop], &laptop);
+        assert_eq!(placed, frame(640.0, 100.0, 800.0, 600.0));
+    }
+
+    #[test]
+    fn an_implausible_saved_frame_falls_back_to_the_default() {
+        let area = frame(0.0, 25.0, 2560.0, 1415.0);
+        for bad in [
+            frame(f64::NAN, 0.0, 1500.0, 1000.0),
+            frame(0.0, 0.0, 10.0, 10.0),
+            frame(0.0, 0.0, f64::INFINITY, 1000.0),
+        ] {
+            assert_eq!(
+                place_window(Some(bad), &[area], &area),
+                default_window_frame(&area)
+            );
+        }
+        assert_eq!(
+            place_window(None, &[area], &area),
+            default_window_frame(&area)
+        );
+    }
+
+    #[test]
+    fn window_state_round_trips_and_a_corrupt_file_is_ignored() {
+        let dir = TempDir::new("window-state");
+        let store = WindowStateStore::in_dir(&dir.0);
+        assert_eq!(store.load(), None);
+        let saved = frame(10.0, 40.0, 1500.0, 1000.0);
+        store.save(&saved).unwrap();
+        assert_eq!(store.load(), Some(saved));
+        std::fs::write(store.path(), "{not json").unwrap();
+        assert_eq!(store.load(), None, "corrupt: the default is used, no error");
+        store.clear().unwrap();
+        store.clear().unwrap();
+        assert!(!store.path().exists());
+    }
 
     struct TempDir(PathBuf);
 

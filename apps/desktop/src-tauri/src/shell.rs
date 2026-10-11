@@ -26,7 +26,9 @@ use tauri::webview::{NewWindowResponse, PageLoadEvent, WebviewWindowBuilder};
 use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
-use crate::settings::{self, Appearance, BrowserChoice, Config, ConfigStore, FieldError};
+use crate::settings::{
+    self, Appearance, BrowserChoice, Config, ConfigStore, FieldError, WindowFrame, WindowStateStore,
+};
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
 /// Label of the one default content window.
@@ -680,6 +682,9 @@ pub struct ShellState {
     exiting: AtomicBool,
     /// The main window's loading cue, so View > Reload can mark its load.
     cue: Arc<LoadingCue>,
+    /// Where the main window's frame is remembered, if there is a config dir.
+    window_state: Option<WindowStateStore>,
+    window_saver: Arc<WindowSaver>,
 }
 
 impl ShellState {
@@ -866,6 +871,7 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     history: MainWindowHistory<R>,
     initial: &Url,
     cue: Arc<LoadingCue>,
+    frame: WindowFrame,
 ) -> tauri::Result<WebviewWindow<R>> {
     let path = initial
         .as_str()
@@ -883,7 +889,8 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     let cue_app = app.clone();
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
         .title(MAIN_TITLE)
-        .inner_size(1100.0, 760.0)
+        .inner_size(frame.width, frame.height)
+        .position(frame.x, frame.y)
         .on_navigation(move |url| {
             // The gear opens native Settings; the page never loads here and
             // the main window gains no capability. Rate-limited like links.
@@ -1244,13 +1251,126 @@ fn apply_appearance<R: Runtime>(app: &AppHandle<R>, appearance: Appearance) {
     app.set_theme(native_theme(appearance));
 }
 
+/// How long the main window must stay still before its frame is saved.
+const WINDOW_SAVE_DELAY: Duration = Duration::from_millis(500);
+
+/// A display's work area in logical (point) coordinates.
+fn work_area(monitor: &tauri::Monitor) -> WindowFrame {
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    WindowFrame {
+        x: f64::from(area.position.x) / scale,
+        y: f64::from(area.position.y) / scale,
+        width: f64::from(area.size.width) / scale,
+        height: f64::from(area.size.height) / scale,
+    }
+}
+
+/// Where the main window opens: its saved frame if still usable, otherwise
+/// the default on the primary display.
+fn initial_main_frame<R: Runtime>(
+    app: &AppHandle<R>,
+    store: Option<&WindowStateStore>,
+) -> WindowFrame {
+    let areas: Vec<WindowFrame> = app
+        .available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(work_area)
+        .collect();
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| work_area(&monitor))
+        .or_else(|| areas.first().copied())
+        .unwrap_or(WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: settings::DEFAULT_WINDOW_WIDTH / 0.9,
+            height: settings::DEFAULT_WINDOW_HEIGHT / 0.9,
+        });
+    settings::place_window(store.and_then(WindowStateStore::load), &areas, &primary)
+}
+
+/// The main window's current frame, or None when it is minimized or full
+/// screen (those sizes must not be remembered as its normal frame).
+fn main_frame<R: Runtime>(window: &tauri::Window<R>) -> Option<WindowFrame> {
+    if window.is_minimized().unwrap_or(false) || window.is_fullscreen().unwrap_or(false) {
+        return None;
+    }
+    let scale = window.scale_factor().ok()?;
+    let position = window.outer_position().ok()?.to_logical::<f64>(scale);
+    let size = window.inner_size().ok()?.to_logical::<f64>(scale);
+    Some(WindowFrame {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+    })
+}
+
+/// Remembers where the main window is, once it has been still for
+/// [`WINDOW_SAVE_DELAY`]. Each move or resize supersedes the last.
+#[derive(Debug, Default)]
+pub struct WindowSaver {
+    generation: Mutex<u64>,
+}
+
+impl WindowSaver {
+    fn next(&self) -> u64 {
+        let mut generation = lock(&self.generation);
+        *generation += 1;
+        *generation
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        *lock(&self.generation) == generation
+    }
+}
+
+/// Called on every main-window move or resize: saves the frame after a
+/// short pause, so a drag writes the file once.
+pub fn main_window_changed<R: Runtime>(window: &tauri::Window<R>) {
+    let Some(state) = window.try_state::<ShellState>() else {
+        return;
+    };
+    let Some(store) = state.window_state.clone() else {
+        return;
+    };
+    let generation = state.window_saver.next();
+    let saver = Arc::clone(&state.window_saver);
+    let window = window.clone();
+    thread::spawn(move || {
+        thread::sleep(WINDOW_SAVE_DELAY);
+        if saver.is_current(generation) {
+            if let Some(frame) = main_frame(&window) {
+                if let Err(error) = store.save(&frame) {
+                    eprintln!("LRH Console: {error}");
+                }
+            }
+        }
+    });
+}
+
+/// Saves the main window's frame now (when it closes or hides).
+pub fn save_main_window<R: Runtime>(window: &tauri::Window<R>) {
+    let Some(state) = window.try_state::<ShellState>() else {
+        return;
+    };
+    state.window_saver.next();
+    if let (Some(store), Some(frame)) = (&state.window_state, main_frame(window)) {
+        if let Err(error) = store.save(&frame) {
+            eprintln!("LRH Console: {error}");
+        }
+    }
+}
+
 /// Sets up the shell: configuration, menu, windows, and the action worker.
 pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let store = app
-        .path()
-        .app_config_dir()
-        .ok()
-        .map(|dir| ConfigStore::in_dir(&dir));
+    let config_dir = app.path().app_config_dir().ok();
+    let store = config_dir.as_deref().map(ConfigStore::in_dir);
+    let window_state = config_dir.as_deref().map(WindowStateStore::in_dir);
     let startup = startup_config(store.as_ref());
     if let Some(problem) = &startup.problem {
         eprintln!("LRH Console: {problem}");
@@ -1288,6 +1408,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     };
     let pages = Arc::clone(&history.pages);
     let cue = Arc::new(LoadingCue::default());
+    let frame = initial_main_frame(app, window_state.as_ref());
     build_main_window(
         app,
         policy.clone(),
@@ -1295,6 +1416,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         history,
         &initial,
         Arc::clone(&cue),
+        frame,
     )?;
 
     let (sender, receiver) = mpsc::channel();
@@ -1311,6 +1433,8 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
         cue,
+        window_state,
+        window_saver: Arc::default(),
     });
 
     let worker_app = app.clone();
@@ -1653,6 +1777,32 @@ pub fn get_server_details(state: tauri::State<'_, ShellState>) -> ServerDetails 
 /// `None` if either cannot be resolved.
 pub fn same_directory(a: &std::path::Path, b: &std::path::Path) -> Option<bool> {
     Some(std::fs::canonicalize(a).ok()? == std::fs::canonicalize(b).ok()?)
+}
+
+/// Forgets the main window's saved size and position and puts the window
+/// back at the default frame on its current display. Settings only.
+#[tauri::command]
+pub fn reset_window_state<R: Runtime>(
+    app: AppHandle<R>,
+    state: tauri::State<'_, ShellState>,
+) -> Result<(), String> {
+    state.window_saver.next();
+    if let Some(store) = &state.window_state {
+        store.clear()?;
+    }
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let monitor = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .or_else(|| app.primary_monitor().ok().flatten());
+        if let Some(monitor) = monitor {
+            let frame = settings::default_window_frame(&work_area(&monitor));
+            let _ = window.set_size(tauri::LogicalSize::new(frame.width, frame.height));
+            let _ = window.set_position(tauri::LogicalPosition::new(frame.x, frame.y));
+        }
+    }
+    Ok(())
 }
 
 /// Restarts the owned backend (for example after a workspace change).

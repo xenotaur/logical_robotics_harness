@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_LRH_SESSION_DEEPLINK_HELPER_SELFREVIEW)[2026-10-10T2
 work_item: AD_HOC
 status: in_progress
 rerun_of:
-pr:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/822
 commit:
 created_at: 2026-10-10T23:30:05+00:00
 agent: claude_app

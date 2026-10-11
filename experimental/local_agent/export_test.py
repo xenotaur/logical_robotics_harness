@@ -424,6 +424,9 @@ class AskExportTest(unittest.TestCase):
             preamble="Readiness: ready\n",
         )
         ask.record_rating(self.store, run_id, "g")
+        default = self._export(run_id)
+        self.assertNotIn("preamble", default)
+        self.assertTrue(any("preamble" in item for item in default["excluded"]))
         exported = self._export(run_id, include_output=True)
         self.assertEqual(exported["preamble"], "Readiness: ready\n")
         self.assertEqual(exported["answer"], "ok")

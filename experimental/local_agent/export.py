@@ -140,7 +140,7 @@ def _export_ask(
     exported["run"] = exported_run
     if not include_output:
         excluded.append(
-            "question, answer, and rating note text "
+            "question, answer, readiness preamble, and rating note text "
             "(use --include-output after review)"
         )
         return

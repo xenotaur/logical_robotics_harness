@@ -75,8 +75,9 @@ the tool's section, not the model.
 `brief` takes the same options as `ask` (`--repo`, `--commit`,
 `--project-dir`, `--yes`, `--no-rate`, and the backend options), except
 `--wi`, `--files`, and `--allow-flagged`. Brief runs export like ask runs: the
-question, answer, and rating note are included only with `--include-output`
-on a rated run whose text has no sensitivity finding.
+question, answer, readiness preamble, and rating note are included only with
+`--include-output` on a rated run whose text, preamble included, has no
+sensitivity finding.
 
 `ask` first prints the sources it will send, on stderr, and asks for
 confirmation (skip it with `--yes`). It then streams the answer and prints a
@@ -182,9 +183,9 @@ the streamed part is kept, marked `partial`.
 `incomplete`, and keeps any truncated final event as evidence.
 
 `export <run-id> --out <dir>` writes a sanitized record. By default it leaves
-out the question, the answer, and your rating note. `--include-output` adds them
-only for a rated run whose text has no sensitivity finding at all, medium
-included.
+out the question, the answer, any `brief` readiness preamble, and your rating
+note. `--include-output` adds them only for a rated run whose text, preamble
+included, has no sensitivity finding at all, medium included.
 
 ## Setup and tests
 

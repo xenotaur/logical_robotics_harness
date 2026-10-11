@@ -536,6 +536,46 @@ class SessionsCliTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 1)
             self.assertIn("since_created_at must be an ISO timestamp", completed.stderr)
 
+    def test_deeplink_prints_the_claude_link_on_stdout(self) -> None:
+        host_id = "a6e3e7d1-6dca-4a75-999f-73b646ceb1fa"
+        completed = self._run("deeplink", f"claude-app:{host_id}")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertEqual(
+            completed.stdout, f"claude://claude.ai/epitaxy/local_{host_id}\n"
+        )
+        self.assertEqual(completed.stderr, "")
+
+    def test_deeplink_prints_the_codex_link_on_stdout(self) -> None:
+        thread_id = "01a032cd-cef2-73c0-9714-b61b36ae4513"
+        completed = self._run("deeplink", f"codex-app:{thread_id}")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertEqual(completed.stdout, f"codex://threads/{thread_id}\n")
+        self.assertEqual(completed.stderr, "")
+
+    def test_deeplink_without_a_known_link_exits_1_with_a_message_on_stderr(
+        self,
+    ) -> None:
+        for pointer in (
+            "pending",
+            "none",
+            "antigravity-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+            "claude-app:not-a-uuid",
+        ):
+            with self.subTest(pointer=pointer):
+                completed = self._run("deeplink", pointer)
+
+                self.assertEqual(completed.returncode, 1)
+                self.assertEqual(completed.stdout, "")
+                self.assertIn("no deep link is known", completed.stderr)
+
+    def test_deeplink_requires_a_pointer_argument(self) -> None:
+        completed = self._run("deeplink")
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
+
 
 if __name__ == "__main__":
     unittest.main()

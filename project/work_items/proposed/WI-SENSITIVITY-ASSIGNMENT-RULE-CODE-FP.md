@@ -1,5 +1,5 @@
 ---
-id: WI-SENSITIVITY-SECRET-ASSIGNMENT-CODE-FP
+id: WI-SENSITIVITY-ASSIGNMENT-RULE-CODE-FP
 title: "Stop the secret-assignment rule from flagging code-shaped values"
 type: deliverable
 status: proposed

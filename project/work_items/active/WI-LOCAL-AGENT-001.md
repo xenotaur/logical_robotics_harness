@@ -127,13 +127,15 @@ network tools and cannot modify repository files or project state.
    stops at a confirmation listing every finding it would let through by
    rule and line, never by value (`ALLOWED DESPITE <category>: <rule> at
    L<n>`, where `L<n>` is the match's start line, `L<a>-L<b>` if it spans
-   lines, or `L?` if unknown). The confirmation comes before the adapter is
-   built or the model is called; only a typed `yes` sends, a bare Enter or
-   anything else declines, and a decline is logged as `cancelled`.
+   lines, or `L?` if unknown); that text is shown in the terminal only and
+   never stored. The confirmation comes before the adapter is built or the
+   model is called; only a typed `yes` sends, a bare Enter or anything else
+   declines, and a decline is logged as `cancelled`.
    `--allow-flagged` is refused with `--yes` or without an interactive
    terminal. The final assembled-context scan skips only the allowed file's
-   own rendered section (scanned once, on raw text, for the confirmation)
-   and still refuses any high-severity finding elsewhere. The run record
+   numbered body lines (scanned once, on raw text, for the confirmation); its
+   header, with the path, and everything else are still scanned, and any
+   high-severity finding there refuses the request. The run record
    notes the override and the confirmed findings as structured fields (path,
    category, rule ID, start and end line), never by value.
 
@@ -171,17 +173,17 @@ network tools and cannot modify repository files or project state.
    - `--allow-flagged` sends only a requested file whose high-severity
      categories are exactly covered by the override; it is refused
      otherwise, never lifts private, untracked, binary, or credential-like
-     exclusions, and the override is recorded by path, category, rule, and
-     line, never by value;
+     exclusions, and the override is recorded as structured fields (path,
+     category, rule ID, start and end line), never by value;
    - an override run lists every allowed finding by rule and line (never by
      value) before any model call; only a typed `yes` sends, a bare Enter
      declines and is logged as `cancelled`; it is refused with `--yes` or
      without an interactive terminal; and a second finding of an allowed
      category appears as its own line;
-   - the final assembled-context scan skips only the allowed file's own
-     section: an allowed file is sent, including one with a multi-line
-     finding, while any high-severity finding in another file, the
-     diagnostics, or the listing still refuses the request;
+   - the final assembled-context scan skips only the allowed file's body
+     lines: an allowed file is sent, including one with a multi-line finding,
+     while a high-severity finding in its header path, another requested
+     file, or the excluded-sources block still refuses the request;
    - an override run exports cleanly: its structured override record does
      not itself trip the export scan.
 
@@ -251,3 +253,24 @@ records a decision after using the toys.
 
 `WI-LOCAL-AGENT-002` (T2) depends on this leaf and a separate owner decision;
 resolving this leaf does not start it automatically.
+
+**Owner decision, 2026-10-10: revise.**
+
+- **What was built:** T0 `ask` and T1 `brief` are complete (PRs #777, #788,
+  #799, #803, #806, and #809).
+- **How it was used:** the owner used both on real LRH work. The log holds 12
+  runs: 4 rated good and 2 ok among those after the fixes, plus 2 pre-fix
+  runs rated bad.
+- **What worked:** answers cite accurately, admit when the sources lack an
+  answer, and fail closed.
+- **What held it back:**
+  - latency of 1 to 4 minutes;
+  - scanner false positives that excluded key documents;
+  - one misreading of a cited line that no automated check catches.
+- **Next:** land the follow-ups (false-positive rewording, prototype fixes,
+  and prompt reordering for cache reuse), use the toys further, then record
+  the final stop, revise, or proceed decision as this item's resolution.
+- **Note on the scanner work item:** it was renamed to
+  `WI-SENSITIVITY-ASSIGNMENT-RULE-CODE-FP`, which removes its path exclusion
+  only. Its body quotes the rule's matches, so `brief` still excludes it until
+  that work item fixes the scanner.

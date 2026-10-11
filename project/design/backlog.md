@@ -819,7 +819,7 @@ what an "implement and land it end-to-end" skill advertises.
 - All tracked install copies were updated.
 
 `/lrh-execute`'s Step 3 workaround was reduced to a verification check in
-the follow-up PR that closed this entry.
+PR #816, the follow-up PR that closed this entry.
 
 Historical background: before PR #808, `/lrh-execute`'s Step 3 populated
 `pr:` itself as a defensive fix scoped to its own correctness, and every

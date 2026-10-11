@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_23_32_35_FOLLOWUP_SELFREVIEW_PR_BACKFILL_REVIEW
 prompt_id: PROMPT(AD_HOC:FOLLOWUP_SELFREVIEW_PR_BACKFILL_REVIEW)[2026-10-10T05:41:38+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_02_50_22_FOLLOWUP_SELFREVIEW_PR_BACKFILL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/816
-commit:
+commit: dc5cf5b359b316e0db23a067aa8972441c446d50
 created_at: 2026-10-10T23:32:35+00:00
 agent: claude_app
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/816"
-session_transcript: pending
+session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---
 
 # Summary

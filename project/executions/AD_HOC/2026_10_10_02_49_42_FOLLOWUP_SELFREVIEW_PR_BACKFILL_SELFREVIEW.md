@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_02_49_42_FOLLOWUP_SELFREVIEW_PR_BACKFILL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:FOLLOWUP_SELFREVIEW_PR_BACKFILL_SELFREVIEW)[2026-10-10T02:49:42+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_02_50_22_FOLLOWUP_SELFREVIEW_PR_BACKFILL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/816
-commit:
+commit: dc5cf5b359b316e0db23a067aa8972441c446d50
 created_at: 2026-10-10T02:49:42+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for FOLLOWUP_SELFREVIEW_PR_BACKFILL"
-session_transcript: pending
+session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---
 
 # Summary

@@ -2,10 +2,10 @@
 execution_id: 2026_10_11_00_17_39_WS_LRH_PROFILES_CONFIRM
 prompt_id: PROMPT(AD_HOC:WS_LRH_PROFILES_CONFIRM)[2026-10-10T23:22:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_02_06_59_WS_LRH_PROFILES
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/815
-commit:
+commit: 4fdc2519898e0154cb286fb94cf02b6c15ae323a
 created_at: 2026-10-11T00:17:39+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/815

@@ -42,18 +42,24 @@ All arguments are optional:
   argument passes through to the variant unchanged.
 - Any other first argument is not a vendor name. The vendor is then chosen
   from the environment (Step 1), and **all** arguments pass through to the
-  variant unchanged — for example a Claude host id, PR number, or branch, or
-  a Codex thread id.
+  variant unchanged.
+- Each variant interprets its arguments by its own Inputs section. Only
+  `/lrh-session-id-claude` accepts a PR number, PR URL, or branch; the Codex
+  and Antigravity variants take only a thread or conversation id, and treat
+  any argument as one. Pass a PR or branch only when the vendor is Claude.
+- To pass a Claude branch literally named `claude`, `codex`, or
+  `antigravity`, give the vendor first: `/lrh-session-id claude codex`.
 
 ---
 
 ## Reference Knowledge
 
-The variants are installed sibling skills: `/lrh-session-id-claude`,
+The variants are installed skills: `/lrh-session-id-claude`,
 `/lrh-session-id-codex`, and, once it ships, `/lrh-session-id-antigravity`.
-Resolve each one the way this skill itself was loaded — as a sibling in the
-selected agent skills directory — not through a hardcoded
-`src/lrh/skills/...` path, which does not exist in a client repository.
+Resolve each one as an installed skill — in any skills directory or scope
+the host loads (project or user), typically as a sibling of this skill — not
+through a hardcoded `src/lrh/skills/...` path, which does not exist in a
+client repository.
 
 Each variant documents its own CLI contract (`lrh conversation --help` and
 the variant's resolver subcommand). The LRH checkout's
@@ -116,13 +122,21 @@ Work through these steps in order.
 3. **Ask.** If none is set, or more than one is (for example Claude Code
    running inside a Codex-hosted terminal), list which signals were found
    and ask the user to name the vendor, or to accept
-   `session_transcript: pending`. Do not pick one yourself.
+   `session_transcript: pending`. Do not pick one yourself. If the user
+   accepts `pending`, stop and report:
+
+   ```text
+   Vendor: undetermined (<no signal | multiple signals: NAME, ...>)
+   session_transcript: pending
+   ```
 
 ### Step 2 -- Check the variant is installed
 
-Look for the installed sibling skill `lrh-session-id-<vendor>` (its
-`SKILL.md`). This is checked at run time, so a variant that ships later
-is picked up without editing this dispatcher.
+Check whether the skill `lrh-session-id-<vendor>` is available: listed in
+this session's available skills, or present (its `SKILL.md`) in any skills
+directory or scope the host loads, project or user. This is checked at run
+time, so a variant that ships later is picked up without editing this
+dispatcher.
 
 If it is not installed, stop and report:
 

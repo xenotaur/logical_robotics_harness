@@ -678,6 +678,8 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
+    /// The main window's loading cue, so View > Reload can mark its load.
+    cue: Arc<LoadingCue>,
 }
 
 impl ShellState {
@@ -730,6 +732,9 @@ pub struct LoadingCue {
 struct CueState {
     token: u64,
     active: bool,
+    /// The next navigation is a Reload of the current URL, which WebKit
+    /// treats as a full load even when that URL has a fragment.
+    reload: bool,
 }
 
 fn without_fragment(url: &Url) -> Url {
@@ -744,21 +749,35 @@ impl LoadingCue {
     /// finish loading). `live` is the webview's current URL, which reflects
     /// `history.replaceState`.
     pub fn begin(&self, url: &Url, live: Option<&Url>) -> Option<u64> {
-        let in_page = url.fragment().is_some()
+        let mut state = lock(&self.state);
+        let reload = std::mem::take(&mut state.reload);
+        let in_page = !reload
+            && url.fragment().is_some()
             && live.is_some_and(|live| without_fragment(live) == without_fragment(url));
         if in_page {
             return None;
         }
-        let mut state = lock(&self.state);
         state.token += 1;
         state.active = true;
         Some(state.token)
+    }
+
+    /// Marks the next navigation as View > Reload, so it is never mistaken
+    /// for an in-page jump: reloading `/meta#x` reloads the whole page.
+    pub fn expect_reload(&self) {
+        lock(&self.state).reload = true;
     }
 
     /// A new navigation to `url`: ends any navigation in progress (so its
     /// cue never outlives it, even when the new one is an in-page jump), then
     /// starts tracking this one. Returns whether a navigation was ended, and
     /// the new one's token (None for an in-page jump).
+    ///
+    /// Assumes main-frame navigations only: wry passes every frame's
+    /// navigation here and WebKit re-asks on server redirects, so an iframe
+    /// or a 30x would end and restart the cue. Served pages use neither. An
+    /// in-page jump made during a slow load also ends that load's cue early,
+    /// which only ever hides the cue, never leaves it stuck.
     pub fn navigate(&self, url: &Url, live: Option<&Url>) -> (bool, Option<u64>) {
         let ended = self.end();
         (ended, self.begin(url, live))
@@ -846,6 +865,7 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     links: Arc<LinkHandoff>,
     history: MainWindowHistory<R>,
     initial: &Url,
+    cue: Arc<LoadingCue>,
 ) -> tauri::Result<WebviewWindow<R>> {
     let path = initial
         .as_str()
@@ -858,7 +878,6 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     let gear_limiter = RateLimiter::default();
     let download_history = history.clone();
     let download_policy = policy.clone();
-    let cue = Arc::new(LoadingCue::default());
     let load_cue = Arc::clone(&cue);
     let download_cue = Arc::clone(&cue);
     let cue_app = app.clone();
@@ -1268,7 +1287,15 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         items: Some(history_items),
     };
     let pages = Arc::clone(&history.pages);
-    build_main_window(app, policy.clone(), Arc::clone(&links), history, &initial)?;
+    let cue = Arc::new(LoadingCue::default());
+    build_main_window(
+        app,
+        policy.clone(),
+        Arc::clone(&links),
+        history,
+        &initial,
+        Arc::clone(&cue),
+    )?;
 
     let (sender, receiver) = mpsc::channel();
     app.manage(ShellState {
@@ -1283,6 +1310,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         chrome_available,
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
+        cue,
     });
 
     let worker_app = app.clone();
@@ -1449,6 +1477,7 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
                 if let Ok(url) = window.url() {
                     if state.policy.allows(&url) {
+                        state.cue.expect_reload();
                         let _ = window.navigate(url);
                     }
                 }
@@ -1685,6 +1714,27 @@ mod tests {
         assert!(ended, "the slow load's cue is cleared");
         assert_eq!(jump, None, "an in-page jump starts no cue");
         assert!(!cue.is_current(slow));
+    }
+
+    #[test]
+    fn reloading_a_url_with_a_fragment_is_a_real_load() {
+        let cue = LoadingCue::default();
+        let live = url("http://127.0.0.1:5/meta#band-blocked");
+        assert_eq!(
+            cue.begin(&live, Some(&live)),
+            None,
+            "a plain jump is in-page"
+        );
+        cue.expect_reload();
+        assert!(
+            cue.begin(&live, Some(&live)).is_some(),
+            "View > Reload loads"
+        );
+        assert_eq!(
+            cue.begin(&live, Some(&live)),
+            None,
+            "the reload mark applies to one navigation only"
+        );
     }
 
     #[test]

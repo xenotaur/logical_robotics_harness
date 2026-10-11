@@ -44,8 +44,16 @@ build with three bot threads.
   navigation started. An in-page jump after a slow load left "Loading…" up until the 20 s fallback.
   `LoadingCue::navigate` now ends any navigation in progress and resets the title before tracking
   the new one. A test covers it.
-- **Copilot, execution record (owner check pending):** satisfied by the owner check and diagnosis
-  recorded above.
+- **Copilot, execution record (owner check pending):** partially satisfied, and recorded honestly:
+  - Acceptance criterion 4 (the cue appears on a slow first visit and never sticks) is met by the
+    owner's items 1, 3, and 4. That check ran on the `e53dea51` build; this round only makes
+    clearing more eager.
+  - Acceptance criterion 1 (evidence from the app for why the page pill does not appear, even for
+    sidebar clicks) is only partly met. Restart is confirmed in the app. The View menu is explained
+    from code. The sidebar case was not reproducible. The WebKit-painting hypothesis is
+    unconfirmed. At confirm-fixes the owner chose to waive the sidebar part (option A), because
+    the native cue covers it either way. Closeout records criterion 1 as partly met under that
+    waiver.
 - **Codex P2, `shell.rs` (fragment removal):** declined, with owner agreement, and replied on the
   thread. Under the HTML navigate algorithm, a navigation is same-document only when the new URL has
   a fragment. Going from `/meta#x` to `/meta` is a full load that reports `didFinishNavigation`, so

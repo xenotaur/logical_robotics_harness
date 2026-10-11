@@ -41,3 +41,13 @@ optionally checks an explicit source file's SHA-256 digest, and formats
 metadata-only text or JSON reports. Default output is designed for terminal and
 CI use: it reports statuses, counts, hashes, warnings, and diagnostics without
 printing raw transcript body, snippets, or message text.
+
+## Session deep links
+
+`lrh.conversations.deeplink` turns a session pointer (`claude-app:`,
+`codex-app:`) into a vendor-app link with the pure function `link_for(pointer)`,
+which returns `None` for any pointer without a known route. It backs
+`lrh sessions deeplink POINTER`. Every route lives in `session_links.json`, the
+single definition that also carries the accept and reject test examples and that
+the LRH Console shell allowlist is meant to read, so the Python builder and the
+Rust allowlist cannot drift.

@@ -31,12 +31,13 @@ fn invoke_request(cmd: &str, origin: &Url) -> tauri::webview::InvokeRequest {
 }
 
 /// Every app command, as registered.
-const APP_COMMANDS: [&str; 5] = [
+const APP_COMMANDS: [&str; 6] = [
     "get_app_info",
     "get_settings",
     "save_settings",
     "get_server_details",
     "restart_server",
+    "reset_window_state",
 ];
 
 fn assert_denied(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, origin: &Url) {
@@ -65,6 +66,12 @@ fn bundled_status_page_in_the_main_window_gets_no_app_commands() {
         shell::MainWindowHistory::default(),
         &initial,
         Arc::new(shell::LoadingCue::default()),
+        lrh_console_lib::settings::WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1100.0,
+            height: 760.0,
+        },
     )
     .expect("main window");
 
@@ -81,6 +88,12 @@ fn owned_serve_origin_in_the_main_window_gets_no_app_commands() {
         shell::MainWindowHistory::default(),
         &shell::status_url("stopped", None),
         Arc::new(shell::LoadingCue::default()),
+        lrh_console_lib::settings::WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1100.0,
+            height: 760.0,
+        },
     )
     .expect("main window");
 

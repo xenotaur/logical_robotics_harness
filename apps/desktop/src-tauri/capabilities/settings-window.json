@@ -1,6 +1,6 @@
 {
   "identifier": "settings-window",
-  "description": "The Settings / Server Details window shows only bundled pages and may read and save the app configuration, read server details, and restart the owned server. Every argument is validated in Rust. No shell, filesystem, process, or remote-origin access.",
+  "description": "The Settings / Server Details window shows only bundled pages and may read and save the app configuration, read server details, restart the owned server, and reset the main window's saved size and position. Every argument is validated in Rust. No shell, filesystem, process, or remote-origin access.",
   "local": true,
   "windows": ["settings"],
   "permissions": [
@@ -8,6 +8,7 @@
     "allow-get-settings",
     "allow-save-settings",
     "allow-get-server-details",
-    "allow-restart-server"
+    "allow-restart-server",
+    "allow-reset-window-state"
   ]
 }

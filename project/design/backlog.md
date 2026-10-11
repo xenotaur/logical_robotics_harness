@@ -809,17 +809,21 @@ while leaving the target work item silently stuck `proposed` and its
 real execution record silently stuck `in_progress` — the opposite of
 what an "implement and land it end-to-end" skill advertises.
 
-**Status:** Worked around locally, not fixed at the root. `/lrh-execute`'s
-own Step 3 (`src/lrh/skills/lrh-execute/SKILL.md`) now explicitly
-instructs populating `pr:` via `--pr` before proceeding to Step 4 — a
-defensive fix scoped to `/lrh-execute`'s own correctness, since
-`WI-SKILLS-LRH-EXECUTE`'s Non-Goals don't cover modifying
-`/lrh-implement` itself. The root gap remains open for every *other*
-`/lrh-implement` caller (a human running `/lrh-implement` directly, then
-`/lrh-land` manually) — same failure mode, just with more time for a
-human to notice between the two steps rather than none. Fix: add `--pr
-<pr-url-from-step-8>` to Step 9's own `record-execution` call in
-`/lrh-implement/SKILL.md` (and its `.claude/` mirror) directly.
+**Status:** Closed 2026-10-10 (UTC). Fixed at the root by PR #808
+(`WI-IMPLEMENT-SELFREVIEW-PR-BACKFILL`):
+
+- `/lrh-implement` Step 9 now passes `--pr <pr-url-from-step-8>` to its own
+  `record-execution` call.
+- It also backfills `pr:` and `rerun_of:` on the Step 7.5 diff-mode
+  `_SELFREVIEW` record.
+- All tracked install copies were updated.
+
+`/lrh-execute`'s Step 3 workaround was reduced to a verification check in
+the follow-up PR that closed this entry.
+
+Historical background: before PR #808, `/lrh-execute`'s Step 3 populated
+`pr:` itself as a defensive fix scoped to its own correctness, and every
+other `/lrh-implement` caller left `pr:` blank.
 
 **Related:** `src/lrh/skills/lrh-implement/SKILL.md` Step 8–9;
 `src/lrh/skills/lrh-land/SKILL.md` Step 1 (primary-record selection) and

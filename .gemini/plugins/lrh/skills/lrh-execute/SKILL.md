@@ -318,14 +318,14 @@ state and run stop checks; they do not edit files or create a branch.
    stop and report, this is not the same as "no prior record"; `2`
    (malformed input) — stop and report, a usage error.
 
-   **Carry a matched `execution_id` into `--rerun-of` the same way Step 3
-   already overrides `/lrh-implement`'s inlined `record-execution` call
-   with `--pr`.** `/lrh-implement`'s own documented Step 9 invocation
-   doesn't include `--rerun-of` — but the `record-execution` CLI itself
-   does accept the flag. If this check matched a `failed`/`reverted`/
-   `superseded` record (the rerun case), pass `--rerun-of
-   <matched-execution_id>` explicitly when Step 3 reaches its own
-   `record-execution` call, the same way that step already adds `--pr`.
+   **Carry a matched `execution_id` into `--rerun-of` when Step 3 reaches
+   `/lrh-implement`'s inlined `record-execution` call.**
+   `/lrh-implement`'s own documented Step 9 invocation passes `--pr` but
+   not `--rerun-of`. The `record-execution` CLI does accept the flag, so
+   this is the one flag `/lrh-execute` adds to that call. If this check
+   matched a `failed`/`reverted`/`superseded` record (the rerun case), pass
+   `--rerun-of <matched-execution_id>` explicitly when Step 3 reaches that
+   call.
    If the user authorizes a rerun of a blocking (`1`-exit) match instead,
    the same applies: carry that match's `execution_id` through to Step 3's
    `--rerun-of` override.
@@ -455,23 +455,23 @@ divergence-only rule. If there is no material divergence, proceed to Step 5
 without a second human ask; if there is material divergence, stop at the Step 4
 gate and ask with a structured diff.
 
-**Populate the execution record's `pr:` field before proceeding to Step
-4.** `/lrh-implement`'s own Step 9 does not do this — its
-`record-execution` call and its "immediately edit" instruction populate
-`agent`, `instruction_source`, and `session_transcript`, but not `pr:`,
-even though the PR already exists by then (Step 8 ran first). Pass it
-directly: `lrh prompt record-execution ... --pr <pr-url-from-step-8>`.
-Without this, `/lrh-land`'s Step 1 primary-record search (which matches
-on `pr: <pr-url>`) finds nothing, falls back to an `AD_HOC` backfill, and
-closeout's matrix does not resolve a WI for `AD_HOC` — the target `WI-ID`
-would stay `proposed` even after the PR merges, silently defeating this
-skill's own advertised end-to-end guarantee. (This is a gap in
-`/lrh-implement/SKILL.md` itself, not unique to inlining it here — see
-`project/design/backlog.md` for the broader fix.)
+**Confirm the execution record's `pr:` field is populated before
+proceeding to Step 4.** `/lrh-implement`'s own Step 9 passes
+`--pr <pr-url-from-step-8>` to `record-execution`, and backfills `pr:` and
+`rerun_of:` on its Step 7.5 diff-mode `_SELFREVIEW` record when one exists,
+so this should already hold. Check it anyway. If `pr:` is empty, set it to
+the Step 8 PR URL on the record, then commit and push the corrected record
+to the open PR before Step 4. Step 9 has already pushed, so an uncommitted
+fix would sit outside the PR head and leave `/lrh-land` a dirty worktree.
+`/lrh-land`'s Step 1 primary-record search matches on `pr: <pr-url>`. A
+primary record without it is invisible to that search. `/lrh-land` would
+fall back to an `AD_HOC` backfill, and closeout's matrix does not resolve a
+WI for `AD_HOC`, so the target `WI-ID` would stay `proposed` even after the
+PR merges.
 
 **If Step 1.5 matched a prior `execution_id` for `--rerun-of` (the rerun
-case), pass it the same way:** `lrh prompt record-execution ... --pr
-<pr-url-from-step-8> --rerun-of <matched-execution_id-from-step-1.5>`.
+case), add it to that same Step 9 call:** `lrh prompt record-execution ...
+--pr <pr-url-from-step-8> --rerun-of <matched-execution_id-from-step-1.5>`.
 Omit the flag entirely when Step 1.5 found no match — an absent
 `--rerun-of` is the correct value for a first attempt, not a gap to fill.
 

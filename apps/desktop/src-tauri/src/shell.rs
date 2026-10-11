@@ -704,18 +704,23 @@ const MAIN_TITLE: &str = "LRH Console";
 const MAIN_TITLE_LOADING: &str = "LRH Console \u{2014} Loading\u{2026}";
 /// How long a navigation runs before the loading cue shows.
 const LOADING_CUE_DELAY: Duration = Duration::from_millis(300);
-/// A cue still showing this long after it started is cleared, so a load that
-/// never reports finishing (a failed connection) cannot leave it stuck.
-const LOADING_CUE_GIVE_UP: Duration = Duration::from_secs(60);
+/// A cue still showing this long after it started is cleared. WebKit reports
+/// no failed loads (connection refused, a stopped backend), so this bounds
+/// how long one can show "Loading…"; a working load finishes long before.
+const LOADING_CUE_GIVE_UP: Duration = Duration::from_secs(20);
+/// How often a showing cue's timer checks whether its load has ended.
+const LOADING_CUE_POLL: Duration = Duration::from_millis(500);
 
 /// Whether a slow main-window navigation is in progress.
 ///
 /// The cue starts when a navigation is allowed, which on macOS is the only
 /// signal at click time: WebKit reports a page load as started only when its
 /// response arrives, after the server has done its work. It ends when the
-/// load finishes, a download takes over, or the next navigation starts. Each
-/// navigation gets a new token, so a stale timer never shows or clears the
-/// cue of a later one.
+/// load finishes, a download takes over, the next navigation starts, or the
+/// give-up time passes. Each navigation gets a new token, so a stale timer
+/// never shows or clears the cue of a later one. A late `Finished` from an
+/// earlier load can end a newer cue early; that only ever hides the cue,
+/// never leaves it stuck.
 #[derive(Debug, Default)]
 pub struct LoadingCue {
     state: Mutex<CueState>,
@@ -725,40 +730,50 @@ pub struct LoadingCue {
 struct CueState {
     token: u64,
     active: bool,
-    /// The last page that finished loading, to ignore in-page jumps.
-    current: Option<Url>,
+}
+
+fn without_fragment(url: &Url) -> Url {
+    let mut url = url.clone();
+    url.set_fragment(None);
+    url
 }
 
 impl LoadingCue {
     /// Starts tracking a navigation to `url`, returning its token, or None
-    /// for a jump within the current page (which never finishes loading).
-    pub fn begin(&self, url: &Url) -> Option<u64> {
-        let mut state = lock(&self.state);
-        if let Some(current) = &state.current {
-            let mut target = url.clone();
-            target.set_fragment(None);
-            let mut here = current.clone();
-            here.set_fragment(None);
-            if target == here && url.fragment().is_some() {
-                return None;
-            }
+    /// for a jump within `live`, the page showing now (in-page jumps never
+    /// finish loading). `live` is the webview's current URL, which reflects
+    /// `history.replaceState`.
+    pub fn begin(&self, url: &Url, live: Option<&Url>) -> Option<u64> {
+        let in_page = url.fragment().is_some()
+            && live.is_some_and(|live| without_fragment(live) == without_fragment(url));
+        if in_page {
+            return None;
         }
+        let mut state = lock(&self.state);
         state.token += 1;
         state.active = true;
         Some(state.token)
     }
 
-    /// Ends the current navigation; `loaded` is the page that finished, if
-    /// any. Returns whether a navigation was in progress.
-    pub fn end(&self, loaded: Option<&Url>) -> bool {
+    /// Ends whichever navigation is in progress. Returns whether one was.
+    pub fn end(&self) -> bool {
         let mut state = lock(&self.state);
-        if let Some(url) = loaded {
-            state.current = Some(url.clone());
-        }
         let was_active = state.active;
         state.active = false;
         state.token += 1;
         was_active
+    }
+
+    /// Ends navigation `token` only if it is still the one in progress, in
+    /// one step, so a newer navigation is never cancelled by an old timer.
+    pub fn end_if(&self, token: u64) -> bool {
+        let mut state = lock(&self.state);
+        if !(state.active && state.token == token) {
+            return false;
+        }
+        state.active = false;
+        state.token += 1;
+        true
     }
 
     /// Whether the navigation with `token` is still the one in progress.
@@ -777,22 +792,41 @@ fn set_main_title<R: Runtime>(window: &WebviewWindow<R>, loading: bool) {
 }
 
 /// Shows the cue if navigation `token` is still running after the delay, and
-/// clears it if the load never reports finishing.
+/// clears it if the load has not finished by the give-up time.
+///
+/// Every check-and-set runs on the main thread, where the navigation,
+/// page-load, and download handlers also run, so a load that finishes while
+/// the timer is deciding can never leave "Loading…" behind.
 fn schedule_loading_cue<R: Runtime>(app: AppHandle<R>, cue: Arc<LoadingCue>, token: u64) {
     thread::spawn(move || {
         thread::sleep(LOADING_CUE_DELAY);
         if !cue.is_current(token) {
             return;
         }
-        if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-            set_main_title(&window, true);
-        }
-        thread::sleep(LOADING_CUE_GIVE_UP.saturating_sub(LOADING_CUE_DELAY));
-        if cue.is_current(token) && cue.end(None) {
-            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-                set_main_title(&window, false);
+        let (show_app, show_cue) = (app.clone(), Arc::clone(&cue));
+        let _ = app.run_on_main_thread(move || {
+            if show_cue.is_current(token) {
+                if let Some(window) = show_app.get_webview_window(MAIN_WINDOW) {
+                    set_main_title(&window, true);
+                }
+            }
+        });
+        let mut waited = LOADING_CUE_DELAY;
+        while waited < LOADING_CUE_GIVE_UP {
+            thread::sleep(LOADING_CUE_POLL);
+            waited += LOADING_CUE_POLL;
+            if !cue.is_current(token) {
+                return;
             }
         }
+        let (clear_app, clear_cue) = (app.clone(), Arc::clone(&cue));
+        let _ = app.run_on_main_thread(move || {
+            if clear_cue.end_if(token) {
+                if let Some(window) = clear_app.get_webview_window(MAIN_WINDOW) {
+                    set_main_title(&window, false);
+                }
+            }
+        });
     });
 }
 
@@ -836,7 +870,10 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
             }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
-                if let Some(token) = cue.begin(url) {
+                let live = cue_app
+                    .get_webview_window(MAIN_WINDOW)
+                    .and_then(|window| window.url().ok());
+                if let Some(token) = cue.begin(url, live.as_ref()) {
                     schedule_loading_cue(cue_app.clone(), Arc::clone(&cue), token);
                 }
                 return true;
@@ -851,14 +888,14 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         // Downloads (Serve's `?download=1` prompt Markdown) open in the
         // browser, which saves them; the app never writes files itself.
         .on_page_load(move |window, payload| {
-            if payload.event() == PageLoadEvent::Finished && load_cue.end(Some(payload.url())) {
+            if payload.event() == PageLoadEvent::Finished && load_cue.end() {
                 set_main_title(&window, false);
             }
         })
         .on_download(move |webview, event| {
             if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
                 // A download replaces the navigation, which then never finishes.
-                if download_cue.end(None) {
+                if download_cue.end() {
                     let _ = webview.window().set_title(MAIN_TITLE);
                 }
                 download_history.download_started(&url, download_policy.backend().as_ref());
@@ -1598,50 +1635,70 @@ mod tests {
     #[test]
     fn a_loading_cue_lasts_from_navigation_to_finish() {
         let cue = LoadingCue::default();
-        let token = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
+        let token = cue.begin(&url("http://127.0.0.1:5/meta"), None).unwrap();
         assert!(cue.is_current(token));
-        assert!(cue.end(Some(&url("http://127.0.0.1:5/meta"))));
+        assert!(cue.end());
         assert!(!cue.is_current(token), "a finished load hides the cue");
-        assert!(!cue.end(None), "nothing is in progress any more");
+        assert!(!cue.end(), "nothing is in progress any more");
     }
 
     #[test]
     fn a_newer_navigation_supersedes_an_older_one() {
         let cue = LoadingCue::default();
-        let first = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
-        let second = cue.begin(&url("http://127.0.0.1:5/")).unwrap();
+        let first = cue.begin(&url("http://127.0.0.1:5/meta"), None).unwrap();
+        let second = cue.begin(&url("http://127.0.0.1:5/"), None).unwrap();
         assert!(!cue.is_current(first), "the old timer never shows the cue");
         assert!(cue.is_current(second));
+        assert!(
+            !cue.end_if(first),
+            "an old timer giving up never cancels the newer navigation"
+        );
+        assert!(cue.is_current(second));
+        assert!(cue.end_if(second));
+        assert!(!cue.is_current(second));
     }
 
     #[test]
     fn a_failed_or_downloaded_load_can_end_without_a_page() {
         let cue = LoadingCue::default();
         let token = cue
-            .begin(&url("http://127.0.0.1:5/workbench?download=1"))
+            .begin(&url("http://127.0.0.1:5/workbench?download=1"), None)
             .unwrap();
-        assert!(cue.end(None));
+        assert!(cue.end());
         assert!(!cue.is_current(token));
     }
 
     #[test]
-    fn a_jump_within_the_current_page_never_starts_the_cue() {
+    fn a_jump_within_the_page_showing_never_starts_the_cue() {
         let cue = LoadingCue::default();
-        let token = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
-        cue.end(Some(&url("http://127.0.0.1:5/meta")));
-        assert!(!cue.is_current(token));
+        let live = url("http://127.0.0.1:5/meta");
         assert_eq!(
-            cue.begin(&url("http://127.0.0.1:5/meta#band-blocked")),
+            cue.begin(&url("http://127.0.0.1:5/meta#band-blocked"), Some(&live)),
+            None
+        );
+        // The map's card selection rewrites the query with replaceState; the
+        // live URL follows it, so a skip link afterwards is still in-page.
+        let selected = url("http://127.0.0.1:5/map?item=WI-A");
+        assert_eq!(
+            cue.begin(
+                &url("http://127.0.0.1:5/map?item=WI-A#lrh-content"),
+                Some(&selected)
+            ),
             None
         );
         assert!(
-            cue.begin(&url("http://127.0.0.1:5/meta?tab=table"))
+            cue.begin(&url("http://127.0.0.1:5/meta?tab=table"), Some(&live))
                 .is_some(),
             "a new query is a real load"
         );
         assert!(
-            cue.begin(&url("http://127.0.0.1:5/#top")).is_some(),
+            cue.begin(&url("http://127.0.0.1:5/#top"), Some(&live))
+                .is_some(),
             "another page"
+        );
+        assert!(
+            cue.begin(&url("http://127.0.0.1:5/meta#x"), None).is_some(),
+            "without a live page, a fragment link is treated as a load"
         );
     }
 

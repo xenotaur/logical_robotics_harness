@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #810 (commit 4e97f0e5). Section placement follows implementer note 4 (after the opening H1, else top of body), superseding Required Change 4's 'immediately after the frontmatter' wording."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CHATGPT-EXPORT-HARDENING
 title: 'Harden lrh skills export validation and skill-source discovery (PR #747 follow-ups)'
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_05_37_09_WI_SKILLS_CHATGPT_EXPORT_HARDENING_IMPL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_CHATGPT_EXPORT_HARDENING_IMPL_REVIEW)[2026-10-10T00:14:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_00_04_59_WI_SKILLS_CHATGPT_EXPORT_HARDENING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/810
-commit:
+commit: 4e97f0e57215d41b12c5ae8427d9007b67adc4d5
 created_at: 2026-10-10T05:37:09+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/810
-session_transcript: pending
+session_transcript: claude-app:9a96d262-76e5-4e8e-92e0-0e30d7776fbf
 ---
 
 # Summary

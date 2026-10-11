@@ -197,11 +197,11 @@ leaving the private store stays stricter: exports and, if implemented, the
 `report` summary withhold text on any finding.
 
 **Explicit owner override for scanner findings.** The scanner's rules were
-written for transcripts and configuration text, and they misfire on code: the
-Python annotation `token: Callable[[], str]` reads as a secret assignment,
-which excluded `experimental/local_agent/recorder.py`. The owner may send such
-a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
-`--files` question:
+written for transcripts and configuration text, and they misfire on code: a
+Python parameter named `token` annotated with a `Callable` type reads as a
+secret assignment, which excluded `experimental/local_agent/recorder.py`. The
+owner may send such a file anyway, with
+`--allow-flagged <path>=<category>[,<category>...]` on a `--files` question:
 
 - **scope:** only files named in the same command's `--files`, matched after
   the same path normalization; never `--wi`, `brief`, or overview questions,
@@ -218,11 +218,11 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
   path, or lacks a high-severity finding is refused with its reason, not
   silently ignored;
 - **per-finding confirmation:** a category cannot tell a false positive from
-  a real secret of the same category (`token: Callable[...]` and a real
-  `password = ...` are both `secret`). So an override run always stops at a
-  confirmation that lists every finding it would let through, by rule and
-  line, never by value (for example `recorder.py ALLOWED DESPITE secret:
-  secret.keyword_assignment at L99`). `L<n>` is the line where the match
+  a real secret of the same category (that `token` annotation and a real
+  password assignment are both `secret`). So an override run always stops at
+  a confirmation that lists every finding it would let through, by rule and
+  line, never by value (`ALLOWED DESPITE <category>: <rule> at L<n>`, shown
+  in the terminal only and never stored). `L<n>` is the line where the match
   starts, `L<a>-L<b>` when it spans lines, and `L?` when the scanner reports
   no line. A newly added secret therefore shows up as a new line before the
   owner decides. The confirmation comes before the model adapter is built or
@@ -231,12 +231,13 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
   sent. `--allow-flagged` is refused with `--yes` and without an interactive
   terminal;
 - **the final context scan:** the prototype also scans the whole assembled
-  context before sending. That scan skips only the allowed file's own
-  rendered section, which was already scanned once, on its raw text, for the
-  confirmation; it still scans everything else (other files, diagnostics,
-  and the file listing) and refuses the request on any high-severity finding
-  there. Positions are never compared across the two scans, because the
-  rendered context adds headers and line prefixes;
+  context before sending. That scan skips only the allowed file's numbered
+  body lines, which were already scanned once, on raw text, for the
+  confirmation. It still scans everything else, including that file's own
+  header with its path, the other requested files, and the excluded-sources
+  block, and refuses the request on any high-severity finding there.
+  Positions are never compared across the two scans, because the rendered
+  context adds headers and line prefixes;
 - **visibility:** the run record notes the override and the confirmed
   findings as structured fields (path, category, rule ID, start and end
   line), never by value and never as `category: rule` text, which the
@@ -248,7 +249,7 @@ a file anyway, with `--allow-flagged <path>=<category>[,<category>...]` on a
 Recorded 2026-10-08 by the owner: this trades a little of the guard for
 usability, by the owner's explicit, per-run decision, while inference stays
 local. Fixing the scanner's false positives on code is a separate work item
-(`WI-SENSITIVITY-SECRET-ASSIGNMENT-CODE-FP`).
+(`WI-SENSITIVITY-ASSIGNMENT-RULE-CODE-FP`).
 
 This is a best-effort guard, not a guarantee; the source summary is shown on
 every run, and budgets cap what is sent. The same exclusions apply to T2 tool

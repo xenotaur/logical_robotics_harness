@@ -281,7 +281,10 @@ def main() -> None:
     skills_install_parser.add_argument(
         "--diff",
         action="store_true",
-        help="print a unified diff of local modifications for skipped skills",
+        help=(
+            "preview without writing files (implies --dry-run) and print a"
+            " unified diff for each locally modified skill"
+        ),
     )
     skills_status_parser = skills_subparsers.add_parser(
         "status",
@@ -2173,6 +2176,11 @@ def main() -> None:
                 if local_scope is False:
                     parser.error("--local cannot be combined with --scope user")
                 local_scope = True
+            # --diff is a read-only report: it must never install missing
+            # skills or apply --force overwrites, so it always previews.
+            install_preview = args.skills_command == "install" and (
+                args.dry_run or args.diff
+            )
             try:
                 skills_plan = installer.resolve_agent_skills_install_plan(
                     target=args.target,
@@ -2185,7 +2193,7 @@ def main() -> None:
                         target=skills_plan.target,
                         local=skills_plan.local,
                         project_root=Path.cwd(),
-                        dry_run=args.dry_run,
+                        dry_run=install_preview,
                         force=args.force,
                         source=skills_plan.source,
                     )
@@ -2204,7 +2212,7 @@ def main() -> None:
                         print()
                     print(f"{report.target.value}: {report.skills_dir}")
                 if args.skills_command == "install":
-                    output = installer.format_report(report, dry_run=args.dry_run)
+                    output = installer.format_report(report, dry_run=install_preview)
                 elif args.skills_command == "status":
                     output = installer.format_inspection_report(
                         report, issue_label="notice"
@@ -2215,7 +2223,10 @@ def main() -> None:
                     print(output)
                 if args.skills_command == "install" and args.diff:
                     for result in report.results:
-                        if result.status == installer.SkillStatus.USER_MODIFIED:
+                        if result.status in {
+                            installer.SkillStatus.USER_MODIFIED,
+                            installer.SkillStatus.FORCED,
+                        }:
                             try:
                                 diff_text = installer.diff_skill(
                                     result.name,

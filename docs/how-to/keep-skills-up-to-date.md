@@ -60,7 +60,8 @@ directories such as `.claude/skills/`, `.agents/skills/`, and
 `.gemini/plugins/lrh/skills/` remain generated install destinations. Existing
 safety behavior still applies for every source: locally modified target copies
 are skipped unless `--force` is passed, and `--diff` compares the installed copy
-against the selected source.
+against the selected source. `--diff` never writes files: like `--dry-run`, it
+reports missing skills as `would install` instead of installing them.
 
 Repositories may also define optional defaults in `project/agent_skills.yaml`.
 When that file is present, `lrh skills install` uses its configured source,

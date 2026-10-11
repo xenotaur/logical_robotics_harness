@@ -74,7 +74,7 @@ name starts with `.`.
 |---|---|
 | `--dry-run` | Preview missing or forced writes without changing files. |
 | `--force` | Overwrite target files that differ from the selected source. |
-| `--diff` | Print unified diffs for skipped locally modified target files. |
+| `--diff` | Preview without writing files (implies `--dry-run`) and print unified diffs for locally modified target files, including those `--force` would overwrite. |
 
 Without `--force`, locally modified target files are preserved and reported as
 warnings. This protection also applies to Antigravity's generated

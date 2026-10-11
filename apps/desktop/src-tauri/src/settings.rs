@@ -418,13 +418,17 @@ fn fit_into(frame: &WindowFrame, area: &WindowFrame) -> WindowFrame {
 
 /// Where the main window opens:
 ///
-/// 1. On the display it was saved on, if a display with that name is still
-///    connected, at the same offset from its work area (wherever that
-///    display now sits in the arrangement), fitted inside it.
-/// 2. Otherwise at the saved frame, if that is fully on a connected display.
-/// 3. Otherwise the saved frame fitted onto the display it overlaps most, or
+/// 1. At the saved frame, if it is fully on a connected display whose name
+///    matches the saved one (or on any display, if no name was saved).
+/// 2. Otherwise, if exactly one connected display has the saved name, on that
+///    display at the same offset from its work area (wherever it now sits in
+///    the arrangement), fitted inside it. On macOS the name is the model
+///    number, so identical displays share it; then this step is skipped
+///    rather than guessing between them.
+/// 3. Otherwise at the saved frame, if it is fully on any connected display.
+/// 4. Otherwise the saved frame fitted onto the display it overlaps most, or
 ///    the primary one.
-/// 4. With no usable saved state, the default on the primary display.
+/// 5. With no usable saved state, the default on the primary display.
 pub fn place_window(
     saved: Option<&SavedWindow>,
     displays: &[Display],
@@ -433,22 +437,28 @@ pub fn place_window(
     let Some(saved) = saved.filter(|saved| saved.frame.is_plausible()) else {
         return default_window_frame(primary);
     };
-    if let (Some(name), Some((dx, dy))) = (&saved.display, saved.offset) {
-        if let Some(display) = displays
-            .iter()
-            .find(|display| display.name.as_deref() == Some(name.as_str()))
-        {
+    let frame = saved.frame;
+    let same_name = |display: &&Display| display.name.as_deref() == saved.display.as_deref();
+    if displays
+        .iter()
+        .filter(|display| saved.display.is_none() || same_name(display))
+        .any(|display| display.area.contains(&frame))
+    {
+        return frame;
+    }
+    if let (Some(_), Some((dx, dy))) = (&saved.display, saved.offset) {
+        let mut named = displays.iter().filter(same_name);
+        if let (Some(display), None) = (named.next(), named.next()) {
             let moved = WindowFrame {
                 x: display.area.x + dx,
                 y: display.area.y + dy,
-                ..saved.frame
+                ..frame
             };
             if moved.is_plausible() {
                 return fit_into(&moved, &display.area);
             }
         }
     }
-    let frame = saved.frame;
     if displays.iter().any(|display| display.area.contains(&frame)) {
         return frame;
     }
@@ -599,6 +609,29 @@ mod tests {
             &built_in.area,
         );
         assert_eq!(placed, frame(-2400.0, 100.0, 1500.0, 1000.0));
+    }
+
+    #[test]
+    fn identical_displays_never_swap_the_window() {
+        // On macOS both report the same name (the model number).
+        let left = display("Monitor #41000", frame(0.0, 0.0, 2560.0, 1440.0));
+        let right = display("Monitor #41000", frame(2560.0, 0.0, 2560.0, 1440.0));
+        let on_right = frame(2700.0, 100.0, 1500.0, 1000.0);
+        let state = SavedWindow::on(on_right, Some(&right));
+        let displays = [left.clone(), right];
+        assert_eq!(
+            place_window(Some(&state), &displays, &left.area),
+            on_right,
+            "the exact frame wins while it is on a display with that name"
+        );
+        // Rearranged so the saved frame is off both: no guessing between
+        // the two same-named displays; fall back to overlap or primary.
+        let moved = [
+            display("Monitor #41000", frame(0.0, 2000.0, 2560.0, 1440.0)),
+            display("Monitor #41000", frame(2560.0, 2000.0, 2560.0, 1440.0)),
+        ];
+        let placed = place_window(Some(&state), &moved, &moved[0].area);
+        assert!(moved[0].area.contains(&placed), "{placed:?}");
     }
 
     #[test]

@@ -1337,6 +1337,13 @@ fn same_frame(a: &WindowFrame, b: &WindowFrame) -> bool {
 #[derive(Debug, Default)]
 pub struct WindowSaver {
     state: Mutex<SaverState>,
+    /// Held across "may this be saved?" and the write, and by Reset around
+    /// clearing the file, so a save in progress can never outlive a Reset.
+    /// Never held while waiting on the main thread.
+    write: Mutex<()>,
+    /// While Reset waits for macOS to finish leaving full screen, each
+    /// main-window resize is reported here.
+    resizes: Mutex<Option<Sender<()>>>,
 }
 
 #[derive(Debug, Default)]
@@ -1378,6 +1385,19 @@ impl WindowSaver {
     /// Starts (true) or ends (false) a Reset: cancels pending saves, holds
     /// all saving while it runs, and afterwards holds saving while the
     /// window sits on `frame`, the frame Reset applied.
+    /// Starts a Reset unless one is already running (a second click is
+    /// ignored rather than ending the first one's hold early).
+    fn try_begin_reset(&self) -> bool {
+        let mut state = lock(&self.state);
+        if state.resetting {
+            return false;
+        }
+        state.generation += 1;
+        state.resetting = true;
+        state.reset = None;
+        true
+    }
+
     fn resetting(&self, active: bool, frame: Option<WindowFrame>) {
         let mut state = lock(&self.state);
         state.generation += 1;
@@ -1410,14 +1430,27 @@ fn save_frame<R: Runtime>(
     store: &WindowStateStore,
     frame: &WindowFrame,
 ) {
+    // Ask for the display first: it can wait on the main thread, which must
+    // never happen while holding the write lock (the main thread saves too).
+    let display = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| display_of(&m));
+    let _write = lock(&saver.write);
     if saver.should_save(frame) {
-        let display = window
-            .current_monitor()
-            .ok()
-            .flatten()
-            .map(|m| display_of(&m));
         if let Err(error) = store.save(&SavedWindow::on(*frame, display.as_ref())) {
             eprintln!("LRH Console: {error}");
+        }
+    }
+}
+
+/// Called on every main-window resize, before the save logic: wakes a Reset
+/// waiting for full screen to finish exiting.
+pub fn main_window_resized<R: Runtime>(window: &tauri::Window<R>) {
+    if let Some(state) = window.try_state::<ShellState>() {
+        if let Some(sender) = lock(&state.window_saver.resizes).as_ref() {
+            let _ = sender.send(());
         }
     }
 }
@@ -1874,7 +1907,9 @@ pub fn same_directory(a: &std::path::Path, b: &std::path::Path) -> Option<bool> 
 }
 
 /// How long Reset waits for the window to leave full screen.
-const FULL_SCREEN_EXIT_WAIT: Duration = Duration::from_secs(3);
+const FULL_SCREEN_EXIT_WAIT: Duration = Duration::from_secs(4);
+/// The exit is over once the window has not resized for this long.
+const FULL_SCREEN_SETTLE: Duration = Duration::from_millis(400);
 
 /// Forgets the main window's saved size and position and puts the window
 /// back at the default frame on its current display. Settings only.
@@ -1888,8 +1923,10 @@ pub fn reset_window_state<R: Runtime>(
     state: tauri::State<'_, ShellState>,
 ) -> Result<(), String> {
     let saver = &state.window_saver;
-    saver.resetting(true, None);
-    let result = reset_main_window(&app, state.window_state.as_ref());
+    if !saver.try_begin_reset() {
+        return Err("a reset is already in progress".into());
+    }
+    let result = reset_main_window(&app, saver, state.window_state.as_ref());
     match result {
         Ok(frame) => {
             saver.resetting(false, frame);
@@ -1902,42 +1939,75 @@ pub fn reset_window_state<R: Runtime>(
     }
 }
 
+/// Clears the saved state, under the saver's write lock.
+fn clear_saved(saver: &WindowSaver, store: Option<&WindowStateStore>) -> Result<(), String> {
+    let _write = lock(&saver.write);
+    store.map_or(Ok(()), WindowStateStore::clear)
+}
+
+/// Leaves full screen and waits until macOS has finished: tao reports the
+/// window as not full screen as soon as the exit is requested, before the
+/// animation ends and AppKit restores the old frame, so this waits for the
+/// resizes the exit produces to go quiet instead.
+fn leave_full_screen<R: Runtime>(
+    window: &WebviewWindow<R>,
+    saver: &WindowSaver,
+) -> Result<(), String> {
+    let (sender, receiver) = mpsc::channel();
+    *lock(&saver.resizes) = Some(sender);
+    let result = (|| {
+        window
+            .set_fullscreen(false)
+            .map_err(|error| format!("could not leave full screen: {error}"))?;
+        let started = std::time::Instant::now();
+        // The first resize marks the exit under way; then wait for quiet.
+        receiver
+            .recv_timeout(FULL_SCREEN_EXIT_WAIT)
+            .map_err(|_| "the window did not leave full screen; try again".to_string())?;
+        while receiver.recv_timeout(FULL_SCREEN_SETTLE).is_ok() {
+            if started.elapsed() > FULL_SCREEN_EXIT_WAIT {
+                return Err(
+                    "the window did not settle after leaving full screen; try again".into(),
+                );
+            }
+        }
+        Ok(())
+    })();
+    *lock(&saver.resizes) = None;
+    result
+}
+
 /// Clears the saved state and applies the default frame; returns the frame
 /// applied (None when there is no main window or display to apply it to).
 fn reset_main_window<R: Runtime>(
     app: &AppHandle<R>,
+    saver: &WindowSaver,
     store: Option<&WindowStateStore>,
 ) -> Result<Option<WindowFrame>, String> {
-    if let Some(store) = store {
-        store.clear()?;
-    }
+    clear_saved(saver, store)?;
     let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
         return Ok(None);
     };
     let failed = |step: &str, error: tauri::Error| format!("could not {step}: {error}");
-    // AppKit ignores frame changes to a full-screen or minimized window, and
-    // leaving full screen finishes asynchronously.
+    // AppKit ignores frame changes to a full-screen, zoomed, or minimized
+    // window.
     if window
         .is_fullscreen()
         .map_err(|e| failed("check full screen", e))?
     {
-        window
-            .set_fullscreen(false)
-            .map_err(|e| failed("leave full screen", e))?;
-        let started = std::time::Instant::now();
-        while window
-            .is_fullscreen()
-            .map_err(|e| failed("check full screen", e))?
-        {
-            if started.elapsed() > FULL_SCREEN_EXIT_WAIT {
-                return Err("the window did not leave full screen; try again".into());
-            }
-            thread::sleep(Duration::from_millis(50));
-        }
+        leave_full_screen(&window, saver)?;
     }
     window
         .unminimize()
         .map_err(|e| failed("restore the minimized window", e))?;
+    if window
+        .is_maximized()
+        .map_err(|e| failed("check the window zoom", e))?
+    {
+        window
+            .unmaximize()
+            .map_err(|e| failed("unzoom the window", e))?;
+    }
     let monitor = window
         .current_monitor()
         .ok()
@@ -1970,9 +2040,7 @@ fn reset_main_window<R: Runtime>(
         ))
         .map_err(|e| failed("move the window", e))?;
     // A save that slipped in before Reset began must not survive it.
-    if let Some(store) = store {
-        store.clear()?;
-    }
+    clear_saved(saver, store)?;
     Ok(Some(frame))
 }
 
@@ -2022,6 +2090,21 @@ mod tests {
         assert!(
             saver.changed(),
             "after the save, a new event starts another"
+        );
+    }
+
+    #[test]
+    fn a_second_reset_is_refused_while_one_runs() {
+        let saver = WindowSaver::default();
+        assert!(saver.try_begin_reset());
+        assert!(
+            !saver.try_begin_reset(),
+            "a second click must not end the first reset's hold early"
+        );
+        saver.resetting(false, None);
+        assert!(
+            saver.try_begin_reset(),
+            "after it finishes, Reset works again"
         );
     }
 

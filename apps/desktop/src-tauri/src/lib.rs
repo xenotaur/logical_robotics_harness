@@ -72,7 +72,11 @@ pub fn run() {
             }
             match event {
                 // The main window remembers its size and position.
-                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                WindowEvent::Resized(_) => {
+                    shell::main_window_resized(window);
+                    shell::main_window_changed(window);
+                }
+                WindowEvent::Moved(_) => {
                     shell::main_window_changed(window);
                 }
                 WindowEvent::CloseRequested { api, .. } => {

@@ -2,10 +2,10 @@
 execution_id: 2026_10_11_02_27_35_LRH_CONSOLE_DESKTOP_LOADING_CUE_CONFIRM
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-LOADING-CUE:LRH_CONSOLE_DESKTOP_LOADING_CUE_CONFIRM)[2026-10-11T02:27:35+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-LOADING-CUE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/821
-commit:
+commit: 781e8871bedee22bef67617c3d1c65735ee3c51d
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/821"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

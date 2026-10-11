@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-LOADING-CUE"
 title: "Show a native loading cue in LRH Console for every slow navigation"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #821 (commit 781e8871). LRH Console now shows a native title cue, LRH Console - Loading..., when a main-window navigation runs past about 300 ms. It covers sidebar and in-page links, View menu items, Back and Forward, Reload (including URLs with a fragment), and Server > Restart, and it clears on finish, download, the next navigation, or a 20 s give-up for failed loads, which WebKit never reports. The cue starts from the navigation handler because wry on macOS reports a page load as started only when its response arrives. The main window gained no capabilities and no injected script; owner-checked in the Mac app (the cue appears and never sticks). Acceptance criterion 1 is partly met, under an explicit owner waiver (option A): the shell re-issuing navigations is ruled out in code; Restart is confirmed in the app to bypass the page script; the View menu takes the same route per the code; the sidebar case could not be reproduced once cache warm-up made pages fast; and whether WebKit stops painting during a provisional load remains unconfirmed.'
 owner: "anthony"
 contributors:
 - "anthony"

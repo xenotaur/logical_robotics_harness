@@ -1407,9 +1407,17 @@ impl WindowSaver {
 
     /// Whether `frame` should be saved: false while it is still the frame
     /// Reset applied; a frame the user chose clears that hold.
+    #[cfg(test)]
     fn should_save(&self, frame: &WindowFrame) -> bool {
+        self.should_save_since(frame, None)
+    }
+
+    /// Like `should_save`, but also false if anything happened (a newer
+    /// move, or a Reset) since generation `seen`, when the frame was read:
+    /// a save that stalled must not write a frame Reset has replaced.
+    fn should_save_since(&self, frame: &WindowFrame, seen: Option<u64>) -> bool {
         let mut state = lock(&self.state);
-        if state.resetting {
+        if state.resetting || seen.is_some_and(|seen| state.generation != seen) {
             return false;
         }
         match &state.reset {
@@ -1429,6 +1437,7 @@ fn save_frame<R: Runtime>(
     saver: &WindowSaver,
     store: &WindowStateStore,
     frame: &WindowFrame,
+    seen: Option<u64>,
 ) {
     // Ask for the display first: it can wait on the main thread, which must
     // never happen while holding the write lock (the main thread saves too).
@@ -1438,7 +1447,7 @@ fn save_frame<R: Runtime>(
         .flatten()
         .map(|m| display_of(&m));
     let _write = lock(&saver.write);
-    if saver.should_save(frame) {
+    if saver.should_save_since(frame, seen) {
         if let Err(error) = store.save(&SavedWindow::on(*frame, display.as_ref())) {
             eprintln!("LRH Console: {error}");
         }
@@ -1470,15 +1479,15 @@ pub fn main_window_changed<R: Runtime>(window: &tauri::Window<R>) {
     let saver = Arc::clone(&state.window_saver);
     let window = window.clone();
     thread::spawn(move || {
-        loop {
+        let seen = loop {
             let seen = saver.generation();
             thread::sleep(WINDOW_SAVE_DELAY);
             if saver.finish_if(seen) {
-                break;
+                break seen;
             }
-        }
+        };
         if let Some(frame) = main_frame(&window) {
-            save_frame(&window, &saver, &store, &frame);
+            save_frame(&window, &saver, &store, &frame, Some(seen));
         }
     });
 }
@@ -1489,7 +1498,7 @@ pub fn save_main_window<R: Runtime>(window: &tauri::Window<R>) {
         return;
     };
     if let (Some(store), Some(frame)) = (&state.window_state, main_frame(window)) {
-        save_frame(window, &state.window_saver, store, &frame);
+        save_frame(window, &state.window_saver, store, &frame, None);
     }
 }
 
@@ -2091,6 +2100,22 @@ mod tests {
             saver.changed(),
             "after the save, a new event starts another"
         );
+    }
+
+    #[test]
+    fn a_stalled_save_never_writes_a_frame_reset_replaced() {
+        let saver = WindowSaver::default();
+        saver.changed();
+        let seen = saver.generation();
+        let before_reset = frame(10.0, 20.0, 900.0, 700.0);
+        // Reset runs to completion while that save is stalled.
+        assert!(saver.try_begin_reset());
+        saver.resetting(false, Some(frame(510.0, 200.0, 1540.0, 1064.0)));
+        assert!(
+            !saver.should_save_since(&before_reset, Some(seen)),
+            "the frame read before Reset must not be saved after it"
+        );
+        assert!(saver.should_save_since(&before_reset, Some(saver.generation())));
     }
 
     #[test]

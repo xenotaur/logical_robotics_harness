@@ -166,12 +166,17 @@ $("restart").addEventListener("click", async () => {
 });
 
 $("reset-window").addEventListener("click", async () => {
+  const button = $("reset-window");
+  button.disabled = true;
+  $("window-status").textContent = "Resetting the window…";
   try {
     await invoke("reset_window_state");
     $("window-status").textContent =
       "The main window is back at its default size and position.";
   } catch (error) {
     $("window-status").textContent = `Could not reset the window: ${error}`;
+  } finally {
+    button.disabled = false;
   }
 });
 

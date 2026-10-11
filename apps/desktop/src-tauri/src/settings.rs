@@ -612,8 +612,12 @@ mod tests {
     }
 
     #[test]
-    fn identical_displays_never_swap_the_window() {
-        // On macOS both report the same name (the model number).
+    fn identical_displays_are_never_guessed_between() {
+        // On macOS both report the same name (the model number), so the app
+        // cannot tell them apart: the saved coordinates are used as they
+        // are, and the offset move is skipped rather than picking one. (If
+        // the two are physically swapped, the window opens at the saved
+        // spot, which is then on the other monitor; unavoidable here.)
         let left = display("Monitor #41000", frame(0.0, 0.0, 2560.0, 1440.0));
         let right = display("Monitor #41000", frame(2560.0, 0.0, 2560.0, 1440.0));
         let on_right = frame(2700.0, 100.0, 1500.0, 1000.0);

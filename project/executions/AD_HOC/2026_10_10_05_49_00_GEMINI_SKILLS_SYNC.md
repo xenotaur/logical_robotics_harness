@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_05_49_00_GEMINI_SKILLS_SYNC
 prompt_id: PROMPT(AD_HOC:GEMINI_SKILLS_SYNC)[2026-10-10T05:33:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/819
-commit:
+commit: 351ffd0473da6f73095502f0ec1d2e3cc7142161
 created_at: 2026-10-10T05:49:00+00:00
 agent: claude_app
 instruction_source: ad-hoc — regenerate stale .gemini/plugins/lrh/skills Antigravity install target from src/lrh/skills and pin it with a renderer-equality regression test
-session_transcript: pending
+session_transcript: claude-app:a5ff4b4b-5afd-495b-9eee-87ba975572ba
 ---
 
 # Summary

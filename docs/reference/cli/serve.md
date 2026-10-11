@@ -149,12 +149,17 @@ The dependency-map routes and the
   the registry reads cleanly and no registered project matches `main`. It is
   the served project's own selector, for a checkout served outside a Meta
   workspace.
-- A registered project with no local checkout, such as one registered with
-  only a `repo_locator`, returns 409 Conflict. The HTML routes render a page
-  in the frame that says the project has no local checkout and gives the
-  command that binds one: `lrh meta set <name> --local-repo-path PATH`. The
+- A registered project with no local checkout returns 409 Conflict. That
+  covers a project registered with only a `repo_locator`, and a project whose
+  bound checkout path no longer exists, for example because the checkout was
+  moved or deleted. Only the bound repository path is checked, so a checkout
+  that exists without its `project/` directory is not reported this way. The
+  HTML routes render a "No local checkout" page in the frame. It gives the
+  reason, including the missing path when there is one, and the command
+  that binds a checkout: `lrh meta set <name> --local-repo-path PATH`. The
   JSON route returns an object whose `error` is `no_local_checkout`, with
-  `project`, `message`, and `next_action` fields.
+  `project`, `message`, and `next_action` fields. HEAD returns the same
+  status as GET.
 - Any other `project_id` returns 404, including an ambiguous selector or a
   registry that cannot be read: a "Project not found" page from the HTML
   routes, or an object whose `error` is `project_not_found` from the JSON
@@ -162,6 +167,22 @@ The dependency-map routes and the
 
 These routes never show the served project's data under another project's
 name.
+
+## Work-item routes
+
+- `/project/<project_id>/work-items/<work_item_id>`: the work item's
+  readiness detail page in the named project.
+- `/project/<project_id>/work-items/<work_item_id>/prompt`: a preview of the
+  work item's generated prompt. Its Back links lead to the work item's
+  detail page and to `/project/<project_id>`.
+- `/project/<project_id>/work-items/<work_item_id>/prompt?download=1`: the
+  same prompt as a Markdown attachment. Both pages' download links use this
+  route, so the download always comes from the named project.
+- Both routes return 404 for an unknown work item, and the
+  [Project selectors](#project-selectors) statuses for a selector that names
+  no readable project. HEAD returns the same status and content type as GET.
+- The served project's `/workbench/prompt?work_item=<id>` routes are
+  unchanged.
 
 ## Dependency-map routes
 

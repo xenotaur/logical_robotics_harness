@@ -126,8 +126,11 @@ def _export_ask(
     run: dict[str, object],
     answer: object,
     include_output: bool,
+    partial: object = False,
+    preamble: object = None,
 ) -> None:
-    """Ask runs: question and answer text only on request, rated, scan-clean."""
+    """Ask and brief runs: question, answer, and any tool-written preamble only
+    on request, for rated runs whose text is scan-clean."""
     exported_run = dict(run)
     exported_run.pop("question", None)
     rating = run.get("rating")
@@ -145,7 +148,7 @@ def _export_ask(
         raise ExportError(
             "question and answer text are exported only for rated runs; rate it first"
         )
-    text = f"{run.get('question', '')}\n{answer or ''}\n{note or ''}"
+    text = f"{run.get('question', '')}\n{preamble or ''}\n{answer or ''}\n{note or ''}"
     scan = sensitivity.scan_text_for_sensitive_findings(text)
     if scan.status != sensitivity.STATUS_NONE_DETECTED:
         raise ExportError(
@@ -154,6 +157,9 @@ def _export_ask(
         )
     exported["question"] = run.get("question")
     exported["answer"] = answer
+    exported["answer_partial"] = bool(partial)
+    if preamble:
+        exported["preamble"] = preamble
     exported["run"]["rating"] = rating
     exported["answer_sensitivity_scan"] = scan.status
     exported["briefing_label"] = (
@@ -347,7 +353,15 @@ def export_run(
     answer = output.get("answer") if isinstance(output, dict) else None
     # T1 brief runs are ask runs with a preset; both hold an "answer".
     if run.get("kind") in ("ask", "brief"):
-        _export_ask(exported, excluded, run, answer, include_output)
+        _export_ask(
+            exported,
+            excluded,
+            run,
+            answer,
+            include_output,
+            partial=output.get("partial") if isinstance(output, dict) else False,
+            preamble=output.get("preamble") if isinstance(output, dict) else None,
+        )
     elif manual is not None:
         _export_manual_text(exported, excluded, manual, evaluation, include_output)
     elif include_output and parsed is not None:

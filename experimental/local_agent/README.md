@@ -31,15 +31,22 @@ experimental/local_agent/run ask "How are runs stored?" \
 # Brief a work item (T1), checked against LRH's readiness diagnostics.
 experimental/local_agent/run brief WI-LOCAL-AGENT-001
 
-# See how it has been going.
+# See how it has been going (optionally only recent runs, or one kind).
 experimental/local_agent/run log
+experimental/local_agent/run log --since 2026-10-09 --kind ask --kind brief
 ```
 
+Prompts put the sources before the question (`ask_v2`, `brief_v2`). Ollama can
+then reuse its cached reading of the same sources across consecutive questions,
+as long as the model stays loaded; it unloads after about 5 idle minutes.
+
 `brief <WI-ID>` is `ask --wi <WI-ID>` with a fixed briefing prompt
-(`prompts/brief_v1.md`). The tool itself prints a **Readiness (from LRH
+(`prompts/brief_v2.md`). The tool itself prints a **Readiness (from LRH
 diagnostics)** section first: prompt and execution readiness, with blocking
-reasons, warnings, and issues. It is stored at the start of the answer. The
-model never writes readiness, so its prose cannot contradict LRH.
+reasons, warnings, and issues. It is stored with the run as the answer's
+`preamble`. The model is told not to state readiness, but its prose is not
+checked, so read any readiness claim in the briefing itself with care. Only
+`READINESS:` lines are checked.
 
 The model's briefing follows in four sections: Summary, Scope and next steps,
 Dependencies and risks, and Open questions. Claims cite `S<n>:L<a>-L<b>`, and
@@ -114,9 +121,10 @@ Other options:
   never by value, before the model is called. That text does reach the model,
   which is acceptable only because inference stays on this machine.
 
-  The scanner misfires on some code: `token: Callable[[], str]` reads as a
-  secret, so `recorder.py` is excluded. You can send such a file anyway
-  with an explicit, per-run override that names the categories:
+  The scanner misfires on some code. A parameter named `token` annotated with
+  a `Callable` type reads as a secret, so `recorder.py` is excluded. You can
+  send such a file anyway with an explicit, per-run override that names the
+  categories:
 
   ```bash
   experimental/local_agent/run ask "How are runs stored?" \
@@ -125,7 +133,8 @@ Other options:
   ```
 
   The summary lists every finding it would let through, by rule and line
-  (`ALLOWED DESPITE secret: secret.keyword_assignment at L99`), and only a
+  (`ALLOWED DESPITE <category>: <rule> at L<n>`, shown in the terminal only;
+  for `recorder.py` it names the `secret` category and L103), and only a
   typed `yes` sends; Enter declines. It is refused:
   - with `--yes`, or without a terminal;
   - for a file with another high-severity category, or none;
@@ -214,8 +223,8 @@ can be removed in a later cleanup. `log` counts their runs as kind `pilot`.
 
 | Module | Role |
 |---|---|
-| `ask.py`, `prompts/ask_v1.md` | T0: context modes, one streamed call, rating, `log` summary |
-| `brief.py`, `prompts/brief_v1.md` | T1: briefing preset on `ask --wi`, with the readiness check |
+| `ask.py`, `prompts/ask_v2.md` | T0: context modes, one streamed call, rating, `log` summary |
+| `brief.py`, `prompts/brief_v2.md` | T1: briefing preset on `ask --wi`, with the readiness check |
 | `settings.py` | Versioned defaults: budgets, model pin, store location, exclusions |
 | `sources.py` | Pinned, tracked-only source reads with provenance and exclusions |
 | `context.py` | Work-item packet assembly from existing LRH readiness and context APIs |

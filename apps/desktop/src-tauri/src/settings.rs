@@ -315,8 +315,9 @@ const DEFAULT_WINDOW_SHARE: f64 = 0.9;
 const MIN_WINDOW_WIDTH: f64 = 400.0;
 const MIN_WINDOW_HEIGHT: f64 = 300.0;
 
-/// A rectangle in logical (point) screen coordinates: a window frame (its
-/// outer position and inner size) or a display's work area.
+/// A rectangle in logical (point) screen coordinates: a window's content
+/// area (its inner position and inner size, which is what the window
+/// builder's position and size set on macOS) or a display's work area.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowFrame {
     pub x: f64,
@@ -326,7 +327,10 @@ pub struct WindowFrame {
 }
 
 impl WindowFrame {
-    fn is_plausible(&self) -> bool {
+    /// Whether this is a usable frame or work area (finite, at least the
+    /// minimum size). Displays reporting less, mid-reconfiguration, are
+    /// skipped.
+    pub fn is_plausible(&self) -> bool {
         [self.x, self.y, self.width, self.height]
             .iter()
             .all(|value| value.is_finite())
@@ -351,8 +355,13 @@ impl WindowFrame {
 /// The default frame on a display: the default size, never more than 90% of
 /// the work area, centered in it.
 pub fn default_window_frame(area: &WindowFrame) -> WindowFrame {
-    let width = DEFAULT_WINDOW_WIDTH.min(area.width * DEFAULT_WINDOW_SHARE);
-    let height = DEFAULT_WINDOW_HEIGHT.min(area.height * DEFAULT_WINDOW_SHARE);
+    // Never smaller than the plausible minimum, even on a degenerate area.
+    let width = DEFAULT_WINDOW_WIDTH
+        .min(area.width * DEFAULT_WINDOW_SHARE)
+        .max(MIN_WINDOW_WIDTH);
+    let height = DEFAULT_WINDOW_HEIGHT
+        .min(area.height * DEFAULT_WINDOW_SHARE)
+        .max(MIN_WINDOW_HEIGHT);
     WindowFrame {
         x: area.x + (area.width - width) / 2.0,
         y: area.y + (area.height - height) / 2.0,
@@ -431,7 +440,12 @@ impl WindowStateStore {
             .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
         let text = serde_json::to_string(frame)
             .map_err(|error| format!("could not encode window state: {error}"))?;
-        let temp = self.path.with_extension("json.tmp");
+        // A unique temp file, so overlapping saves never share one.
+        static SAVES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let count = SAVES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let temp = self
+            .path
+            .with_extension(format!("json.{}.{count}.tmp", std::process::id()));
         std::fs::write(&temp, format!("{text}\n"))
             .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
         std::fs::rename(&temp, &self.path)
@@ -469,6 +483,8 @@ mod tests {
             frame(510.0, 200.5, 1540.0, 1064.0),
             "1.4 times 1100 by 760, centered"
         );
+        let degenerate = default_window_frame(&frame(0.0, 0.0, 0.0, 0.0));
+        assert!(degenerate.is_plausible(), "never a zero-size window");
         let laptop = frame(0.0, 25.0, 1440.0, 875.0);
         let small = default_window_frame(&laptop);
         assert_eq!(

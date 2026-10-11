@@ -96,6 +96,10 @@ pub fn run() {
         // thread, then exits, so the UI never freezes during the stop. The
         // state is absent only if setup failed, and then nothing was started.
         RunEvent::ExitRequested { api, .. } => {
+            // Quitting never sends CloseRequested; save the frame now.
+            if let Some(window) = app.get_webview_window(shell::MAIN_WINDOW) {
+                shell::save_main_window(&window.as_ref().window());
+            }
             if let Some(state) = app.try_state::<shell::ShellState>() {
                 if state.begin_exit() {
                     api.prevent_exit();

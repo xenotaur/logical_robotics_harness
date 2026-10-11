@@ -141,7 +141,11 @@ class SkillSource:
         for item in self.root.iterdir():
             if _is_symlink_node(item):
                 raise SkillSourceError(f"skill source contains symlinked entry: {item}")
-            if item.is_dir() and not item.name.startswith("_"):
+            # `_`-prefixed directories are shared support files, and
+            # dot-prefixed ones (.git, .vscode, .pytest_cache, ...) are tool
+            # metadata; neither is a skill. Symlinks are refused above, before
+            # this filter, so a hidden symlink still raises.
+            if item.is_dir() and not item.name.startswith(("_", ".")):
                 result.append(item.name)
         return sorted(result)
 

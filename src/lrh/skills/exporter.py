@@ -30,9 +30,11 @@ _BUNDLE_DIRS = ("references", "scripts", "assets")
 # is never part of a portable bundle.
 _EXCLUDED_TOP_LEVEL = ("agents",)
 # Portable Agent Skills frontmatter fields. Everything else is stripped: the
-# agent-specific keys (argument-hint, when_to_use, disable-model-invocation,
-# context, disallowed-tools) and the spec's experimental allowed-tools, whose
-# tool names are agent-specific and mean nothing to a hosted assistant.
+# agent-specific keys (argument-hint, disable-model-invocation, context,
+# disallowed-tools) and the spec's experimental allowed-tools, whose tool names
+# are agent-specific and mean nothing to a hosted assistant. `when_to_use` is
+# not a portable key either, but its guidance is carried into the bundle
+# rather than dropped (see `_when_to_use_plan`).
 PORTABLE_FRONTMATTER_KEYS = (
     "name",
     "description",
@@ -43,7 +45,15 @@ PORTABLE_FRONTMATTER_KEYS = (
 _SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 MAX_SKILL_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
+# Agent Skills specification (https://agentskills.io/specification):
+# `compatibility` "must be 1-500 characters if provided". LRH additionally
+# rejects a whitespace-only value, which carries no information.
 MAX_COMPATIBILITY_LENGTH = 500
+_WHEN_TO_USE = "when_to_use"
+_WHEN_TO_USE_HEADING = "## When to use"
+# Lines split on "\n" only, and an ATX H1 heading (up to 3 spaces of indent).
+_LINE_RE = re.compile(r"[^\n]*\n|[^\n]+$")
+_H1_RE = re.compile(r" {0,3}#(?:[ \t]|$)")
 # Upload limits documented by the OpenAI Skills API guide. They are assumed to
 # apply to ChatGPT uploads until manual dogfooding confirms otherwise.
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
@@ -131,7 +141,9 @@ class ChatGPTSkillRenderer:
 
     Keeps `SKILL.md` plus the portable `references/`, `scripts/`, and
     `assets/` directories, and reduces `SKILL.md` frontmatter to the portable
-    Agent Skills fields. It does not rewrite skill body text.
+    Agent Skills fields. `when_to_use` guidance is folded into `description`
+    when the result fits the description limit, and otherwise added as a
+    generated `## When to use` section; existing body text is never modified.
     """
 
     def render(
@@ -251,7 +263,7 @@ def _grouped_notice_messages(notices: Sequence[ExportNotice]) -> list[str]:
         messages.append(
             "workflow uses "
             + ", ".join(capabilities)
-            + f", {_LOCAL_TOOLS_LIMIT}; instructions are exported unchanged"
+            + f", {_LOCAL_TOOLS_LIMIT}; instructions are not rewritten for it"
         )
     return messages
 
@@ -316,9 +328,12 @@ def _prepare_skill(
 
     notices.extend(_skipped_entry_notices(source_files))
     # YAML allows non-string keys (e.g. `1: value`); sort by string form so
-    # mixed key types report cleanly instead of raising TypeError.
+    # mixed key types report cleanly instead of raising TypeError. A
+    # `when_to_use` is carried into the bundle, so it is never reported here.
     stripped = sorted(
-        (str(key) for key in metadata if key not in PORTABLE_FRONTMATTER_KEYS),
+        str(key)
+        for key in metadata
+        if key not in PORTABLE_FRONTMATTER_KEYS and key != _WHEN_TO_USE
     )
     if stripped:
         notices.append(
@@ -327,6 +342,19 @@ def _prepare_skill(
                 message=(
                     "agent-specific frontmatter not included in the bundle: "
                     + ", ".join(f"`{key}`" for key in stripped)
+                ),
+            )
+        )
+    plan = _when_to_use_plan(metadata)
+    if plan is not None and plan[0] == "section":
+        notices.append(
+            ExportNotice(
+                code="when_to_use_section",
+                message=(
+                    "`when_to_use` guidance moved into a generated"
+                    f' "{_WHEN_TO_USE_HEADING}" section in the bundled SKILL.md'
+                    " because description plus guidance exceeds"
+                    f" {MAX_DESCRIPTION_LENGTH} characters"
                 ),
             )
         )
@@ -413,6 +441,13 @@ def _validate_skill_md(
             f" limit is {MAX_DESCRIPTION_LENGTH}"
         )
     _validate_optional_portable_fields(metadata, errors)
+    if _WHEN_TO_USE in metadata:
+        guidance = metadata[_WHEN_TO_USE]
+        if not isinstance(guidance, str) or not guidance.strip():
+            errors.append(
+                "frontmatter when_to_use must be a non-blank string when present;"
+                " remove the key or give it text"
+            )
     return metadata
 
 
@@ -426,6 +461,11 @@ def _validate_optional_portable_fields(
         compatibility = metadata["compatibility"]
         if not isinstance(compatibility, str):
             errors.append("frontmatter compatibility must be a string")
+        elif not compatibility.strip():
+            errors.append(
+                "frontmatter compatibility must be a non-blank string when present;"
+                " remove the key or give it text"
+            )
         elif len(compatibility) > MAX_COMPATIBILITY_LENGTH:
             errors.append(
                 f"frontmatter compatibility is {len(compatibility)} characters;"
@@ -443,13 +483,27 @@ def _validate_optional_portable_fields(
 def _is_manual_only(
     metadata: dict[str, Any], source_files: dict[str, bytes], errors: list[str]
 ) -> bool:
+    # Validate both markers before combining them, so a valid Claude marker
+    # cannot hide a malformed Codex policy.
+    claude_manual = _claude_manual_only(metadata, errors)
+    codex_manual = _codex_manual_only(source_files, errors)
+    return claude_manual or codex_manual
+
+
+def _claude_manual_only(metadata: dict[str, Any], errors: list[str]) -> bool:
     disable_flag = metadata.get("disable-model-invocation")
-    if disable_flag is not None and not isinstance(disable_flag, bool):
-        # A quoted "true" would otherwise read as not manual-only; fail safe.
-        errors.append("frontmatter disable-model-invocation must be a boolean")
+    if "disable-model-invocation" in metadata and not isinstance(disable_flag, bool):
+        # A quoted "true" or a blank (null) value would otherwise read as not
+        # manual-only; fail safe.
+        errors.append(
+            "frontmatter disable-model-invocation must be true or false;"
+            " remove the key if the skill is not manual-only"
+        )
         return False
-    if disable_flag is True:
-        return True
+    return disable_flag is True
+
+
+def _codex_manual_only(source_files: dict[str, bytes], errors: list[str]) -> bool:
     openai_yaml = source_files.get(_OPENAI_YAML)
     if openai_yaml is None:
         return False
@@ -474,9 +528,11 @@ def _is_manual_only(
     if not isinstance(policy, dict):
         return False
     allow_implicit = policy.get("allow_implicit_invocation")
-    if allow_implicit is not None and not isinstance(allow_implicit, bool):
+    if "allow_implicit_invocation" in policy and not isinstance(allow_implicit, bool):
+        # A blank (null) value must not silently mean "no policy"; fail safe.
         errors.append(
-            f"policy.allow_implicit_invocation in {_OPENAI_YAML} must be a boolean"
+            f"policy.allow_implicit_invocation in {_OPENAI_YAML} must be true or"
+            " false; remove the key to declare no policy"
         )
         return False
     return allow_implicit is False
@@ -492,9 +548,72 @@ def _render_skill_md(content: bytes) -> bytes:
         for key, value in metadata.items()
         if key in PORTABLE_FRONTMATTER_KEYS
     }
-    frontmatter = yaml.safe_dump(portable, sort_keys=False, allow_unicode=True)
     body = "".join(parts[closing_index + 1 :])
+    plan = _when_to_use_plan(metadata)
+    if plan is not None:
+        kind, text = plan
+        if kind == "fold":
+            portable["description"] = text
+        else:
+            body = _insert_when_to_use_section(body, text)
+    frontmatter = yaml.safe_dump(portable, sort_keys=False, allow_unicode=True)
     return f"---\n{frontmatter}---\n{body}".encode("utf-8")
+
+
+def _when_to_use_plan(metadata: dict[str, Any]) -> tuple[str, str] | None:
+    """Decide how a skill's `when_to_use` guidance is carried into the bundle.
+
+    Returns `("fold", description)` when the stripped description, one space,
+    and the stripped guidance fit `MAX_DESCRIPTION_LENGTH`;
+    `("section", guidance)` when they do not; and `None` when there is no
+    usable guidance or description (export validation rejects a blank or
+    non-string `when_to_use` before rendering).
+    """
+    guidance = metadata.get(_WHEN_TO_USE)
+    description = metadata.get("description")
+    if not isinstance(guidance, str) or not guidance.strip():
+        return None
+    if not isinstance(description, str) or not description.strip():
+        return None
+    folded = f"{description.strip()} {guidance.strip()}"
+    if len(folded) <= MAX_DESCRIPTION_LENGTH:
+        return ("fold", folded)
+    return ("section", guidance.strip())
+
+
+def _insert_when_to_use_section(body: str, guidance: str) -> str:
+    """Add a `## When to use` section after the body's opening H1 title.
+
+    The H1 counts only when it is the body's first non-blank line, so text
+    inside a code block, HTML block, or comment is never mistaken for the
+    title; otherwise the section goes at the top of the body. The section
+    uses the body's line ending (CRLF or LF), including inside multi-line
+    guidance. Existing body text is kept as is; the only other change is a
+    line break after an H1 that ends the body without one.
+    """
+    lines = _LINE_RE.findall(body)
+    first = next((index for index, line in enumerate(lines) if line.strip()), None)
+    if first is not None and _H1_RE.match(lines[first].rstrip("\r\n")):
+        line = lines[first]
+        newline = "\r\n" if line.endswith("\r\n") else "\n"
+        heading = line if line.endswith("\n") else line + newline
+        rest = lines[first + 1 :]
+        section = _when_to_use_lines(guidance, newline)
+        if rest and rest[0].strip():
+            section.append(newline)
+        return "".join(lines[:first] + [heading, newline] + section + rest)
+    newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
+    section = _when_to_use_lines(guidance, newline)
+    return "".join(section + [newline] + lines)
+
+
+def _when_to_use_lines(guidance: str, newline: str) -> list[str]:
+    text = guidance.replace("\r\n", "\n").replace("\n", newline)
+    return [
+        f"{_WHEN_TO_USE_HEADING}{newline}",
+        newline,
+        f"{text}{newline}",
+    ]
 
 
 def _is_bundle_path(path: str) -> bool:

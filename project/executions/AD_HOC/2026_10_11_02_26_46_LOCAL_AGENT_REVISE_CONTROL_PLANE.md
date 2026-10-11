@@ -2,10 +2,10 @@
 execution_id: 2026_10_11_02_26_46_LOCAL_AGENT_REVISE_CONTROL_PLANE
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_REVISE_CONTROL_PLANE)[2026-10-11T02:21:31+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/823
-commit:
+commit: f55ace9b25492b0477f737c054a14cb6f7bc32c7
 created_at: 2026-10-11T02:26:46+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner chose "revise" for WI-LOCAL-AGENT-001 and asked for the follow-up PRs first

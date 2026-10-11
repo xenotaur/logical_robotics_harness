@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::webview::{NewWindowResponse, WebviewWindowBuilder};
+use tauri::webview::{NewWindowResponse, PageLoadEvent, WebviewWindowBuilder};
 use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
@@ -699,6 +699,103 @@ impl ShellState {
     }
 }
 
+/// The main window's title, and the title while a slow navigation loads.
+const MAIN_TITLE: &str = "LRH Console";
+const MAIN_TITLE_LOADING: &str = "LRH Console \u{2014} Loading\u{2026}";
+/// How long a navigation runs before the loading cue shows.
+const LOADING_CUE_DELAY: Duration = Duration::from_millis(300);
+/// A cue still showing this long after it started is cleared, so a load that
+/// never reports finishing (a failed connection) cannot leave it stuck.
+const LOADING_CUE_GIVE_UP: Duration = Duration::from_secs(60);
+
+/// Whether a slow main-window navigation is in progress.
+///
+/// The cue starts when a navigation is allowed, which on macOS is the only
+/// signal at click time: WebKit reports a page load as started only when its
+/// response arrives, after the server has done its work. It ends when the
+/// load finishes, a download takes over, or the next navigation starts. Each
+/// navigation gets a new token, so a stale timer never shows or clears the
+/// cue of a later one.
+#[derive(Debug, Default)]
+pub struct LoadingCue {
+    state: Mutex<CueState>,
+}
+
+#[derive(Debug, Default)]
+struct CueState {
+    token: u64,
+    active: bool,
+    /// The last page that finished loading, to ignore in-page jumps.
+    current: Option<Url>,
+}
+
+impl LoadingCue {
+    /// Starts tracking a navigation to `url`, returning its token, or None
+    /// for a jump within the current page (which never finishes loading).
+    pub fn begin(&self, url: &Url) -> Option<u64> {
+        let mut state = lock(&self.state);
+        if let Some(current) = &state.current {
+            let mut target = url.clone();
+            target.set_fragment(None);
+            let mut here = current.clone();
+            here.set_fragment(None);
+            if target == here && url.fragment().is_some() {
+                return None;
+            }
+        }
+        state.token += 1;
+        state.active = true;
+        Some(state.token)
+    }
+
+    /// Ends the current navigation; `loaded` is the page that finished, if
+    /// any. Returns whether a navigation was in progress.
+    pub fn end(&self, loaded: Option<&Url>) -> bool {
+        let mut state = lock(&self.state);
+        if let Some(url) = loaded {
+            state.current = Some(url.clone());
+        }
+        let was_active = state.active;
+        state.active = false;
+        state.token += 1;
+        was_active
+    }
+
+    /// Whether the navigation with `token` is still the one in progress.
+    pub fn is_current(&self, token: u64) -> bool {
+        let state = lock(&self.state);
+        state.active && state.token == token
+    }
+}
+
+fn set_main_title<R: Runtime>(window: &WebviewWindow<R>, loading: bool) {
+    let _ = window.set_title(if loading {
+        MAIN_TITLE_LOADING
+    } else {
+        MAIN_TITLE
+    });
+}
+
+/// Shows the cue if navigation `token` is still running after the delay, and
+/// clears it if the load never reports finishing.
+fn schedule_loading_cue<R: Runtime>(app: AppHandle<R>, cue: Arc<LoadingCue>, token: u64) {
+    thread::spawn(move || {
+        thread::sleep(LOADING_CUE_DELAY);
+        if !cue.is_current(token) {
+            return;
+        }
+        if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+            set_main_title(&window, true);
+        }
+        thread::sleep(LOADING_CUE_GIVE_UP.saturating_sub(LOADING_CUE_DELAY));
+        if cue.is_current(token) && cue.end(None) {
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                set_main_title(&window, false);
+            }
+        }
+    });
+}
+
 /// Builds the main window with the navigation, handoff, and popup policy.
 pub fn build_main_window<R: Runtime, M: Manager<R>>(
     manager: &M,
@@ -718,8 +815,12 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     let gear_limiter = RateLimiter::default();
     let download_history = history.clone();
     let download_policy = policy.clone();
+    let cue = Arc::new(LoadingCue::default());
+    let load_cue = Arc::clone(&cue);
+    let download_cue = Arc::clone(&cue);
+    let cue_app = app.clone();
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
-        .title("LRH Console")
+        .title(MAIN_TITLE)
         .inner_size(1100.0, 760.0)
         .on_navigation(move |url| {
             // The gear opens native Settings; the page never loads here and
@@ -735,6 +836,9 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
             }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
+                if let Some(token) = cue.begin(url) {
+                    schedule_loading_cue(cue_app.clone(), Arc::clone(&cue), token);
+                }
                 return true;
             }
             links.offer(url);
@@ -746,8 +850,17 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         })
         // Downloads (Serve's `?download=1` prompt Markdown) open in the
         // browser, which saves them; the app never writes files itself.
-        .on_download(move |_webview, event| {
+        .on_page_load(move |window, payload| {
+            if payload.event() == PageLoadEvent::Finished && load_cue.end(Some(payload.url())) {
+                set_main_title(&window, false);
+            }
+        })
+        .on_download(move |webview, event| {
             if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
+                // A download replaces the navigation, which then never finishes.
+                if download_cue.end(None) {
+                    let _ = webview.window().set_title(MAIN_TITLE);
+                }
                 download_history.download_started(&url, download_policy.backend().as_ref());
                 download_links.offer_download(&url);
             }
@@ -1477,6 +1590,60 @@ mod tests {
     use super::*;
     use crate::supervisor::SupervisorError;
     use std::collections::HashMap;
+
+    fn url(text: &str) -> Url {
+        Url::parse(text).unwrap()
+    }
+
+    #[test]
+    fn a_loading_cue_lasts_from_navigation_to_finish() {
+        let cue = LoadingCue::default();
+        let token = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
+        assert!(cue.is_current(token));
+        assert!(cue.end(Some(&url("http://127.0.0.1:5/meta"))));
+        assert!(!cue.is_current(token), "a finished load hides the cue");
+        assert!(!cue.end(None), "nothing is in progress any more");
+    }
+
+    #[test]
+    fn a_newer_navigation_supersedes_an_older_one() {
+        let cue = LoadingCue::default();
+        let first = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
+        let second = cue.begin(&url("http://127.0.0.1:5/")).unwrap();
+        assert!(!cue.is_current(first), "the old timer never shows the cue");
+        assert!(cue.is_current(second));
+    }
+
+    #[test]
+    fn a_failed_or_downloaded_load_can_end_without_a_page() {
+        let cue = LoadingCue::default();
+        let token = cue
+            .begin(&url("http://127.0.0.1:5/workbench?download=1"))
+            .unwrap();
+        assert!(cue.end(None));
+        assert!(!cue.is_current(token));
+    }
+
+    #[test]
+    fn a_jump_within_the_current_page_never_starts_the_cue() {
+        let cue = LoadingCue::default();
+        let token = cue.begin(&url("http://127.0.0.1:5/meta")).unwrap();
+        cue.end(Some(&url("http://127.0.0.1:5/meta")));
+        assert!(!cue.is_current(token));
+        assert_eq!(
+            cue.begin(&url("http://127.0.0.1:5/meta#band-blocked")),
+            None
+        );
+        assert!(
+            cue.begin(&url("http://127.0.0.1:5/meta?tab=table"))
+                .is_some(),
+            "a new query is a real load"
+        );
+        assert!(
+            cue.begin(&url("http://127.0.0.1:5/#top")).is_some(),
+            "another page"
+        );
+    }
 
     fn env_of(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<OsString> {
         let map: HashMap<String, OsString> = pairs

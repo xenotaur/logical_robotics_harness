@@ -3,8 +3,8 @@ execution_id: 2026_10_11_02_26_12_LOCAL_AGENT_REVISE_CONTROL_PLANE_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_REVISE_CONTROL_PLANE_SELFREVIEW)[2026-10-11T02:26:12+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of:
-pr:
+rerun_of: 2026_10_11_02_26_46_LOCAL_AGENT_REVISE_CONTROL_PLANE
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/823
 commit:
 created_at: 2026-10-11T02:26:12+00:00
 agent: claude_app
@@ -15,8 +15,9 @@ session_transcript: claude-app:ae03b82e-f234-4666-ab7a-2c5a12a5f340
 # Summary
 
 Diff-mode `/lrh-self-review` of the control-plane follow-ups for the
-owner's "revise" decision, run before the first push. `rerun_of` is empty by
-design. It was report-only; the implementing session applied the fixes.
+owner's "revise" decision, run before the first push. `pr:` and `rerun_of:`
+were filled in once PR 823 and its primary record existed. The review was
+report-only; the implementing session applied the fixes.
 
 # Result
 

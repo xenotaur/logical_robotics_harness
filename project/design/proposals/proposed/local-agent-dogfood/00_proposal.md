@@ -4,7 +4,7 @@ type: design_proposal
 title: "Local Agent Dogfood and a Durable Session Boundary"
 status: proposed
 created_on: "2026-09-24"
-updated_on: "2026-10-08"
+updated_on: "2026-10-11"
 implementation_status: not_started
 implemented_by: []
 supersedes: []

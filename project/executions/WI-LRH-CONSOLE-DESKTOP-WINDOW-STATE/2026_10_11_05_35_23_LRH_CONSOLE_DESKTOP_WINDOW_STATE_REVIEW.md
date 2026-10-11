@@ -2,10 +2,10 @@
 execution_id: 2026_10_11_05_35_23_LRH_CONSOLE_DESKTOP_WINDOW_STATE_REVIEW
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-WINDOW-STATE:LRH_CONSOLE_DESKTOP_WINDOW_STATE_REVIEW)[2026-10-11T05:35:23+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-WINDOW-STATE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/827
-commit:
+commit: 4c55e0e69754b64fbc5ac413ff61095fe90c37a6
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/827"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-WINDOW-STATE"
 title: "Larger default LRH Console window that remembers its size and placement"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #827 (commit 4c55e0e6). On first launch the main window opens at about 1540 x 1064 points (1.4 times 1100 x 760), capped at 90 percent of the display. It reopens at its last size and position: it saves its content frame with the display name and offset to window-state.json beside the app settings, restores to the same display when connected even after rearranging (exact frame first; offset move only for a uniquely named display, since macOS names are model numbers), and moves fully onto a visible display otherwise. Settings > Window > Reset (a new Settings-only command) clears the saved state and applies the default at once, waiting for full screen to finish exiting; nothing is re-saved until the user moves the window. The state never reaches the backend, and a corrupt file falls back to the default silently. The owner checked it on the Mac (larger default, remembered placement across quit and relaunch, Reset, Reset sticking, full-screen Reset). Multi-display placement is covered by unit tests only. The run stopped once at confirm-fixes, when two fixes were ineffective, and the owner chose to continue.'
 owner: "anthony"
 contributors:
 - "anthony"

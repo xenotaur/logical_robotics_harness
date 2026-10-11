@@ -544,6 +544,41 @@ class RunAskTest(AskTestBase):
         output = self.store.read_json(run["run_id"], "output.json")
         self.assertEqual(output, {"answer": "partial", "partial": True})
 
+    def test_output_token_overflow_is_also_partial(self) -> None:
+        budgets = settings.Budgets(max_output_tokens=10)
+        run = self._ask(
+            model.FakeModel([_response(ANSWER, output_tokens=11)]), budgets=budgets
+        )
+        self.assertEqual(run["outcome"], "budget_exhausted")
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertIs(output["partial"], True)
+
+    def test_interrupt_after_final_write_keeps_the_final_answer(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+
+        def interrupting_check(text: str, ctx: ask.AskContext) -> dict:
+            raise KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            ask.run_ask(
+                store=self.store,
+                question="q",
+                ctx=ctx,
+                adapter=model.FakeModel([_response(ANSWER)]),
+                budgets=settings.Budgets(),
+                on_text=lambda chunk: None,
+                post_check=interrupting_check,
+            )
+        (run_id,) = self.store.list_runs()
+        output = self.store.read_json(run_id, "output.json")
+        self.assertEqual(output, {"answer": ANSWER})
+
+    def test_question_comes_after_the_sources(self) -> None:
+        adapter = model.FakeModel([_response(ANSWER)])
+        self._ask(adapter)
+        prompt = adapter.requests[0].prompt
+        self.assertLess(prompt.index("Sources:"), prompt.index("What does the demo"))
+
     def test_complete_answer_is_not_marked_partial(self) -> None:
         run = self._ask(model.FakeModel([_response(ANSWER)]))
         output = self.store.read_json(run["run_id"], "output.json")
@@ -668,6 +703,27 @@ class RatingAndLogTest(AskTestBase):
         legacy = self.store.start_run({"outcome": "completed"})
         self.assertIn("(pilot 1)", ask.summarize(self.store))
         self.assertIn(f"run {legacy} (pilot)", export.inspect_run(self.store, legacy))
+
+    def test_summary_filters_by_date_and_kind(self) -> None:
+        old = self.store.start_run({"kind": "ask", "outcome": "completed"})
+        self.store.update_run(old, created_at="2026-01-01T00:00:00+00:00")
+        self.store.start_run({"outcome": "completed"})
+        self.store.start_run({"kind": "brief", "outcome": "completed"})
+        self.assertIn("runs: 3", ask.summarize(self.store))
+        recent = ask.summarize(self.store, since="2026-01-01")
+        self.assertIn("runs: 3", recent)
+        self.assertIn(
+            "runs: 1 (brief 1)",
+            ask.summarize(self.store, kinds=frozenset({"brief"})),
+        )
+        self.assertIn(
+            "runs: 2",
+            ask.summarize(self.store, kinds=frozenset({"brief", "pilot"})),
+        )
+        self.assertIn(
+            "no runs match",
+            ask.summarize(self.store, since="2030-01-01"),
+        )
 
     def test_summary_without_runs(self) -> None:
         self.assertIn("no runs", ask.summarize(self.store))

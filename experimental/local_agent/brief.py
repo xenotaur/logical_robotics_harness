@@ -1,10 +1,11 @@
 """T1 brief: a work-item briefing preset built on T0 ``ask``.
 
 ``brief <WI-ID>`` is ``ask --wi <WI-ID>`` with a fixed briefing prompt. The
-readiness section is written by the tool from LRH's diagnostics, never by the
-model, so the briefing cannot misstate it. The model must still end with one
-``READINESS:`` line; it is compared with the diagnostics as an attention check,
-and a contradicting, missing, misplaced, or duplicated line flags the run.
+readiness section is written by the tool from LRH's diagnostics and stored as
+the answer's ``preamble``. The model is told not to state readiness, but its
+prose is not checked. It must end with one ``READINESS:`` line, which is
+compared with the diagnostics; a contradicting, missing, misplaced, or
+duplicated line flags the run.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from collections.abc import Callable
 
 from local_agent import ask, model, recorder, settings
 
-PROMPT_VERSION = "brief_v1"
+PROMPT_VERSION = "brief_v2"
 KIND_BRIEF = "brief"
 
 STATUS_AGREES = "agrees"
@@ -129,6 +130,10 @@ def readiness_check(text: str, ctx: ask.AskContext) -> dict[str, object]:
     }
 
 
+def _one_line(value: object) -> str:
+    return " ".join(str(value).split())
+
+
 def _yes_no(value: object) -> str:
     return "yes" if value is True else "no" if value is False else "unknown"
 
@@ -136,8 +141,9 @@ def _yes_no(value: object) -> str:
 def readiness_block(ctx: ask.AskContext) -> str:
     """The authoritative readiness section, written from LRH's diagnostics.
 
-    The model is told not to restate readiness; this block is shown and stored
-    in its place, so the briefing's readiness cannot contradict LRH.
+    The model is told not to restate readiness; this block is shown first and
+    stored as the answer's ``preamble``. Values are collapsed to one line each,
+    so diagnostics text cannot add lines to the block.
     """
     diagnostics = ctx.diagnostics or {}
     prompt = diagnostics.get("prompt_readiness")
@@ -150,15 +156,15 @@ def readiness_block(ctx: ask.AskContext) -> str:
         f"- prompt_ready: {_yes_no(prompt.get('prompt_ready'))}",
     ]
     for reason in prompt.get("blocking_reasons") or []:
-        lines.append(f"  - blocking: {reason}")
+        lines.append(f"  - blocking: {_one_line(reason)}")
     for warning in prompt.get("warnings") or []:
-        lines.append(f"  - warning: {warning}")
+        lines.append(f"  - warning: {_one_line(warning)}")
     lines.append(f"- execution_ready: {_yes_no(execution.get('execution_ready'))}")
     for issue in execution.get("issues") or []:
         if isinstance(issue, dict):
             lines.append(
-                f"  - {issue.get('severity')}: {issue.get('code')}: "
-                f"{issue.get('message')}"
+                f"  - {_one_line(issue.get('severity'))}: "
+                f"{_one_line(issue.get('code'))}: {_one_line(issue.get('message'))}"
             )
     if not diagnostics:
         lines = ["## Readiness (from LRH diagnostics)", "", "- unavailable"]

@@ -402,6 +402,48 @@ class AskExportTest(unittest.TestCase):
         self.assertNotIn("10.9.8.7", text)
         self.assertIn("[withheld:", text)
 
+    def test_include_output_carries_the_partial_flag(self) -> None:
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=self.ctx,
+            adapter=model.FakeModel([model.ModelResponse("cut", "length", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+        ask.record_rating(self.store, run_id, "o")
+        exported = self._export(run_id, include_output=True)
+        self.assertIs(exported["answer_partial"], True)
+
+    def test_include_output_carries_the_preamble(self) -> None:
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=self.ctx,
+            adapter=model.FakeModel([model.ModelResponse("ok", "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+            preamble="Readiness: ready\n",
+        )
+        ask.record_rating(self.store, run_id, "g")
+        default = self._export(run_id)
+        self.assertNotIn("preamble", default)
+        self.assertTrue(any("preamble" in item for item in default["excluded"]))
+        exported = self._export(run_id, include_output=True)
+        self.assertEqual(exported["preamble"], "Readiness: ready\n")
+        self.assertEqual(exported["answer"], "ok")
+
+    def test_flagged_preamble_withholds_the_output(self) -> None:
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=self.ctx,
+            adapter=model.FakeModel([model.ModelResponse("ok", "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+            preamble="contact ops@example.com\n",
+        )
+        ask.record_rating(self.store, run_id, "g")
+        with self.assertRaisesRegex(export.ExportError, "withheld"):
+            self._export(run_id, include_output=True)
+
     def test_override_run_exports_cleanly(self) -> None:
         repo = self.base / "repo2"
         repo.mkdir()

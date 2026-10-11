@@ -22,6 +22,7 @@ Legacy stage-0 pilot commands (superseded; kept until reworked)::
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import pathlib
 import subprocess
@@ -150,6 +151,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     logger = sub.add_parser("log", help="recent runs and summary statistics")
     logger.add_argument("--limit", type=int, default=10)
+    logger.add_argument(
+        "--since", default=None, help="only runs created on or after YYYY-MM-DD (UTC)"
+    )
+    logger.add_argument(
+        "--kind",
+        action="append",
+        default=None,
+        choices=("ask", "brief", "pilot"),
+        help="only runs of this kind (repeatable)",
+    )
 
     deleter = sub.add_parser("delete", help="permanently remove one run")
     deleter.add_argument("run_id")
@@ -523,7 +534,26 @@ def _dispatch(args: argparse.Namespace) -> int:
         return 0
 
     if args.command == "log":
-        print(ask.summarize(store, limit=args.limit), end="")
+        if args.since is not None:
+            try:
+                since = datetime.date.fromisoformat(args.since).isoformat()
+            except ValueError:
+                print(
+                    f"error: --since needs YYYY-MM-DD, got {args.since!r}",
+                    file=sys.stderr,
+                )
+                return 2
+            if since != args.since:
+                print(
+                    f"error: --since needs YYYY-MM-DD, got {args.since!r}",
+                    file=sys.stderr,
+                )
+                return 2
+        kinds = frozenset(args.kind) if args.kind else None
+        print(
+            ask.summarize(store, limit=args.limit, since=args.since, kinds=kinds),
+            end="",
+        )
         return 0
 
     if args.command == "delete":

@@ -6,10 +6,11 @@ Layout under the store root (directories 0700, files 0600)::
     packets/<packet_sha256>/packet.md
     runs/<run_id>/run.json          # atomically replaced manifest + outcome
     runs/<run_id>/events.jsonl      # append-only, one JSON event per line
-    runs/<run_id>/output.json       # model output: the answer (ask runs; a
-                                    # partial one is marked "partial"); raw
-                                    # text, plus the briefing once it parsed
-                                    # (pilot runs); or manual_text (B0 runs)
+    runs/<run_id>/output.json       # model output: the answer (ask/brief runs;
+                                    # "partial" if incomplete; brief adds the
+                                    # tool-written "preamble"); raw text plus
+                                    # the briefing once it parsed (pilot runs);
+                                    # or manual_text (B0 runs)
     runs/<run_id>/evaluation.json   # human scores, when recorded
 
 These are experimental attempt logs, not canonical LRH run or work-item state.

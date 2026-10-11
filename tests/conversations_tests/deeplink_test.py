@@ -183,6 +183,54 @@ class TestDefinitionErrors(unittest.TestCase):
             with self.assertRaises(deeplink.SessionLinkDefinitionError):
                 deeplink.load_routes()
 
+    def test_wrong_typed_vendor_field_is_a_definition_error_not_an_attribute_error(
+        self,
+    ) -> None:
+        good = {
+            "name": "x",
+            "pointer_prefix": "x-app:",
+            "scheme": "x",
+            "host": "h",
+            "path_template": "/{id}",
+            "id_prefix": "",
+            "id_shape": "uuid",
+            "status": "verified",
+        }
+        for field in (
+            "name",
+            "pointer_prefix",
+            "scheme",
+            "host",
+            "path_template",
+            "id_prefix",
+            "status",
+        ):
+            for bad in (7, None, ["x"]):
+                with self.subTest(field=field, bad=bad):
+                    deeplink.load_routes.cache_clear()
+                    entry = {**good, field: bad}
+                    with self._with_definition({"vendors": [entry]}):
+                        with self.assertRaises(deeplink.SessionLinkDefinitionError):
+                            deeplink.load_routes()
+
+    def test_a_well_typed_entry_still_loads(self) -> None:
+        entry = {
+            "name": "x",
+            "pointer_prefix": "x-app:",
+            "scheme": "x",
+            "host": "h",
+            "path_template": "/{id}",
+            "id_prefix": "",
+            "id_shape": "uuid",
+            "status": "verified",
+        }
+        with self._with_definition({"vendors": [entry]}):
+            (route,) = deeplink.load_routes()
+        self.assertEqual(
+            route.link("a6e3e7d1-6dca-4a75-999f-73b646ceb1fa"),
+            "x://h/a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+        )
+
     def test_route_without_an_id_placeholder_is_a_definition_error(self) -> None:
         entry = {
             "name": "x",

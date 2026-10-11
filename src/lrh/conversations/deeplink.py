@@ -8,9 +8,11 @@ pointer string and the packaged route definition ``session_links.json``, never
 the session index, the filesystem, or the network.
 
 ``session_links.json`` is the single route definition. The LRH Console shell
-allowlist (Rust) is built from the same file, so the builder here and the
-allowlist there cannot drift. The Claude ``epitaxy`` route is undocumented by
-Anthropic and may change; treat every link as best-effort.
+allowlist (Rust) is planned to be built from the same file, so the builder here
+and the allowlist there cannot drift; that integration is tracked in
+``WI-LRH-CONSOLE-DEEPLINK-HANDOFF`` and does not exist yet. The Claude
+``epitaxy`` route is undocumented by Anthropic and may change; treat every link
+as best-effort.
 
 Claude host ids and child ids are both bare UUIDs and only the session index
 tells them apart, so this module checks the *shape* of an id, not which kind it
@@ -124,6 +126,22 @@ def load_routes() -> tuple[VendorRoute, ...]:
             raise SessionLinkDefinitionError(
                 f"{DEFINITION_RESOURCE}: malformed vendor entry {entry!r}"
             ) from error
+        if not all(
+            isinstance(value, str)
+            for value in (
+                route.name,
+                route.pointer_prefix,
+                route.scheme,
+                route.host,
+                route.path_template,
+                route.id_prefix,
+                route.status,
+            )
+        ):
+            raise SessionLinkDefinitionError(
+                f"{DEFINITION_RESOURCE}: every vendor field must be a string, "
+                f"got {entry!r}"
+            )
         if (
             not route.pointer_prefix.endswith(":")
             or route.scheme != route.scheme.lower()
@@ -162,9 +180,10 @@ def link_for(pointer: str) -> str | None:
 def is_session_link(url: str) -> bool:
     """Return whether ``url`` is exactly one of the supported deep links.
 
-    This is the Python mirror of the Console shell allowlist: exact scheme,
-    host and path shape, with no credentials, port, query, fragment, extra
-    path segments or surrounding whitespace.
+    This is the Python counterpart of the planned Console shell allowlist
+    (``WI-LRH-CONSOLE-DEEPLINK-HANDOFF``): exact scheme, host and path shape,
+    with no credentials, port, query, fragment, extra path segments or
+    surrounding whitespace.
     """
 
     if not isinstance(url, str):

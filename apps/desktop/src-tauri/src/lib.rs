@@ -117,6 +117,11 @@ pub fn run() {
         // in flight, the exiting process closes the child's stdin and the
         // child stops itself under the protocol's parent-loss rule.
         RunEvent::Exit => {
+            // Dock Quit, AppleScript, and logout skip ExitRequested; save the
+            // frame here too, so a move just before such a quit is kept.
+            if let Some(window) = app.get_webview_window(shell::MAIN_WINDOW) {
+                shell::save_main_window(&window.as_ref().window());
+            }
             if let Some(state) = app.try_state::<shell::ShellState>() {
                 state.supervisor.try_shutdown();
             }

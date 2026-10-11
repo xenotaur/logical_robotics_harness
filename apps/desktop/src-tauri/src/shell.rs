@@ -27,7 +27,8 @@ use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
 use crate::settings::{
-    self, Appearance, BrowserChoice, Config, ConfigStore, FieldError, WindowFrame, WindowStateStore,
+    self, Appearance, BrowserChoice, Config, ConfigStore, Display, FieldError, SavedWindow,
+    WindowFrame, WindowStateStore,
 };
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
@@ -1272,12 +1273,12 @@ fn initial_main_frame<R: Runtime>(
     app: &AppHandle<R>,
     store: Option<&WindowStateStore>,
 ) -> WindowFrame {
-    let areas: Vec<WindowFrame> = app
+    let displays: Vec<Display> = app
         .available_monitors()
         .unwrap_or_default()
         .iter()
-        .map(work_area)
-        .filter(WindowFrame::is_plausible)
+        .map(display_of)
+        .filter(|display| display.area.is_plausible())
         .collect();
     let primary = app
         .primary_monitor()
@@ -1285,14 +1286,22 @@ fn initial_main_frame<R: Runtime>(
         .flatten()
         .map(|monitor| work_area(&monitor))
         .filter(WindowFrame::is_plausible)
-        .or_else(|| areas.first().copied())
+        .or_else(|| displays.first().map(|display| display.area))
         .unwrap_or(WindowFrame {
             x: 0.0,
             y: 0.0,
             width: settings::DEFAULT_WINDOW_WIDTH / 0.9,
             height: settings::DEFAULT_WINDOW_HEIGHT / 0.9,
         });
-    settings::place_window(store.and_then(WindowStateStore::load), &areas, &primary)
+    let saved = store.and_then(WindowStateStore::load);
+    settings::place_window(saved.as_ref(), &displays, &primary)
+}
+
+fn display_of(monitor: &tauri::Monitor) -> Display {
+    Display {
+        name: monitor.name().cloned(),
+        area: work_area(monitor),
+    }
 }
 
 /// The main window's current content frame (inner position and size), or
@@ -1337,6 +1346,9 @@ struct SaverState {
     /// The frame Reset applied. Until the user moves the window off it,
     /// nothing is saved, so the next launch really uses the default.
     reset: Option<WindowFrame>,
+    /// Reset is in progress: nothing is saved, whatever the frame (leaving
+    /// full screen restores an old frame on the way).
+    resetting: bool,
 }
 
 impl WindowSaver {
@@ -1351,15 +1363,25 @@ impl WindowSaver {
         lock(&self.state).generation
     }
 
-    fn done(&self) {
-        lock(&self.state).pending = false;
+    /// Ends the saver if nothing changed since `seen`, in one step, so a
+    /// change arriving at that moment always waits its full delay: either
+    /// this saver keeps waiting, or the change starts a new one.
+    fn finish_if(&self, seen: u64) -> bool {
+        let mut state = lock(&self.state);
+        if state.generation != seen {
+            return false;
+        }
+        state.pending = false;
+        true
     }
 
-    /// Cancels pending saves and holds saving while the window sits on the
-    /// frame Reset just applied.
-    fn reset_to(&self, frame: Option<WindowFrame>) {
+    /// Starts (true) or ends (false) a Reset: cancels pending saves, holds
+    /// all saving while it runs, and afterwards holds saving while the
+    /// window sits on `frame`, the frame Reset applied.
+    fn resetting(&self, active: bool, frame: Option<WindowFrame>) {
         let mut state = lock(&self.state);
         state.generation += 1;
+        state.resetting = active;
         state.reset = frame;
     }
 
@@ -1367,6 +1389,9 @@ impl WindowSaver {
     /// Reset applied; a frame the user chose clears that hold.
     fn should_save(&self, frame: &WindowFrame) -> bool {
         let mut state = lock(&self.state);
+        if state.resetting {
+            return false;
+        }
         match &state.reset {
             Some(reset) if same_frame(reset, frame) => false,
             Some(_) => {
@@ -1378,9 +1403,20 @@ impl WindowSaver {
     }
 }
 
-fn save_frame(saver: &WindowSaver, store: &WindowStateStore, frame: &WindowFrame) {
+/// Saves `frame` with the display the window is on, unless Reset holds it.
+fn save_frame<R: Runtime>(
+    window: &tauri::Window<R>,
+    saver: &WindowSaver,
+    store: &WindowStateStore,
+    frame: &WindowFrame,
+) {
     if saver.should_save(frame) {
-        if let Err(error) = store.save(frame) {
+        let display = window
+            .current_monitor()
+            .ok()
+            .flatten()
+            .map(|m| display_of(&m));
+        if let Err(error) = store.save(&SavedWindow::on(*frame, display.as_ref())) {
             eprintln!("LRH Console: {error}");
         }
     }
@@ -1404,13 +1440,12 @@ pub fn main_window_changed<R: Runtime>(window: &tauri::Window<R>) {
         loop {
             let seen = saver.generation();
             thread::sleep(WINDOW_SAVE_DELAY);
-            if saver.generation() == seen {
+            if saver.finish_if(seen) {
                 break;
             }
         }
-        saver.done();
         if let Some(frame) = main_frame(&window) {
-            save_frame(&saver, &store, &frame);
+            save_frame(&window, &saver, &store, &frame);
         }
     });
 }
@@ -1421,7 +1456,7 @@ pub fn save_main_window<R: Runtime>(window: &tauri::Window<R>) {
         return;
     };
     if let (Some(store), Some(frame)) = (&state.window_state, main_frame(window)) {
-        save_frame(&state.window_saver, store, &frame);
+        save_frame(window, &state.window_saver, store, &frame);
     }
 }
 
@@ -1838,50 +1873,107 @@ pub fn same_directory(a: &std::path::Path, b: &std::path::Path) -> Option<bool> 
     Some(std::fs::canonicalize(a).ok()? == std::fs::canonicalize(b).ok()?)
 }
 
+/// How long Reset waits for the window to leave full screen.
+const FULL_SCREEN_EXIT_WAIT: Duration = Duration::from_secs(3);
+
 /// Forgets the main window's saved size and position and puts the window
 /// back at the default frame on its current display. Settings only.
-#[tauri::command]
+///
+/// Runs off the main thread (`async`), so it can wait for macOS to finish
+/// leaving full screen before it applies the frame; every step's error is
+/// reported to Settings rather than claiming success.
+#[tauri::command(async)]
 pub fn reset_window_state<R: Runtime>(
     app: AppHandle<R>,
     state: tauri::State<'_, ShellState>,
 ) -> Result<(), String> {
-    state.window_saver.reset_to(None);
-    if let Some(store) = &state.window_state {
+    let saver = &state.window_saver;
+    saver.resetting(true, None);
+    let result = reset_main_window(&app, state.window_state.as_ref());
+    match result {
+        Ok(frame) => {
+            saver.resetting(false, frame);
+            Ok(())
+        }
+        Err(error) => {
+            saver.resetting(false, None);
+            Err(error)
+        }
+    }
+}
+
+/// Clears the saved state and applies the default frame; returns the frame
+/// applied (None when there is no main window or display to apply it to).
+fn reset_main_window<R: Runtime>(
+    app: &AppHandle<R>,
+    store: Option<&WindowStateStore>,
+) -> Result<Option<WindowFrame>, String> {
+    if let Some(store) = store {
         store.clear()?;
     }
     let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
-        return Ok(());
+        return Ok(None);
     };
-    // AppKit ignores frame changes to a full-screen or minimized window.
-    let _ = window.set_fullscreen(false);
-    let _ = window.unminimize();
+    let failed = |step: &str, error: tauri::Error| format!("could not {step}: {error}");
+    // AppKit ignores frame changes to a full-screen or minimized window, and
+    // leaving full screen finishes asynchronously.
+    if window
+        .is_fullscreen()
+        .map_err(|e| failed("check full screen", e))?
+    {
+        window
+            .set_fullscreen(false)
+            .map_err(|e| failed("leave full screen", e))?;
+        let started = std::time::Instant::now();
+        while window
+            .is_fullscreen()
+            .map_err(|e| failed("check full screen", e))?
+        {
+            if started.elapsed() > FULL_SCREEN_EXIT_WAIT {
+                return Err("the window did not leave full screen; try again".into());
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+    window
+        .unminimize()
+        .map_err(|e| failed("restore the minimized window", e))?;
     let monitor = window
         .current_monitor()
         .ok()
         .flatten()
         .or_else(|| app.primary_monitor().ok().flatten());
-    if let Some(monitor) = monitor {
-        let frame = settings::default_window_frame(&work_area(&monitor));
-        // Hold saving before moving: the move's own events must not save.
-        state.window_saver.reset_to(Some(frame));
-        // set_position places the outer frame; offset it by the title bar so
-        // the content lands where the builder would put it at launch.
-        let scale = window.scale_factor().unwrap_or(1.0);
-        let title_bar = match (window.inner_position(), window.outer_position()) {
-            (Ok(inner), Ok(outer)) => {
-                let inner = inner.to_logical::<f64>(scale);
-                let outer = outer.to_logical::<f64>(scale);
-                (inner.x - outer.x, inner.y - outer.y)
-            }
-            _ => (0.0, 0.0),
-        };
-        let _ = window.set_size(tauri::LogicalSize::new(frame.width, frame.height));
-        let _ = window.set_position(tauri::LogicalPosition::new(
-            frame.x - title_bar.0,
-            frame.y - title_bar.1,
-        ));
+    let Some(monitor) = monitor else {
+        return Ok(None);
+    };
+    let frame = settings::default_window_frame(&work_area(&monitor));
+    // set_position places the outer frame; offset it by the title bar so the
+    // content lands where the builder would put it at launch.
+    let scale = window
+        .scale_factor()
+        .map_err(|e| failed("read the scale", e))?;
+    let inner = window
+        .inner_position()
+        .map_err(|e| failed("read the window position", e))?
+        .to_logical::<f64>(scale);
+    let outer = window
+        .outer_position()
+        .map_err(|e| failed("read the window position", e))?
+        .to_logical::<f64>(scale);
+    window
+        .set_size(tauri::LogicalSize::new(frame.width, frame.height))
+        .map_err(|e| failed("resize the window", e))?;
+    window
+        .set_position(tauri::LogicalPosition::new(
+            frame.x - (inner.x - outer.x),
+            frame.y - (inner.y - outer.y),
+        ))
+        .map_err(|e| failed("move the window", e))?;
+    // A save that slipped in before Reset began must not survive it.
+    if let Some(store) = store {
+        store.clear()?;
     }
-    Ok(())
+    Ok(Some(frame))
 }
 
 /// Restarts the owned backend (for example after a workspace change).
@@ -1921,8 +2013,12 @@ mod tests {
         assert!(saver.changed(), "the first event starts a saver");
         let seen = saver.generation();
         assert!(!saver.changed(), "later events reuse it");
-        assert_ne!(saver.generation(), seen, "and push the save back");
-        saver.done();
+        assert!(
+            !saver.finish_if(seen),
+            "a change since the saver looked keeps it waiting"
+        );
+        let seen = saver.generation();
+        assert!(saver.finish_if(seen), "a quiet interval ends it");
         assert!(
             saver.changed(),
             "after the save, a new event starts another"
@@ -1930,11 +2026,23 @@ mod tests {
     }
 
     #[test]
+    fn nothing_is_saved_while_a_reset_runs() {
+        let saver = WindowSaver::default();
+        saver.resetting(true, None);
+        assert!(
+            !saver.should_save(&frame(10.0, 20.0, 900.0, 700.0)),
+            "leaving full screen restores an old frame; it must not be saved"
+        );
+        saver.resetting(false, None);
+        assert!(saver.should_save(&frame(10.0, 20.0, 900.0, 700.0)));
+    }
+
+    #[test]
     fn nothing_is_saved_while_the_window_sits_on_the_reset_frame() {
         let saver = WindowSaver::default();
         let default = frame(510.0, 200.0, 1540.0, 1064.0);
         assert!(saver.should_save(&default), "no reset: save");
-        saver.reset_to(Some(default));
+        saver.resetting(false, Some(default));
         assert!(
             !saver.should_save(&frame(510.4, 200.2, 1540.0, 1064.0)),
             "the reset frame (within a point) is not saved, so the next launch uses the default"

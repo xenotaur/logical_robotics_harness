@@ -370,34 +370,95 @@ pub fn default_window_frame(area: &WindowFrame) -> WindowFrame {
     }
 }
 
-/// Where the main window opens: the saved frame when it is fully on a
-/// connected display, otherwise the saved frame moved (and shrunk if needed)
-/// fully onto the display it overlaps most, or the primary one; with no
-/// usable saved frame, the default on the primary display.
-pub fn place_window(
-    saved: Option<WindowFrame>,
-    areas: &[WindowFrame],
-    primary: &WindowFrame,
-) -> WindowFrame {
-    let Some(saved) = saved.filter(WindowFrame::is_plausible) else {
-        return default_window_frame(primary);
-    };
-    if areas.iter().any(|area| area.contains(&saved)) {
-        return saved;
+/// The main window's saved state: its frame, and the display it was on with
+/// its offset from that display's work area, so it can return to that
+/// display even after the displays are rearranged. Older files hold only
+/// the frame.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedWindow {
+    #[serde(flatten)]
+    pub frame: WindowFrame,
+    /// The display's name, as the system reports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display: Option<String>,
+    /// The frame's offset from that display's work-area origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<(f64, f64)>,
+}
+
+impl SavedWindow {
+    /// The state for `frame` on `display` (None if it is not known).
+    pub fn on(frame: WindowFrame, display: Option<&Display>) -> Self {
+        SavedWindow {
+            frame,
+            display: display.and_then(|display| display.name.clone()),
+            offset: display.map(|display| (frame.x - display.area.x, frame.y - display.area.y)),
+        }
     }
-    let area = areas
-        .iter()
-        .filter(|area| saved.overlap(area) > 0.0)
-        .max_by(|a, b| saved.overlap(a).total_cmp(&saved.overlap(b)))
-        .unwrap_or(primary);
-    let width = saved.width.min(area.width);
-    let height = saved.height.min(area.height);
+}
+
+/// A connected display: its name, if it reports one, and its work area.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Display {
+    pub name: Option<String>,
+    pub area: WindowFrame,
+}
+
+/// `frame` moved (and shrunk if needed) to lie fully inside `area`.
+fn fit_into(frame: &WindowFrame, area: &WindowFrame) -> WindowFrame {
+    let width = frame.width.min(area.width);
+    let height = frame.height.min(area.height);
     WindowFrame {
-        x: saved.x.clamp(area.x, area.x + area.width - width),
-        y: saved.y.clamp(area.y, area.y + area.height - height),
+        x: frame.x.clamp(area.x, area.x + area.width - width),
+        y: frame.y.clamp(area.y, area.y + area.height - height),
         width,
         height,
     }
+}
+
+/// Where the main window opens:
+///
+/// 1. On the display it was saved on, if a display with that name is still
+///    connected, at the same offset from its work area (wherever that
+///    display now sits in the arrangement), fitted inside it.
+/// 2. Otherwise at the saved frame, if that is fully on a connected display.
+/// 3. Otherwise the saved frame fitted onto the display it overlaps most, or
+///    the primary one.
+/// 4. With no usable saved state, the default on the primary display.
+pub fn place_window(
+    saved: Option<&SavedWindow>,
+    displays: &[Display],
+    primary: &WindowFrame,
+) -> WindowFrame {
+    let Some(saved) = saved.filter(|saved| saved.frame.is_plausible()) else {
+        return default_window_frame(primary);
+    };
+    if let (Some(name), Some((dx, dy))) = (&saved.display, saved.offset) {
+        if let Some(display) = displays
+            .iter()
+            .find(|display| display.name.as_deref() == Some(name.as_str()))
+        {
+            let moved = WindowFrame {
+                x: display.area.x + dx,
+                y: display.area.y + dy,
+                ..saved.frame
+            };
+            if moved.is_plausible() {
+                return fit_into(&moved, &display.area);
+            }
+        }
+    }
+    let frame = saved.frame;
+    if displays.iter().any(|display| display.area.contains(&frame)) {
+        return frame;
+    }
+    let area = displays
+        .iter()
+        .map(|display| &display.area)
+        .filter(|area| frame.overlap(area) > 0.0)
+        .max_by(|a, b| frame.overlap(a).total_cmp(&frame.overlap(b)))
+        .unwrap_or(primary);
+    fit_into(&frame, area)
 }
 
 /// Reads and writes the main window's saved frame. It holds only geometry,
@@ -422,23 +483,23 @@ impl WindowStateStore {
         &self.path
     }
 
-    /// The saved frame, or None if there is none or it cannot be used.
-    pub fn load(&self) -> Option<WindowFrame> {
+    /// The saved state, or None if there is none or it cannot be used.
+    pub fn load(&self) -> Option<SavedWindow> {
         let text = std::fs::read_to_string(&self.path).ok()?;
-        serde_json::from_str::<WindowFrame>(&text)
+        serde_json::from_str::<SavedWindow>(&text)
             .ok()
-            .filter(WindowFrame::is_plausible)
+            .filter(|saved| saved.frame.is_plausible())
     }
 
     /// Writes the frame atomically, so a crash never leaves half a file.
-    pub fn save(&self, frame: &WindowFrame) -> Result<(), String> {
+    pub fn save(&self, saved: &SavedWindow) -> Result<(), String> {
         let dir = self
             .path
             .parent()
             .ok_or_else(|| "window state path has no directory".to_string())?;
         std::fs::create_dir_all(dir)
             .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
-        let text = serde_json::to_string(frame)
+        let text = serde_json::to_string(saved)
             .map_err(|error| format!("could not encode window state: {error}"))?;
         // A unique temp file, so overlapping saves never share one.
         static SAVES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -495,49 +556,88 @@ mod tests {
         assert!(laptop.contains(&small));
     }
 
+    fn display(name: &str, area: WindowFrame) -> Display {
+        Display {
+            name: Some(name.to_string()),
+            area,
+        }
+    }
+
+    fn saved(frame: WindowFrame) -> SavedWindow {
+        SavedWindow {
+            frame,
+            display: None,
+            offset: None,
+        }
+    }
+
     #[test]
     fn a_saved_frame_on_a_connected_display_is_restored_as_is() {
-        let areas = [
-            frame(0.0, 25.0, 1440.0, 875.0),
-            frame(1440.0, 0.0, 2560.0, 1440.0),
+        let displays = [
+            display("Built-in", frame(0.0, 25.0, 1440.0, 875.0)),
+            display("Studio", frame(1440.0, 0.0, 2560.0, 1440.0)),
         ];
-        let saved = frame(1600.0, 100.0, 1500.0, 1000.0);
-        assert_eq!(place_window(Some(saved), &areas, &areas[0]), saved);
+        let state = saved(frame(1600.0, 100.0, 1500.0, 1000.0));
+        assert_eq!(
+            place_window(Some(&state), &displays, &displays[0].area),
+            state.frame
+        );
+    }
+
+    #[test]
+    fn the_window_follows_its_display_when_the_displays_are_rearranged() {
+        let built_in = display("Built-in", frame(0.0, 25.0, 1440.0, 875.0));
+        let studio_right = display("Studio", frame(1440.0, 0.0, 2560.0, 1440.0));
+        let window = frame(1600.0, 100.0, 1500.0, 1000.0);
+        let state = SavedWindow::on(window, Some(&studio_right));
+        assert_eq!(state.offset, Some((160.0, 100.0)));
+        // The same display, now arranged to the left of the built-in one.
+        let studio_left = display("Studio", frame(-2560.0, 0.0, 2560.0, 1440.0));
+        let placed = place_window(
+            Some(&state),
+            &[built_in.clone(), studio_left],
+            &built_in.area,
+        );
+        assert_eq!(placed, frame(-2400.0, 100.0, 1500.0, 1000.0));
     }
 
     #[test]
     fn a_frame_off_every_display_moves_fully_onto_one() {
-        let laptop = frame(0.0, 25.0, 1440.0, 875.0);
+        let laptop = display("Built-in", frame(0.0, 25.0, 1440.0, 875.0));
         // Saved on an external display that is now gone.
-        let gone = frame(1600.0, 100.0, 1500.0, 1000.0);
-        let placed = place_window(Some(gone), &[laptop], &laptop);
-        assert!(laptop.contains(&placed), "{placed:?}");
+        let gone = SavedWindow::on(
+            frame(1600.0, 100.0, 1500.0, 1000.0),
+            Some(&display("Studio", frame(1440.0, 0.0, 2560.0, 1440.0))),
+        );
+        let placed = place_window(Some(&gone), std::slice::from_ref(&laptop), &laptop.area);
+        assert!(laptop.area.contains(&placed), "{placed:?}");
         assert_eq!(
             (placed.width, placed.height),
             (1440.0, 875.0),
             "shrunk to fit"
         );
         // Hanging half off the right edge of the one display it overlaps.
-        let hanging = frame(1000.0, 100.0, 800.0, 600.0);
-        let placed = place_window(Some(hanging), &[laptop], &laptop);
+        let hanging = saved(frame(1000.0, 100.0, 800.0, 600.0));
+        let placed = place_window(Some(&hanging), std::slice::from_ref(&laptop), &laptop.area);
         assert_eq!(placed, frame(640.0, 100.0, 800.0, 600.0));
     }
 
     #[test]
     fn an_implausible_saved_frame_falls_back_to_the_default() {
         let area = frame(0.0, 25.0, 2560.0, 1415.0);
+        let displays = [display("Studio", area)];
         for bad in [
             frame(f64::NAN, 0.0, 1500.0, 1000.0),
             frame(0.0, 0.0, 10.0, 10.0),
             frame(0.0, 0.0, f64::INFINITY, 1000.0),
         ] {
             assert_eq!(
-                place_window(Some(bad), &[area], &area),
+                place_window(Some(&saved(bad)), &displays, &area),
                 default_window_frame(&area)
             );
         }
         assert_eq!(
-            place_window(None, &[area], &area),
+            place_window(None, &displays, &area),
             default_window_frame(&area)
         );
     }
@@ -547,9 +647,19 @@ mod tests {
         let dir = TempDir::new("window-state");
         let store = WindowStateStore::in_dir(&dir.0);
         assert_eq!(store.load(), None);
-        let saved = frame(10.0, 40.0, 1500.0, 1000.0);
-        store.save(&saved).unwrap();
-        assert_eq!(store.load(), Some(saved));
+        let state = SavedWindow::on(
+            frame(10.0, 40.0, 1500.0, 1000.0),
+            Some(&display("Built-in", frame(0.0, 25.0, 1440.0, 875.0))),
+        );
+        store.save(&state).unwrap();
+        assert_eq!(store.load(), Some(state));
+        // A file from before display names were saved still loads.
+        std::fs::write(
+            store.path(),
+            r#"{"x":10.0,"y":40.0,"width":1500.0,"height":1000.0}"#,
+        )
+        .unwrap();
+        assert_eq!(store.load(), Some(saved(frame(10.0, 40.0, 1500.0, 1000.0))));
         std::fs::write(store.path(), "{not json").unwrap();
         assert_eq!(store.load(), None, "corrupt: the default is used, no error");
         store.clear().unwrap();

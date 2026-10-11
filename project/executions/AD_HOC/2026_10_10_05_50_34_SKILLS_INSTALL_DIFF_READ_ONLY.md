@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_05_50_34_SKILLS_INSTALL_DIFF_READ_ONLY
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY)[2026-10-10T05:35:27+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/820
-commit: 
+commit: f4dd10e735c4eff5a5cf19290df1e0637d5c69a9
 created_at: 2026-10-10T05:50:34+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — make `lrh skills install --diff` never write files after it installed lrh-antigravity-export on 2026-10-10
-session_transcript: pending
+session_transcript: claude-app:12a73f73-ccc5-4308-abe1-4ceb4827d712
 ---
 
 # Summary

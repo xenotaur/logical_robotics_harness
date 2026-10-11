@@ -2,22 +2,24 @@
 execution_id: 2026_10_10_05_50_03_SKILLS_INSTALL_DIFF_READ_ONLY_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY_SELFREVIEW)[2026-10-10T05:50:03+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_05_50_34_SKILLS_INSTALL_DIFF_READ_ONLY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/820
-commit: 
+commit: f4dd10e735c4eff5a5cf19290df1e0637d5c69a9
 created_at: 2026-10-10T05:50:03+00:00
 agent: claude_app
 instruction_source: lrh-self-review diff-mode from /lrh-implement Step 7.5 for PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY)[2026-10-10T05:35:27+00:00]
-session_transcript: pending
+session_transcript: claude-app:12a73f73-ccc5-4308-abe1-4ceb4827d712
 ---
 
 # Summary
 
 Diff-mode `/lrh-self-review` pass over the uncommitted working-tree diff that
 makes `lrh skills install --diff` read-only (treated as a preview; also prints
-diffs for `--force` would-overwrite entries). `rerun_of` is empty by design:
-diff-mode runs before `/lrh-implement` Step 9 creates the primary record.
+diffs for `--force` would-overwrite entries). Diff-mode runs before
+`/lrh-implement` Step 9 creates the primary record, so `rerun_of` and `pr:`
+started empty; both were backfilled once the PR and primary record existed
+(review-response commit `4d566e2c`).
 
 # Result
 

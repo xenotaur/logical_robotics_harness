@@ -2,14 +2,14 @@
 execution_id: 2026_10_10_23_30_35_SKILLS_INSTALL_DIFF_READ_ONLY_CONFIRM
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_READ_ONLY_CONFIRM)[2026-10-10T23:30:35+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_10_05_50_34_SKILLS_INSTALL_DIFF_READ_ONLY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/820
-commit: 
+commit: f4dd10e735c4eff5a5cf19290df1e0637d5c69a9
 created_at: 2026-10-10T23:30:35+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/820
-session_transcript: pending
+session_transcript: claude-app:12a73f73-ccc5-4308-abe1-4ceb4827d712
 ---
 
 # Summary

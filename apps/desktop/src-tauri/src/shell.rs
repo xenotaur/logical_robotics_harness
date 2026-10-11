@@ -755,6 +755,15 @@ impl LoadingCue {
         Some(state.token)
     }
 
+    /// A new navigation to `url`: ends any navigation in progress (so its
+    /// cue never outlives it, even when the new one is an in-page jump), then
+    /// starts tracking this one. Returns whether a navigation was ended, and
+    /// the new one's token (None for an in-page jump).
+    pub fn navigate(&self, url: &Url, live: Option<&Url>) -> (bool, Option<u64>) {
+        let ended = self.end();
+        (ended, self.begin(url, live))
+    }
+
     /// Ends whichever navigation is in progress. Returns whether one was.
     pub fn end(&self) -> bool {
         let mut state = lock(&self.state);
@@ -870,10 +879,17 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
             }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
-                let live = cue_app
-                    .get_webview_window(MAIN_WINDOW)
-                    .and_then(|window| window.url().ok());
-                if let Some(token) = cue.begin(url, live.as_ref()) {
+                // Navigation decisions run on the main thread, like every
+                // other cue check-and-set.
+                let window = cue_app.get_webview_window(MAIN_WINDOW);
+                let live = window.as_ref().and_then(|window| window.url().ok());
+                let (ended, token) = cue.navigate(url, live.as_ref());
+                if ended {
+                    if let Some(window) = &window {
+                        set_main_title(window, false);
+                    }
+                }
+                if let Some(token) = token {
                     schedule_loading_cue(cue_app.clone(), Arc::clone(&cue), token);
                 }
                 return true;
@@ -1656,6 +1672,30 @@ mod tests {
         assert!(cue.is_current(second));
         assert!(cue.end_if(second));
         assert!(!cue.is_current(second));
+    }
+
+    #[test]
+    fn the_next_navigation_ends_a_showing_cue_even_an_in_page_jump() {
+        let cue = LoadingCue::default();
+        let live = url("http://127.0.0.1:5/meta");
+        let (ended, slow) = cue.navigate(&url("http://127.0.0.1:5/"), Some(&live));
+        assert!(!ended, "nothing was in progress");
+        let slow = slow.unwrap();
+        let (ended, jump) = cue.navigate(&url("http://127.0.0.1:5/meta#x"), Some(&live));
+        assert!(ended, "the slow load's cue is cleared");
+        assert_eq!(jump, None, "an in-page jump starts no cue");
+        assert!(!cue.is_current(slow));
+    }
+
+    #[test]
+    fn dropping_a_fragment_is_a_real_load() {
+        // HTML treats a same-document navigation as one only when the new URL
+        // has a fragment; /meta#x to /meta reloads, and reports Finished.
+        let cue = LoadingCue::default();
+        let live = url("http://127.0.0.1:5/meta#lrh-content");
+        assert!(cue
+            .begin(&url("http://127.0.0.1:5/meta"), Some(&live))
+            .is_some());
     }
 
     #[test]

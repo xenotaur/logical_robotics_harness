@@ -480,7 +480,12 @@ pub fn new_window_response<R: Runtime>(_url: &Url) -> NewWindowResponse<R> {
     NewWindowResponse::Deny
 }
 
-/// Hands external links to the browser, at most one per second.
+/// Opens an allowlisted session link. The default is the real opener; unit
+/// tests substitute one so that no test ever launches an application.
+type SessionOpener = fn(&Url) -> Result<Handoff, String>;
+
+/// Hands external links to the browser, and allowlisted agent-session deep
+/// links to their desktop app, at most one per second in total.
 #[derive(Default)]
 pub struct LinkHandoff {
     /// Limits handoffs that page content triggers.
@@ -490,16 +495,38 @@ pub struct LinkHandoff {
     menu_limiter: RateLimiter,
     browser: Mutex<BrowserChoice>,
     last: Mutex<Option<Result<Handoff, String>>>,
+    /// `None` means [`browser::open_session_link`].
+    session_opener: Mutex<Option<SessionOpener>>,
 }
 
 impl LinkHandoff {
-    /// Opens `url` in the chosen browser on a background thread, if it is an
-    /// external link and the rate limit allows.
+    /// Opens `url` on a background thread if the rate limit allows: in the
+    /// chosen browser when it is an external web link, or in its vendor's
+    /// desktop app when it is an allowlisted session deep link. Anything else
+    /// is ignored.
     pub fn offer(self: &Arc<Self>, url: &Url) {
-        if !is_external_link(url) || !self.limiter.try_acquire() {
+        if is_external_link(url) {
+            if self.limiter.try_acquire() {
+                self.open_now(url.clone());
+            }
             return;
         }
-        self.open_now(url.clone());
+        if browser::validate_session_link(url).is_ok() && self.limiter.try_acquire() {
+            self.open_session_now(url.clone());
+        }
+    }
+
+    fn open_session_now(self: &Arc<Self>, url: Url) {
+        let opener = (*lock(&self.session_opener)).unwrap_or(browser::open_session_link);
+        let this = Arc::clone(self);
+        thread::spawn(move || {
+            *lock(&this.last) = Some(opener(&url));
+        });
+    }
+
+    #[cfg(test)]
+    fn set_session_opener(&self, opener: SessionOpener) {
+        *lock(&self.session_opener) = Some(opener);
     }
 
     /// Opens `url` without the external-link filter (menu actions on the
@@ -2773,5 +2800,139 @@ mod tests {
         }
         assert!(!is_external_link(&url("file:///etc/passwd")));
         assert!(!is_external_link(&status_url("stopped", None)));
+    }
+
+    const CLAUDE_LINK: &str =
+        "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa";
+    const CODEX_LINK: &str = "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513";
+
+    fn parse(text: &str) -> Url {
+        Url::parse(text).unwrap()
+    }
+
+    /// Waits for the background handoff thread to record a result.
+    fn wait_for_last(links: &LinkHandoff) -> Option<Result<Handoff, String>> {
+        for _ in 0..400 {
+            if let Some(result) = links.last() {
+                return Some(result);
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        None
+    }
+
+    fn opened_ok(note: &str) -> Result<Handoff, String> {
+        Ok(Handoff {
+            opened: browser::Opened::VendorApp,
+            note: Some(note.to_string()),
+        })
+    }
+
+    #[test]
+    fn session_links_are_not_external_links() {
+        assert!(!is_external_link(&parse(CLAUDE_LINK)));
+        assert!(!is_external_link(&parse(CODEX_LINK)));
+        assert!(browser::validate_session_link(&parse(CLAUDE_LINK)).is_ok());
+        assert!(browser::validate_session_link(&parse(CODEX_LINK)).is_ok());
+    }
+
+    static ALLOWED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn recording_opener(url: &Url) -> Result<Handoff, String> {
+        ALLOWED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("recorded")
+    }
+
+    #[test]
+    fn an_allowlisted_session_link_goes_to_the_session_opener() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(recording_opener);
+
+        links.offer(&parse(CLAUDE_LINK));
+
+        assert_eq!(wait_for_last(&links), Some(opened_ok("recorded")));
+        assert_eq!(
+            *ALLOWED_CALLS.lock().unwrap(),
+            vec![CLAUDE_LINK.to_string()]
+        );
+    }
+
+    fn failing_opener(_url: &Url) -> Result<Handoff, String> {
+        Err("the app opener failed (exit status: 1)".to_string())
+    }
+
+    #[test]
+    fn a_failed_session_handoff_is_recorded_in_the_last_result() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(failing_opener);
+
+        links.offer(&parse(CODEX_LINK));
+
+        assert_eq!(
+            wait_for_last(&links),
+            Some(Err("the app opener failed (exit status: 1)".to_string()))
+        );
+    }
+
+    static REFUSED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn refused_opener(url: &Url) -> Result<Handoff, String> {
+        REFUSED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("must not happen")
+    }
+
+    #[test]
+    fn links_outside_the_allowlist_never_reach_the_session_opener() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(refused_opener);
+
+        // None of these is an external web link either, so nothing at all may
+        // be launched for them (an external link would open the real browser,
+        // so none is offered here).
+        for refused in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "tauri://localhost/index.html",
+            "vscode://file/etc/passwd",
+            "http://127.0.0.1:50543/meta",
+            "claude://evil.example/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+            "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa/extra",
+            "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa?x=1",
+            "claude://user@claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+            "codex://threads/not-a-uuid",
+            "codex://other/01a032cd-cef2-73c0-9714-b61b36ae4513",
+        ] {
+            links.offer(&parse(refused));
+        }
+        thread::sleep(Duration::from_millis(50));
+
+        assert!(REFUSED_CALLS.lock().unwrap().is_empty());
+        assert_eq!(links.last(), None);
+    }
+
+    static LIMITED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn limited_opener(url: &Url) -> Result<Handoff, String> {
+        LIMITED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("limited")
+    }
+
+    #[test]
+    fn session_links_share_the_one_per_second_limit() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(limited_opener);
+        let start = std::time::Instant::now();
+
+        links.offer(&parse(CLAUDE_LINK));
+        assert!(wait_for_last(&links).is_some());
+        links.offer(&parse(CODEX_LINK));
+        thread::sleep(Duration::from_millis(50));
+
+        if start.elapsed() < crate::browser::MIN_HANDOFF_INTERVAL {
+            assert_eq!(
+                *LIMITED_CALLS.lock().unwrap(),
+                vec![CLAUDE_LINK.to_string()]
+            );
+        }
     }
 }

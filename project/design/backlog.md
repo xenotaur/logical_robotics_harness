@@ -2366,6 +2366,25 @@ would lock in choices the redesign should make together.
 stay CVD-safe (never red versus green alone); filters must never hide an
 unfinished item that a shown item needs.
 
+**Added from the L1 dogfood (2026-10-12, `project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md`):**
+
+- **Filtered cards leave gaps** is now its own item, `WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE`:
+  the owner hit it in three of four runs.
+- **Map width and scrollbar.** The LCATS worldcon-2026 map is wider than a
+  default window, and the horizontal scrollbar sits at the bottom of the page,
+  so the owner had to scroll down to reach it. Keep the map's own scrollbar in
+  view, or fit the map to the window.
+- **Tangled lines.** "The square icons all seem to go through each other, and if
+  there is a partial order it isn't clear." This is the target of
+  `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`.
+- **Statusboard card height.** Statusboard cards "are rather tall and have some
+  information that might go in details". Move secondary fields behind a
+  disclosure so more projects fit on a screen.
+- **"Work remains" per lane (L2 idea).** A button that asks an agent to report
+  remaining work for a lane, as `/lrh-work-remains` does in a session. Agent
+  dispatch is switched off in Serve today (`agent_dispatch: false`), so this
+  waits for the L2 plan.
+
 ---
 
 ## LRH profiles: support `hybrid` and `local` profile modes

@@ -1,4 +1,5 @@
 import datetime
+import html
 import http.client
 import io
 import json
@@ -1119,21 +1120,151 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("No dependency-map views", body)
 
+    def _alpha_selector_server(self) -> tuple[pathlib.Path, str]:
+        """Serve a project whose registry also binds a distinct ``alpha``."""
+
+        root, _base_url = self._registered_selector_server()
+        alpha = root / "repos" / "alpha"
+        _write_viewer_project(alpha)
+        work_item = alpha / "project" / "work_items" / "active" / "WI-A.md"
+        work_item.write_text(
+            work_item.read_text(encoding="utf-8").replace(
+                "- Render prompt previews.", "- Render the alpha-only marker."
+            ),
+            encoding="utf-8",
+        )
+        _write_project_record(root, "alpha", str(alpha), display_name="Alpha")
+        _httpd, base_url = self._start_server(root)
+        return root, base_url
+
+    def test_project_work_item_pages_link_and_download_within_the_project(
+        self,
+    ) -> None:
+        _root, base_url = self._alpha_selector_server()
+
+        _status, _type, detail = self._read(base_url + "/project/alpha/work-items/WI-A")
+        self.assertIn('href="/project/alpha/work-items/WI-A/prompt?download=1"', detail)
+        self.assertNotIn("/workbench/prompt?work_item=", detail)
+
+        _status, _type, preview = self._read(
+            base_url + "/project/alpha/work-items/WI-A/prompt"
+        )
+        self.assertIn(
+            'href="/project/alpha/work-items/WI-A">Back to workbench', preview
+        )
+        self.assertIn('href="/project/alpha">Back to viewer context', preview)
+        self.assertIn(
+            'href="/project/alpha/work-items/WI-A/prompt?download=1"', preview
+        )
+        self.assertNotIn('href="/workbench', preview)
+
+        url = base_url + "/project/alpha/work-items/WI-A/prompt?download=1"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            body = response.read().decode("utf-8")
+            self.assertEqual(response.status, 200)
+            self.assertIn("text/markdown", response.headers["Content-Type"])
+            self.assertIn("attachment;", response.headers["Content-Disposition"])
+        self.assertIn("alpha-only marker", body)
+        status, content_type = self._head(url)
+        self.assertEqual(status, 200)
+        self.assertIn("text/markdown", content_type)
+
+        # The served project's own workbench page keeps its existing links.
+        _status, _type, workbench = self._read(
+            base_url + "/workbench/prompt?work_item=WI-A"
+        )
+        self.assertIn('href="/workbench">Back to workbench', workbench)
+        self.assertIn('href="/#work-item-WI-A">Back to viewer context', workbench)
+        self.assertIn(
+            'href="/workbench/prompt?work_item=WI-A&amp;download=1"', workbench
+        )
+        self.assertNotIn("alpha-only marker", workbench)
+
+    def test_project_routes_refuse_a_missing_bound_checkout(self) -> None:
+        root, base_url = self._registered_selector_server()
+        missing = root / "repos" / "moved-away"
+        _write_project_record(root, "gone", str(missing), display_name="Gone")
+
+        for route in (
+            "/project/gone/dependency-maps",
+            "/project/gone/dependency-maps/main",
+            "/project/gone/work-items/WI-A",
+            "/project/gone/work-items/WI-A/prompt",
+        ):
+            with self.subTest(route=route):
+                status, content_type, body = self._read_error(base_url + route)
+                self.assertEqual(status, 409)
+                self.assertIn("text/html", content_type)
+                self.assertIn("No local checkout", body)
+                self.assertIn(html.escape(str(missing)), body)
+                self.assertIn("no longer exists", body)
+                self.assertIn("lrh meta set gone --local-repo-path PATH", body)
+                head_status, head_type, _ = self._read_error(
+                    base_url + route, head=True
+                )
+                self.assertEqual(head_status, 409)
+                self.assertIn("text/html", head_type)
+
+        status, content_type, body = self._read_error(
+            base_url + "/api/project/gone/dependency-maps/main"
+        )
+        payload = json.loads(body)
+        self.assertEqual(status, 409)
+        self.assertIn("application/json", content_type)
+        self.assertEqual(payload["error"], "no_local_checkout")
+        self.assertIn(str(missing), payload["message"])
+        self.assertEqual(
+            payload["next_action"], "lrh meta set gone --local-repo-path PATH"
+        )
+
+    def test_project_work_item_routes_answer_head_like_get(self) -> None:
+        _root, base_url = self._alpha_selector_server()
+
+        for route, expected_status, expected_type in (
+            ("/project/alpha/work-items/WI-A", 200, "text/html"),
+            ("/project/alpha/work-items/WI-A/prompt", 200, "text/html"),
+            ("/project/alpha/work-items/WI-NOPE", 404, "application/json"),
+            ("/project/alpha/work-items/WI-NOPE/prompt", 404, "application/json"),
+            ("/project/nope/work-items/WI-A", 404, "text/html"),
+            ("/project/nope/work-items/WI-A/prompt", 404, "text/html"),
+            ("/project/remote-only/work-items/WI-A", 409, "text/html"),
+            ("/project/remote-only/work-items/WI-A/prompt", 409, "text/html"),
+        ):
+            with self.subTest(route=route):
+                if expected_status == 200:
+                    get_status, get_type, _ = self._read(base_url + route)
+                    head_status, head_type = self._head(base_url + route)
+                else:
+                    get_status, get_type, _ = self._read_error(base_url + route)
+                    head_status, head_type, _ = self._read_error(
+                        base_url + route, head=True
+                    )
+                self.assertEqual(get_status, expected_status)
+                self.assertEqual(head_status, expected_status)
+                self.assertIn(expected_type, get_type)
+                self.assertEqual(head_type, get_type)
+
     def test_project_routes_serve_the_served_projects_own_selectors(self) -> None:
         _root, base_url = self._registered_selector_server()
 
         for selector in ("served", "proj-served", "main"):
-            for route in (
-                f"/project/{selector}/dependency-maps",
-                f"/project/{selector}/dependency-maps/main",
-                f"/project/{selector}/work-items/WI-A",
-                f"/project/{selector}/work-items/WI-A/prompt",
-                f"/api/project/{selector}/dependency-maps/main",
+            for route, expected in (
+                (
+                    f"/project/{selector}/dependency-maps",
+                    f'href="/project/{selector}/dependency-maps/main"',
+                ),
+                (f"/project/{selector}/dependency-maps/main", "<title>Main</title>"),
+                (f"/project/{selector}/work-items/WI-A", f"Project: {selector}"),
+                (f"/project/{selector}/work-items/WI-A/prompt", "prompt: WI-A"),
+                (
+                    f"/api/project/{selector}/dependency-maps/main",
+                    '"view_id": "main"',
+                ),
             ):
                 with self.subTest(route=route):
                     status, _content_type, body = self._read(base_url + route)
                     self.assertEqual(status, 200)
-                    self.assertTrue("WI-A" in body or "dependency-maps/main" in body)
+                    self.assertIn(expected, body)
             with self.subTest(head=selector):
                 status, _content_type = self._head(
                     base_url + f"/project/{selector}/dependency-maps/main"

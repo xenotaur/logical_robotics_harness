@@ -2355,14 +2355,30 @@ def render_workbench_index(config: ServeConfig) -> str:
 """.format(styles=_base_styles(), item_rows=item_rows, diagnostics=diagnostics)
 
 
-def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
-    """Render a copy-friendly HTML page for one workbench artifact."""
+def render_workbench_artifact_page(
+    artifact: WorkbenchArtifact, *, project_selector: str | None = None
+) -> str:
+    """Render a copy-friendly HTML page for one workbench artifact.
+
+    With ``project_selector``, the page is the project-scoped prompt preview
+    and its links stay under ``/project/<project_id>/``; without it they
+    point at the served project's workbench.
+    """
 
     diagnostics = _html_list(_diagnostic_label(item) for item in artifact.diagnostics)
     title = html.escape(f"{artifact.kind}: {artifact.work_item_id}")
     markdown = html.escape(artifact.markdown)
     work_item = _url_quote(artifact.work_item_id)
-    kind = _url_quote(artifact.kind)
+    if project_selector is None:
+        kind = _url_quote(artifact.kind)
+        back_href = "/workbench"
+        context_href = f"/#work-item-{work_item}"
+        download_href = f"/workbench/{kind}?work_item={work_item}&download=1"
+    else:
+        project = f"/project/{_url_quote(project_selector)}"
+        back_href = f"{project}/work-items/{work_item}"
+        context_href = project
+        download_href = f"{back_href}/prompt?download=1"
     return """<!doctype html>
 <html lang=\"en\">
 <head>
@@ -2376,9 +2392,9 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
       <p class=\"lrh-eyebrow\">LRH Console preview</p>
       <h1>{title}</h1>
       <nav class=\"lrh-control-spine\" aria-label=\"Artifact preview navigation\">
-        <a href=\"/workbench\">Back to workbench</a>
-        <a href=\"/#work-item-{work_item}\">Back to viewer context</a>
-        <a href=\"/workbench/{kind}?work_item={work_item}&amp;download=1\">
+        <a href=\"{back_href}\">Back to workbench</a>
+        <a href=\"{context_href}\">Back to viewer context</a>
+        <a href=\"{download_href}\">
           Download Markdown</a>
       </nav>
       <aside class=\"lrh-guardrail-callout\" aria-label=\"Artifact preview guardrails\">
@@ -2405,8 +2421,9 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
 """.format(
         styles=_base_styles(),
         title=title,
-        work_item=work_item,
-        kind=kind,
+        back_href=html.escape(back_href, quote=True),
+        context_href=html.escape(context_href, quote=True),
+        download_href=html.escape(download_href, quote=True),
         diagnostics=diagnostics,
         markdown=markdown,
     )
@@ -2457,7 +2474,7 @@ def render_project_work_item_page(
     prompt_preview = (
         f"/project/{_url_quote(project_id)}/work-items/{_url_quote(item.id)}/prompt"
     )
-    prompt_download = f"/workbench/prompt?work_item={_url_quote(item.id)}&download=1"
+    prompt_download = f"{prompt_preview}?download=1"
     cli_command = (
         "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
     )
@@ -2598,8 +2615,8 @@ def _config_for_project_selector(
         # conventional project/ directory, as _registered_project_control_root
         # assumes for the dashboard.
         resolved_path = selection.resolved_repo_path / "project"
+    registry_name = selection.record.registry_name
     if resolved_path is None:
-        registry_name = selection.record.registry_name
         raise ProjectSelectorError(
             project_selector,
             status=409,
@@ -2607,6 +2624,19 @@ def _config_for_project_selector(
             message=(
                 f"Project {registry_name!r} is registered but has no local "
                 "checkout, so its project files cannot be read."
+            ),
+            registry_name=registry_name,
+        )
+    if selection.repo_path_exists is False:
+        # Test the bound repo, not resolved_path: a repo that exists without
+        # its project/ directory is not a missing checkout.
+        raise ProjectSelectorError(
+            project_selector,
+            status=409,
+            error="no_local_checkout",
+            message=(
+                f"Project {registry_name!r} is bound to the local checkout "
+                f'"{selection.resolved_repo_path}", which no longer exists.'
             ),
             registry_name=registry_name,
         )
@@ -2646,10 +2676,8 @@ def render_project_selector_error_page(error: ProjectSelectorError) -> str:
         )
     else:
         title = "No local checkout"
-        name = html.escape(error.registry_name or error.selector)
         detail = (
-            f"<p>Project <code>{name}</code> is registered, but it has no local "
-            "checkout, so LRH cannot read its project files.</p>"
+            f"<p>{html.escape(error.message)}</p>"
             "<p>Bind a local checkout, then reload this page:</p>"
             f"<p><code>{html.escape(error.next_action)}</code></p>"
         )
@@ -3791,42 +3819,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                         self._write_json(status_code, json.loads(body))
                     return
                 if len(parts) == 3 and parts[1] == "work-items":
-                    status_code, body = render_project_work_item_page(
-                        config, parts[0], parts[2]
-                    )
-                    if status_code == 200 or body.startswith("<!doctype html>"):
-                        self._write_text(status_code, "text/html; charset=utf-8", body)
-                    else:
-                        self._write_json(status_code, json.loads(body))
+                    self._write_project_work_item(parts[0], parts[2])
                     return
                 if (
                     len(parts) == 4
                     and parts[1] == "work-items"
                     and parts[3] == "prompt"
                 ):
-                    try:
-                        scoped_config = _config_for_project_selector(config, parts[0])
-                    except ProjectSelectorError as error:
-                        self._write_text(
-                            error.status,
-                            "text/html; charset=utf-8",
-                            render_project_selector_error_page(error),
-                        )
-                        return
-                    try:
-                        artifact = render_workbench_artifact(
-                            scoped_config, "prompt", parts[2]
-                        )
-                    except (FileNotFoundError, OSError, ValueError) as error:
-                        self._write_json(
-                            404, {"error": "not_found", "message": str(error)}
-                        )
-                        return
-                    self._write_text(
-                        200,
-                        "text/html; charset=utf-8",
-                        render_workbench_artifact_page(artifact),
-                    )
+                    self._write_project_prompt(parts[0], parts[2])
                     return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, body = render_project_operational_dashboard(
@@ -3914,6 +3914,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                             else "text/html; charset=utf-8"
                         ),
                     )
+                    return
+                if len(parts) == 3 and parts[1] == "work-items":
+                    self._write_project_work_item(parts[0], parts[2], head=True)
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[1] == "work-items"
+                    and parts[3] == "prompt"
+                ):
+                    self._write_project_prompt(parts[0], parts[2], head=True)
                     return
                 if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
                     if parts[1] == "designs":
@@ -4034,6 +4044,64 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def log_message(self, format: str, *args: object) -> None:
             return
+
+        def _write_project_work_item(
+            self, project_selector: str, work_item_id: str, *, head: bool = False
+        ) -> None:
+            status_code, body = render_project_work_item_page(
+                config, project_selector, work_item_id
+            )
+            if status_code == 200 or body.startswith("<!doctype html>"):
+                if head:
+                    self._write_head(status_code, "text/html; charset=utf-8")
+                else:
+                    self._write_text(status_code, "text/html; charset=utf-8", body)
+            elif head:
+                self._write_head(status_code, "application/json; charset=utf-8")
+            else:
+                self._write_json(status_code, json.loads(body))
+
+        def _write_project_prompt(
+            self, project_selector: str, work_item_id: str, *, head: bool = False
+        ) -> None:
+            try:
+                scoped_config = _config_for_project_selector(config, project_selector)
+            except ProjectSelectorError as error:
+                if head:
+                    self._write_head(error.status, "text/html; charset=utf-8")
+                else:
+                    self._write_text(
+                        error.status,
+                        "text/html; charset=utf-8",
+                        render_project_selector_error_page(error),
+                    )
+                return
+            try:
+                artifact = render_workbench_artifact(
+                    scoped_config, "prompt", work_item_id
+                )
+            except (FileNotFoundError, OSError, ValueError) as error:
+                if head:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_json(404, {"error": "not_found", "message": str(error)})
+                return
+            if self._query_values().get("download") == "1":
+                if head:
+                    self._write_download_head(artifact)
+                else:
+                    self._write_download(artifact)
+                return
+            if head:
+                self._write_head(200, "text/html; charset=utf-8")
+                return
+            self._write_text(
+                200,
+                "text/html; charset=utf-8",
+                render_workbench_artifact_page(
+                    artifact, project_selector=project_selector
+                ),
+            )
 
         def _write_workbench_artifact(self, route: str) -> None:
             kind = _kind_from_workbench_route(route)

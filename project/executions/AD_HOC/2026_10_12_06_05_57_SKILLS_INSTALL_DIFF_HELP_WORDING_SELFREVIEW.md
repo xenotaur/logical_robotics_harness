@@ -3,8 +3,8 @@ execution_id: 2026_10_12_06_05_57_SKILLS_INSTALL_DIFF_HELP_WORDING_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_HELP_WORDING_SELFREVIEW)[2026-10-12T06:05:57+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
-pr: 
+rerun_of: 2026_10_12_06_06_28_SKILLS_INSTALL_DIFF_HELP_WORDING
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/832
 commit: 
 created_at: 2026-10-12T06:05:57+00:00
 agent: claude_app

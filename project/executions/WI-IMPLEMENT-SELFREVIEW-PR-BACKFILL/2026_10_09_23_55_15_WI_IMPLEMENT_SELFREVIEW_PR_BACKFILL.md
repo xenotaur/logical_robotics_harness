@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/808
 commit: bbb02bc4f50f87987ebd6e3f0bbf2d86bcc1dbd6
 created_at: 2026-10-09T23:55:15+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: project/work_items/proposed/WI-IMPLEMENT-SELFREVIEW-PR-BACKFILL.md
 session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---

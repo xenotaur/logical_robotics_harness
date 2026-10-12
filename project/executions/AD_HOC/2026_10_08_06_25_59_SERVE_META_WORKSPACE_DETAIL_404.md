@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/793
 commit: a15e878c1a162fb1dc9ef37a40a269900687c12e
 created_at: 2026-10-08T06:25:59+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: catch Meta workspace resolution/registry errors in serve._project_from_meta_selector so design/workstream detail routes return 404 JSON instead of dropping the connection"
 session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---

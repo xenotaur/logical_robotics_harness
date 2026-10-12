@@ -7,7 +7,7 @@ rerun_of: 2026_10_09_23_55_15_WI_IMPLEMENT_SELFREVIEW_PR_BACKFILL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/808
 commit: bbb02bc4f50f87987ebd6e3f0bbf2d86bcc1dbd6
 created_at: 2026-10-10T00:34:13+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review PR-mode from lrh-confirm-fixes Step 8 for PR 808"
 session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---

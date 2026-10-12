@@ -1,5 +1,8 @@
 """``lrh sessions`` CLI: sync, discover, link, report, closeout-sync, schedule.
 
+``deeplink`` prints the vendor-app link for a session pointer; it reads only
+the pointer (see ``lrh.conversations.deeplink``).
+
 PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2 added sync/discover/link. Stage 3 adds
 the metadata-only report command. Stage 4 adds closeout-triggered sync wiring
 and a documented, inspectable weekly launchd schedule path. This module stays
@@ -21,6 +24,7 @@ import shlex
 import sys
 
 from lrh import prompt_workflow, prompt_workflow_sessions
+from lrh.conversations import deeplink
 
 
 def _utc_now_iso() -> str:
@@ -178,6 +182,19 @@ def run_sessions_cli(argv: list[str], *, prog: str = "lrh sessions") -> int:
     link_parser.add_argument("--child-id", required=True)
     link_parser.add_argument("--project-root", default=".")
 
+    deeplink_parser = subparsers.add_parser(
+        "deeplink",
+        help=(
+            "Print the deep link that opens a session pointer "
+            "(claude-app:, codex-app:) in its desktop app; exit 1 when no "
+            "link is known."
+        ),
+    )
+    deeplink_parser.add_argument(
+        "pointer",
+        help="session pointer, e.g. claude-app:<host-uuid-stem>",
+    )
+
     report_parser = subparsers.add_parser(
         "report",
         help=(
@@ -222,6 +239,8 @@ def run_sessions_cli(argv: list[str], *, prog: str = "lrh sessions") -> int:
         return _run_discover(args)
     if args.sessions_command == "link":
         return _run_link(args)
+    if args.sessions_command == "deeplink":
+        return _run_deeplink(args)
     if args.sessions_command == "report":
         return _run_report(args)
     parser.error("sessions requires a subcommand (try: lrh sessions discover)")
@@ -501,6 +520,18 @@ def _run_link(args: argparse.Namespace) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(f"linked: {matches[0].path} -> session_transcript: claude-app:{host_id}")
+    return 0
+
+
+def _run_deeplink(args: argparse.Namespace) -> int:
+    link = deeplink.link_for(args.pointer)
+    if link is None:
+        print(
+            f"error: no deep link is known for pointer {args.pointer!r}",
+            file=sys.stderr,
+        )
+        return 1
+    print(link)
     return 0
 
 

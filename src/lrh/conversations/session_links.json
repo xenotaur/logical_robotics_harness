@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "description": "Single route definition for agent-session deep links. Read by lrh.conversations.deeplink (Python) and, later, by the LRH Console shell allowlist (Rust, via include_str!). Keep it small and flat: add a field only when both sides use it.",
+  "id_shapes": {
+    "uuid": "Eight-four-four-four-twelve hexadecimal digits, either case, nothing else. Any UUID version is accepted: Codex thread ids are UUIDv7."
+  },
+  "vendors": [
+    {
+      "name": "claude-app",
+      "pointer_prefix": "claude-app:",
+      "scheme": "claude",
+      "host": "claude.ai",
+      "path_template": "/epitaxy/{id_prefix}{id}",
+      "id_prefix": "local_",
+      "id_shape": "uuid",
+      "status": "verified",
+      "note": "Verified by hand with `open`. The epitaxy route is undocumented by Anthropic and may change; treat it as best-effort."
+    },
+    {
+      "name": "codex-app",
+      "pointer_prefix": "codex-app:",
+      "scheme": "codex",
+      "host": "threads",
+      "path_template": "/{id}",
+      "id_prefix": "",
+      "id_shape": "uuid",
+      "status": "verified",
+      "note": "Verified by hand with `open`; the Codex desktop UI's Copy Deeplink action produces codex://threads/<UUID>."
+    }
+  ],
+  "unsupported": [
+    {
+      "name": "antigravity-app",
+      "pointer_prefix": "antigravity-app:",
+      "status": "unknown",
+      "note": "The app registers antigravity:// and antigravity-ide:// URL schemes, but no conversation route has been found."
+    }
+  ],
+  "vectors": {
+    "accept": [
+      {
+        "pointer": "claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+        "link": "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa"
+      },
+      {
+        "pointer": "claude-app:local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+        "link": "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa"
+      },
+      {
+        "pointer": "codex-app:01a032cd-cef2-73c0-9714-b61b36ae4513",
+        "link": "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513"
+      }
+    ],
+    "reject_pointers": [
+      "",
+      "pending",
+      "none",
+      "a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude-app:",
+      "claude-app:not-a-uuid",
+      "claude-app:local_",
+      "claude-app:local_local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa/extra",
+      "claude-app: a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa\n",
+      "codex-app:",
+      "codex-app:local_01a032cd-cef2-73c0-9714-b61b36ae4513",
+      "codex-app:threads/01a032cd-cef2-73c0-9714-b61b36ae4513",
+      "antigravity-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "codex-cloud:task_123",
+      "unknown-app:a6e3e7d1-6dca-4a75-999f-73b646ceb1fa"
+    ],
+    "reject_links": [
+      "",
+      "claude://claude.ai/epitaxy/a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude://claude.ai/epitaxy/local_not-a-uuid",
+      "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa/extra",
+      "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa?x=1",
+      "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa#frag",
+      "claude://user@claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude://claude.ai:8080/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude://claude.ai.evil.example/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude://evil.example/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "claude://claude.ai/code/new",
+      "claude://code/new",
+      "codex://threads/not-a-uuid",
+      "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513/extra",
+      "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513?x=1",
+      "codex://other/01a032cd-cef2-73c0-9714-b61b36ae4513",
+      "https://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "antigravity://anything/a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+      "javascript:alert(1)",
+      "file:///etc/passwd"
+    ]
+  }
+}

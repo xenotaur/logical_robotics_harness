@@ -49,5 +49,9 @@ The supported routes live in one file,
 each vendor's pointer prefix, link scheme, host, path template and id shape,
 plus the accept and reject examples the tests run. The Python helper,
 `lrh.conversations.deeplink.link_for`, reads that file, and the LRH Console's
-link allowlist is meant to be built from the same file so the two cannot drift.
-To change or add a route, edit that file and its examples, not the code.
+link allowlist embeds the same file, so both sides share one set of route shapes
+and test examples. They are separate implementations and can still differ at the
+edges: the Console compares a case-normalized scheme (`CLAUDE://` is accepted and
+opened as `claude://`) where the Python helper rejects the raw uppercase form,
+and it validates the definition more strictly. To change or add a route, edit
+that file and its examples, not the code.

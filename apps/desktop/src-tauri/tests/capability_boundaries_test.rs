@@ -210,3 +210,57 @@ fn popups_and_new_windows_are_refused() {
         );
     }
 }
+
+const SESSION_LINKS: [&str; 2] = [
+    "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+    "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513",
+];
+
+/// Agent-session deep links are handed to their app from Rust. They must not
+/// need, or be given, any capability in the window, any widening of the web
+/// handoff, or any change to what the window itself may load.
+#[test]
+fn session_deep_links_widen_no_window_boundary() {
+    let policy = NavigationPolicy::default();
+    policy.set_backend(Some(&url("http://127.0.0.1:50543/")));
+
+    for link in SESSION_LINKS {
+        let link = url(link);
+        // Never loaded in the window, never an external web link, and still
+        // refused by the web-link validator that the browser handoff uses.
+        assert!(!policy.allows(&link), "{link} must not load in the window");
+        assert!(!shell::is_external_link(&link), "{link} is not a web link");
+        assert!(lrh_console_lib::browser::validate_url(&link).is_err());
+        // Only the dedicated allowlist accepts it.
+        assert_eq!(
+            lrh_console_lib::browser::validate_session_link(&link),
+            Ok(())
+        );
+        // And a popup for it is still denied: the handoff opens the app, not a window.
+        assert!(matches!(
+            shell::new_window_response::<tauri::test::MockRuntime>(&link),
+            NewWindowResponse::Deny
+        ));
+    }
+}
+
+#[test]
+fn main_window_capability_still_grants_no_permissions() {
+    let capability: serde_json::Value =
+        serde_json::from_str(include_str!("../capabilities/main-window.json")).unwrap();
+
+    assert_eq!(capability["windows"], serde_json::json!(["main"]));
+    assert_eq!(capability["permissions"], serde_json::json!([]));
+}
+
+#[test]
+fn content_security_policy_is_unchanged() {
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+
+    assert_eq!(
+        config["app"]["security"]["csp"],
+        "default-src 'self'; style-src 'self'; img-src 'self'; script-src 'self'; \
+         connect-src 'self'; frame-ancestors 'none'; form-action 'none'"
+    );
+}

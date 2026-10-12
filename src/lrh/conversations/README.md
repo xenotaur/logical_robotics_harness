@@ -49,5 +49,7 @@ printing raw transcript body, snippets, or message text.
 which returns `None` for any pointer without a known route. It backs
 `lrh sessions deeplink POINTER`. Every route lives in `session_links.json`, the
 single definition that also carries the accept and reject test examples and that
-the LRH Console shell allowlist is meant to read, so the Python builder and the
-Rust allowlist cannot drift.
+the LRH Console shell allowlist (Rust) embeds at compile time. Both sides share
+one set of route shapes and test vectors; they are separate implementations, so
+edge handling can still differ (the Rust side compares a case-normalized scheme
+and validates the definition more strictly).

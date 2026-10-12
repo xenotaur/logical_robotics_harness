@@ -885,6 +885,31 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn('class="lrh-map-table"', table)
         self.assertIn("Nothing in this view is waiting or blocked.", blockers)
 
+    def test_dependency_map_hide_query_collapses_the_server_page(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        every = "done,blocked,in_progress,waiting,unblocked,abandoned,unknown"
+        _s, _t, full = self._read(url)
+        status, _t, hidden = self._read(url + "?hide=" + every)
+        _s, _t, bogus = self._read(url + "?hide=nope")
+        _s, _t, table = self._read(url + "?tab=table&hide=done")
+
+        self.assertEqual(status, 200)
+        self.assertIn('class="lrh-card', full)
+        self.assertNotIn('class="lrh-card', hidden)
+        self.assertIn("The filters hide every item in this view.", hidden)
+        self.assertIn('<nav class="lrh-filters"', hidden)
+
+        def map_section(page: str) -> str:
+            return page.split('<section class="lrh-map-scroll"', 1)[1].split(
+                "</section>", 1
+            )[0]
+
+        # An unknown state hides nothing.
+        self.assertEqual(map_section(bogus), map_section(full))
+        self.assertIn('href="?tab=table&amp;item=WI-A&amp;hide=done"', table)
+
     def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
 

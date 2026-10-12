@@ -253,6 +253,7 @@ def render_dependency_map_page(
         tab=query.get("tab", "map"),
         item=query.get("item"),
         since=query.get("since"),
+        hide=dependency_map_render.parse_hide(query.get("hide")),
         interactive=config.interactive,
         full_page_href=lambda item_id: (
             f"/project/{selector}/work-items/{_url_quote(item_id)}"

@@ -4,14 +4,16 @@
 map, table, or blockers view. Cards are positioned HTML links over an SVG
 line layer, so text wraps natively while lines stay exact. Selection is a URL
 (``?item=<id>``): the server highlights the item's upstream and downstream
-cards and lines and fills the detail drawer. Every state carries an icon and
-text as well as a color, and lines differ by style as well as weight.
+cards and lines and fills the detail drawer. Filters are a URL too
+(``?hide=done,abandoned``): hidden cards are dropped before layout, so the map
+collapses around what is left. Every state carries an icon and text as well
+as a color, and lines differ by style as well as weight.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import html
-import json
 import urllib.parse
 
 from lrh.dependency_maps.layout import Layout, LayoutResult
@@ -38,6 +40,23 @@ STATE_STYLES = {
 }
 LINE_LABELS = {"depends_on": "Depends on", "blocked_by": "Blocked by"}
 EMPTY_VIEW = "This view has no items yet. Add work items to its lanes or phases."
+ALL_HIDDEN = "The filters hide every item in this view."
+
+
+def parse_hide(value: str | None) -> frozenset[str]:
+    """Return the known states named in a ``hide`` query value.
+
+    The value is comma-separated (``done,abandoned``); unknown names are
+    ignored, so a stale or hand-edited URL still renders.
+    """
+
+    if not value:
+        return frozenset()
+    return frozenset(
+        name
+        for name in (part.strip() for part in value.split(","))
+        if name in STATE_STYLES
+    )
 
 
 def _outside(node: Node) -> str:
@@ -89,21 +108,31 @@ def render_view(
     since: str | None,
     full_page_href,
     interactive: bool = False,
+    hide: frozenset[str] = frozenset(),
 ) -> str:
     """Return the page body for one tab of a dependency-map view.
 
     ``full_page_href(item_id)`` gives the work item's own page. With
     ``interactive``, every item's drawer is rendered (hidden unless selected)
     so the packaged script can select items without a reload; the markup is
-    otherwise identical and works without scripts.
+    otherwise identical and works without scripts. ``hide`` names states to
+    filter out of the map, list, and table (see ``parse_hide``).
     """
 
     nodes = {node.id: node for node in snapshot.nodes}
     selected = item if item in nodes else None
     upstream, downstream = _related(snapshot, selected)
     tab = tab if tab in dict(TABS) else "map"
+    hide = frozenset(hide) & frozenset(STATE_STYLES)
+    visible = _visible(snapshot, nodes, hide, selected)
+    links = _Links(hide)
     parts = [
-        _header(snapshot, tab, selected, since),
+        _header(snapshot, tab, selected, since, links),
+        (
+            _filters(snapshot, tab, selected, hide, visible, links)
+            if tab != "blockers"
+            else ""
+        ),
         _diagnostics(snapshot.diagnostics),
     ]
     if item and selected is None:
@@ -112,14 +141,16 @@ def render_view(
             f"{html.escape(item)} is not in this view.</p>"
         )
     if tab == "table":
-        parts.append(_table(snapshot, nodes))
+        parts.append(_table(snapshot, nodes, visible, links))
     elif tab == "blockers":
-        parts.append(_blockers(snapshot, nodes))
+        parts.append(_blockers(snapshot, nodes, links))
     else:
-        result = layout.layout(snapshot)
+        result = layout.layout(_filtered(snapshot, visible, hide))
         parts.append(_legend())
-        parts.append(_map(snapshot, result, nodes, selected, upstream, downstream))
-        parts.append(_focused_list(snapshot, nodes, selected))
+        parts.append(
+            _map(snapshot, result, nodes, selected, upstream, downstream, hide, links)
+        )
+        parts.append(_focused_list(snapshot, nodes, selected, visible, hide, links))
     if interactive:
         for index, node in enumerate(snapshot.nodes):
             node_up, node_down = _related(snapshot, node.id)
@@ -132,6 +163,7 @@ def render_view(
                     node_up,
                     node_down,
                     full_page_href,
+                    links,
                     hidden=node.id != selected,
                     title_id=f"lrh-drawer-title-{index}",
                 )
@@ -146,35 +178,103 @@ def render_view(
                 upstream,
                 downstream,
                 full_page_href,
+                links,
             )
         )
     body = "\n".join(part for part in parts if part)
     return f'<div class="lrh-dependency-map" data-lrh-tab="{tab}">{body}</div>'
 
 
-def _data(snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node) -> str:
-    """Data attributes the packaged script reads; inert without scripts."""
+def _data(node: Node) -> str:
+    """The item ID, which the packaged script reads to return focus to the
+    item's card, row, or list entry; inert without scripts. Filtering is the
+    server's job (``hide``), so no state travels to the script."""
 
-    # A JSON list, not a space-joined string: work-item IDs may contain spaces.
-    unmet = json.dumps(
-        list(dict.fromkeys(t for _k, t, _l in _unmet_needs(snapshot, nodes, node)))
-    )
-    return (
-        f' data-id="{_attr(node.id)}" data-state="{_attr(node.state)}"'
-        f' data-unmet="{_attr(unmet)}"'
-    )
+    return f' data-id="{_attr(node.id)}"'
 
 
 def _attr(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def _href(tab: str, item: str | None = None) -> str:
+def _href(tab: str, item: str | None = None, hide: frozenset[str] = frozenset()) -> str:
     query = {"tab": tab} if tab != "map" else {}
     if item:
         query["item"] = item
-    encoded = urllib.parse.urlencode(query)
+    if hide:
+        query["hide"] = _hide_value(hide)
+    encoded = urllib.parse.urlencode(query, safe=",")
     return "?" + encoded if encoded else "?"
+
+
+def _hide_value(hide: frozenset[str]) -> str:
+    # Legend order, so one filter always has one URL.
+    return ",".join(state for state in STATE_STYLES if state in hide)
+
+
+@dataclasses.dataclass(frozen=True)
+class _Links:
+    """In-page links that keep the page's filters."""
+
+    hide: frozenset[str]
+
+    def href(self, tab: str, item: str | None = None) -> str:
+        return _href(tab, item, self.hide)
+
+
+def _visible(
+    snapshot: DependencyMapSnapshot,
+    nodes: dict[str, Node],
+    hide: frozenset[str],
+    selected: str | None,
+) -> set[str]:
+    """IDs left after filtering by state.
+
+    The selection always stays, and so does every unfinished item that a
+    remaining item still needs, transitively, so a filter never hides a
+    blocker. With no filter, every item stays.
+    """
+
+    if not hide:
+        return set(nodes)
+    visible = {node.id for node in snapshot.nodes if node.state not in hide}
+    if selected:
+        visible.add(selected)
+    stack = list(visible)
+    while stack:
+        node = nodes.get(stack.pop())
+        if node is None:
+            continue
+        for _kind, target, _life in _unmet_needs(snapshot, nodes, node):
+            if target in nodes and target not in visible:
+                visible.add(target)
+                stack.append(target)
+    return visible
+
+
+def _filtered(
+    snapshot: DependencyMapSnapshot, visible: set[str], hide: frozenset[str]
+) -> DependencyMapSnapshot:
+    """The snapshot the layout sees: only visible items, and, when filtering,
+    only the lanes and phases that still hold one, so nothing is left empty."""
+
+    if not hide:
+        return snapshot
+    nodes = tuple(node for node in snapshot.nodes if node.id in visible)
+    placed = [node for node in nodes if not node.offscreen]
+    lanes = {node.lane or UNPLACED for node in placed}
+    phases = {node.phase or UNPLACED for node in placed}
+    return dataclasses.replace(
+        snapshot,
+        nodes=nodes,
+        edges=tuple(
+            edge
+            for edge in snapshot.edges
+            if edge.item in visible and edge.target in visible
+        ),
+        lanes=tuple(row for row in snapshot.lanes if row.id in lanes),
+        phases=tuple(row for row in snapshot.phases if row.id in phases),
+    )
 
 
 def _related(
@@ -256,11 +356,15 @@ def _not_prompt_ready(node: Node) -> str:
 
 
 def _header(
-    snapshot: DependencyMapSnapshot, tab: str, selected: str | None, since: str | None
+    snapshot: DependencyMapSnapshot,
+    tab: str,
+    selected: str | None,
+    since: str | None,
+    links: _Links,
 ) -> str:
     current = ' aria-current="page"'
     tabs = "".join(
-        f'<a href="{html.escape(_href(key, selected), quote=True)}"'
+        f'<a href="{html.escape(links.href(key, selected), quote=True)}"'
         f'{current if key == tab else ""}>{label}</a>'
         for key, label in TABS
     )
@@ -271,8 +375,10 @@ def _header(
             {
                 **({"tab": tab} if tab != "map" else {}),
                 **({"item": selected} if selected else {}),
+                **({"hide": _hide_value(links.hide)} if links.hide else {}),
                 "since": snapshot.source_fingerprint,
-            }
+            },
+            safe=",",
         ),
         quote=True,
     )
@@ -299,6 +405,79 @@ def _header(
   {freshness}
   <nav class="lrh-tabs" aria-label="Map views">{tabs}</nav>
 </header>"""
+
+
+def _filters(
+    snapshot: DependencyMapSnapshot,
+    tab: str,
+    selected: str | None,
+    hide: frozenset[str],
+    visible: set[str],
+    links: _Links,
+) -> str:
+    """State filters as plain links, so they work without scripts.
+
+    Each link toggles one state in ``hide`` and keeps the tab and selection.
+    """
+
+    present = {node.state for node in snapshot.nodes if not node.offscreen} | hide
+    if not present:
+        return ""
+    toggles = []
+    for state in STATE_STYLES:
+        if state not in present:
+            continue
+        label = STATE_STYLES[state][2]
+        shown = state not in hide
+        target = _href(tab, selected, hide - {state} if not shown else hide | {state})
+        aria = (
+            f"{label}: shown. Hide {label}."
+            if shown
+            else f"{label}: hidden. Show {label}."
+        )
+        toggles.append(
+            f'<a class="lrh-filter" href="{_attr(target)}"'
+            f' data-filter-state="{_attr(state)}" aria-label="{_attr(aria)}">'
+            f'<span class="lrh-filter-box" aria-hidden="true">'
+            f'{"☑" if shown else "☐"}</span> {html.escape(label)}</a>'
+        )
+    note = ""
+    if hide:
+        hidden = [
+            node
+            for node in snapshot.nodes
+            if not node.offscreen and node.id not in visible
+        ]
+        counts = [
+            f"{sum(1 for node in hidden if node.state == state)} "
+            f"{STATE_STYLES[state][2]}"
+            for state in STATE_STYLES
+            if any(node.state == state for node in hidden)
+        ]
+        kept = sum(
+            1
+            for node in snapshot.nodes
+            if not node.offscreen
+            and node.state in hide
+            and node.id in visible
+            and node.id != selected
+        )
+        parts = [f"Hidden: {', '.join(counts)}." if counts else "Nothing hidden."]
+        if kept:
+            parts.append(
+                f"{kept} kept because a shown item needs "
+                f"{'it' if kept == 1 else 'them'}."
+            )
+        show_all = _attr(_href(tab, selected))
+        note = (
+            f'<p class="lrh-filter-note lrh-muted" role="status">{" ".join(parts)} '
+            f'<a href="{show_all}">Show all</a></p>'
+        )
+    return (
+        '<nav class="lrh-filters" aria-label="Filter by state">'
+        '<span class="lrh-filters-label">Show</span>'
+        f'{"".join(toggles)}</nav>{note}'
+    )
 
 
 def _diagnostics(diagnostics: tuple[Diagnostic, ...]) -> str:
@@ -341,6 +520,8 @@ def _map(
     selected: str | None,
     upstream: set[str],
     downstream: set[str],
+    hide: frozenset[str],
+    links: _Links,
 ) -> str:
     # A line is emphasized when both ends lie on a path to or from the
     # selection; that also covers a bypass from an upstream to a downstream item.
@@ -390,8 +571,8 @@ def _map(
             classes += " lrh-card--blocked"
         outside = _outside(node)
         cards.append(
-            f'<a class="{classes}" href="{_attr(_href("map", card.id))}"'
-            f"{_data(snapshot, nodes, node)}"
+            f'<a class="{classes}" href="{_attr(links.href("map", card.id))}"'
+            f"{_data(node)}"
             f' title="{_attr(card.id + ": " + node.title)}"'
             f' style="left:{card.x}px;top:{card.y}px;width:{card.width}px;'
             f'height:{card.height}px">'
@@ -402,7 +583,10 @@ def _map(
             f"{_not_prompt_ready(node)}</span>"
             f'<span class="lrh-card-why">{html.escape(_why(node))}{outside}</span></a>'
         )
-    empty = f'<p class="lrh-muted">{EMPTY_VIEW}</p>' if not result.cards else ""
+    empty = ""
+    if not result.cards:
+        empty = f'<p class="lrh-muted">{ALL_HIDDEN if hide else EMPTY_VIEW}</p>'
+
     return f"""<section class="lrh-map-scroll" aria-label="Dependency map">
 {empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px">
   {lanes}{phases}
@@ -425,7 +609,12 @@ def _map(
 
 
 def _focused_list(
-    snapshot: DependencyMapSnapshot, nodes: dict[str, Node], selected: str | None
+    snapshot: DependencyMapSnapshot,
+    nodes: dict[str, Node],
+    selected: str | None,
+    visible: set[str],
+    hide: frozenset[str],
+    links: _Links,
 ) -> str:
     """The narrow-screen alternative to the map: cards grouped by phase."""
 
@@ -434,14 +623,14 @@ def _focused_list(
         members = [
             node
             for node in snapshot.nodes
-            if not node.offscreen and node.phase == phase.id
+            if not node.offscreen and node.phase == phase.id and node.id in visible
         ]
         if not members:
             continue
         current = ' aria-current="true"'
         items = "".join(
-            f"<li{_data(snapshot, nodes, node)}>"
-            f'<a href="{html.escape(_href("map", node.id), quote=True)}"'
+            f"<li{_data(node)}>"
+            f'<a href="{html.escape(links.href("map", node.id), quote=True)}"'
             f'{current if node.id == selected else ""}>'
             f'<span class="lrh-mono">{html.escape(node.id)}</span> '
             f"{html.escape(node.title)}</a> {_pill(node.state)}"
@@ -452,7 +641,7 @@ def _focused_list(
         )
         groups.append(f"<h3>{html.escape(phase.title)}</h3><ul>{items}</ul>")
     if not groups:
-        groups.append(f'<p class="lrh-muted">{EMPTY_VIEW}</p>')
+        groups.append(f'<p class="lrh-muted">{ALL_HIDDEN if hide else EMPTY_VIEW}</p>')
     return (
         '<section class="lrh-map-list" aria-label="Dependency map as a list">'
         + "".join(groups)
@@ -464,12 +653,19 @@ def _needs(node: Node) -> list[str]:
     return [reason.target for reason in node.state_reasons if reason.target]
 
 
-def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
+def _table(
+    snapshot: DependencyMapSnapshot,
+    nodes: dict[str, Node],
+    visible: set[str],
+    links: _Links,
+) -> str:
     needed_by: dict[str, list[str]] = {}
     for edge in snapshot.edges:
         needed_by.setdefault(edge.target, []).append(edge.item)
     rows = []
     for node in snapshot.nodes:
+        if node.id not in visible:
+            continue
         unmet = list(
             dict.fromkeys(
                 target for _kind, target, _life in _unmet_needs(snapshot, nodes, node)
@@ -478,9 +674,9 @@ def _table(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         ready = _ready_text(node)
         dependents = sorted(set(needed_by.get(node.id, [])))
         rows.append(
-            f"<tr{_data(snapshot, nodes, node)}>"
+            f"<tr{_data(node)}>"
             f'<th scope="row"><a class="lrh-id-link lrh-mono" '
-            f'href="{html.escape(_href("table", node.id), quote=True)}">'
+            f'href="{html.escape(links.href("table", node.id), quote=True)}">'
             f"{html.escape(node.id)}</a></th>"
             f"<td>{html.escape(node.title)}</td>"
             f"<td>{html.escape(_lane_label(snapshot, node))}</td>"
@@ -518,7 +714,9 @@ def _phase_label(snapshot: DependencyMapSnapshot, node: Node) -> str:
     return titles.get(node.phase or UNPLACED, "Unplaced")
 
 
-def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
+def _blockers(
+    snapshot: DependencyMapSnapshot, nodes: dict[str, Node], links: _Links
+) -> str:
     stuck = [
         node
         for node in snapshot.nodes
@@ -538,7 +736,7 @@ def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
         ]
         needs = "".join(flags) + "".join(
             f"<li>{'Blocked by' if kind == 'blocked_by' else 'Needs'} "
-            f'<a class="lrh-mono" href="{_attr(_href("blockers", target))}">'
+            f'<a class="lrh-mono" href="{_attr(links.href("blockers", target))}">'
             f"{html.escape(target)}</a> ({html.escape(lifecycle)})</li>"
             for kind, target, lifecycle in _unmet_needs(snapshot, nodes, node)
         )
@@ -546,7 +744,7 @@ def _blockers(snapshot: DependencyMapSnapshot, nodes: dict[str, Node]) -> str:
             # data-id only (no data-state): the script returns focus here when
             # a drawer closes, but the Blockers tab has no filters.
             f'<li data-id="{_attr(node.id)}"><a class="lrh-mono" href="'
-            f'{html.escape(_href("blockers", node.id), quote=True)}">'
+            f'{html.escape(links.href("blockers", node.id), quote=True)}">'
             f"{html.escape(node.id)}</a> {html.escape(node.title)} {_pill(node.state)}"
             f"<ul>{needs}</ul></li>"
         )
@@ -564,6 +762,7 @@ def _drawer(
     upstream: set[str],
     downstream: set[str],
     full_page_href,
+    links: _Links,
     *,
     hidden: bool = False,
     title_id: str = "lrh-drawer-title",
@@ -571,11 +770,11 @@ def _drawer(
     needs = sorted({edge.target for edge in snapshot.edges if edge.item == node.id})
     needed_by = sorted({edge.item for edge in snapshot.edges if edge.target == node.id})
 
-    def links(ids: list[str]) -> str:
+    def id_links(ids: list[str]) -> str:
         if not ids:
             return "None"
         return ", ".join(
-            f'<a class="lrh-mono" href="{html.escape(_href(tab, other), quote=True)}">'
+            f'<a class="lrh-mono" href="{_attr(links.href(tab, other))}">'
             f"{html.escape(other)}</a>"
             for other in ids
         )
@@ -589,10 +788,10 @@ def _drawer(
         lane += f" ({node.lane_source}: {node.lane_reason})"
     else:
         lane += f" ({node.lane_source})"
-    close = html.escape(_href(tab), quote=True)
+    close = html.escape(links.href(tab), quote=True)
     full = html.escape(full_page_href(node.id), quote=True)
     show_on_map = (
-        f'<a href="{_attr(_href("map", node.id))}">Show on map</a> · '
+        f'<a href="{_attr(links.href("map", node.id))}">Show on map</a> · '
         if tab != "map" and not node.offscreen
         else ""
     )
@@ -614,8 +813,8 @@ def _drawer(
     <dt>Phase</dt><dd>{html.escape(_phase_label(snapshot, node))}
       ({html.escape(node.phase_source)})</dd>
     <dt>Why</dt><dd><ul>{reasons}</ul></dd>
-    <dt>Needs</dt><dd>{links(needs)}</dd>
-    <dt>Needed by</dt><dd>{links(needed_by)}</dd>
+    <dt>Needs</dt><dd>{id_links(needs)}</dd>
+    <dt>Needed by</dt><dd>{id_links(needed_by)}</dd>
     <dt>Upstream</dt><dd>{len(upstream)} items</dd>
     <dt>Downstream</dt><dd>{len(downstream)} items</dd>
     <dt>Source</dt><dd><code>{html.escape(node.source)}</code></dd>
@@ -865,9 +1064,9 @@ MAP_STYLES = """
   .lrh-drawer[hidden] { display: none; }
   .lrh-card--preview { border-color: var(--lrh-color-edge-strong); }
   .lrh-dependency-map:focus { outline: none; }
-  .lrh-card.lrh-filtered, .lrh-line.lrh-filtered { visibility: hidden; }
-  tr.lrh-filtered, li.lrh-filtered { display: none; }
+  /* State filters: links, so they work without scripts. */
   .lrh-filters {
+    align-items: center;
     border: 1px solid var(--lrh-color-border-subtle);
     border-radius: var(--lrh-radius-sm);
     display: flex;
@@ -876,7 +1075,11 @@ MAP_STYLES = """
     margin-top: var(--lrh-space-3);
     padding: var(--lrh-space-2) var(--lrh-space-3);
   }
-  .lrh-filters legend { color: var(--lrh-color-text-muted); font-weight: 700; }
+  .lrh-filters-label { color: var(--lrh-color-text-muted); font-weight: 700; }
+  .lrh-filter { color: inherit; text-decoration: none; white-space: nowrap; }
+  .lrh-filter:hover { text-decoration: underline; }
+  .lrh-filter-box { font-size: 1.1em; }
+  .lrh-filter-note { margin-top: var(--lrh-space-2); }
   @media (max-width: 48rem) {
     .lrh-map-scroll, .lrh-legend { display: none; }
     .lrh-map-list { display: block; }

@@ -50,10 +50,16 @@ class InteractiveScriptTest(unittest.TestCase):
         self.assertIn("if (!slot || pinned) return;", self.source)
         self.assertIn('if (root.hasAttribute("data-theme")) return;', self.early)
 
-    def test_filters_keep_unfinished_needs_visible(self) -> None:
-        # The list is JSON, never split on spaces: IDs may contain them.
-        self.assertIn('JSON.parse(item.dataset.unmet || "[]")', self.source)
-        self.assertNotIn("unmet.split(", self.source)
+    def test_filters_are_left_to_the_server(self) -> None:
+        # The server lays the map out again without hidden cards, so the
+        # script never hides cards in place; it keeps the selection in the
+        # filter links and scrolls the selected card back into view.
+        self.assertNotIn("lrh-filtered", self.source)
+        self.assertNotIn("dataset.state", self.source)
+        self.assertIn(".lrh-filters a, .lrh-filter-note a", self.source)
+        self.assertIn(
+            'card.scrollIntoView({ block: "center", inline: "center" });', self.source
+        )
 
     def test_closing_a_drawer_returns_focus_before_hiding_it(self) -> None:
         body = self.source.split("function showDrawer(id) {", 1)[1].split(

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
-import html
-import json
 import re
 import unittest
 
@@ -459,31 +457,12 @@ class RenderTest(unittest.TestCase):
     def test_items_and_lines_carry_data_for_the_script(self) -> None:
         page = _view(_example())
 
-        self.assertIn(
-            'data-id="WI-B" data-state="waiting" data-unmet="[&quot;WI-A&quot;]"',
-            page,
-        )
-        self.assertIn('data-id="WI-A" data-state="unblocked" data-unmet="[]"', page)
+        self.assertIn('<a class="lrh-card" href="?item=WI-B" data-id="WI-B"', page)
+        self.assertNotIn("data-state", page)
+        self.assertNotIn("data-unmet", page)
         self.assertIn('data-source="WI-A" data-item="WI-B"', page)
         self.assertIn('class="lrh-dependency-map" data-lrh-tab="map"', page)
         self.assertEqual(page.count("<aside"), 0)
-
-    def test_unmet_ids_with_spaces_survive_as_a_json_list(self) -> None:
-        page = _view(
-            _snapshot(
-                (
-                    _node("WI-NEEDS REVIEW", "WS-A", "one"),
-                    _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
-                ),
-                (_edge("WI-B", "WI-NEEDS REVIEW"),),
-            )
-        )
-
-        match = re.search(
-            r'data-id="WI-B" data-state="waiting" data-unmet="([^"]*)"', page
-        )
-        self.assertIsNotNone(match)
-        self.assertEqual(json.loads(html.unescape(match.group(1))), ["WI-NEEDS REVIEW"])
 
     def test_untrusted_text_is_escaped_and_there_are_no_scripts(self) -> None:
         hostile = '<script>alert("x")</script>'
@@ -517,3 +496,123 @@ class RenderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _card_ids(page: str) -> set[str]:
+    return set(
+        re.findall(r'<a class="lrh-card[^"]*" href="[^"]*" data-id="([^"]+)"', page)
+    )
+
+
+class FilterTest(unittest.TestCase):
+    def test_parse_hide_keeps_known_states_only(self) -> None:
+        self.assertEqual(render.parse_hide(None), frozenset())
+        self.assertEqual(render.parse_hide(""), frozenset())
+        self.assertEqual(
+            render.parse_hide("done, abandoned,nope"), frozenset({"done", "abandoned"})
+        )
+
+    def test_hidden_cards_leave_the_map_table_and_list(self) -> None:
+        page = _view(_example(), hide=frozenset({"done"}))
+        table = _view(_example(), tab="table", hide=frozenset({"done"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-B", "WI-C"})
+        self.assertNotIn('<li data-id="WI-D">', page)
+        self.assertNotIn('<tr data-id="WI-D">', table)
+        self.assertIn('<tr data-id="WI-A">', table)
+        self.assertIn("Hidden: 1 Done.", page)
+
+    def test_empty_phases_and_lanes_collapse(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node(
+                    "WI-D",
+                    "WS-B",
+                    "two",
+                    "done",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            )
+        )
+        full = layout.DEFAULT_LAYOUT.layout(snapshot)
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertEqual({box.id for box in full.phases}, {"one", "two"})
+        self.assertNotIn("WS-B title", page)
+        self.assertNotIn('<h3 class="lrh-phase-title">Two</h3>', page)
+        self.assertIn('<h3 class="lrh-phase-title">One</h3>', page)
+        width = int(re.search(r'<div class="lrh-map" style="width:(\d+)px', page)[1])
+        self.assertLess(width, full.width)
+
+    def test_an_unfinished_item_a_shown_item_needs_stays_visible(self) -> None:
+        page = _view(_example(), hide=frozenset({"unblocked"}))
+
+        self.assertIn("WI-A", _card_ids(page))
+        self.assertIn("1 kept because a shown item needs it.", page)
+
+    def test_needed_ids_with_spaces_stay_visible(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-NEEDS REVIEW", "WS-A", "one"),
+                _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+            ),
+            (_edge("WI-B", "WI-NEEDS REVIEW"),),
+        )
+
+        page = _view(snapshot, hide=frozenset({"unblocked"}))
+
+        self.assertEqual(_card_ids(page), {"WI-NEEDS REVIEW", "WI-B"})
+
+    def test_the_selection_always_stays_visible(self) -> None:
+        page = _view(_example(), item="WI-D", hide=frozenset({"done"}))
+
+        self.assertIn("WI-D", _card_ids(page))
+        self.assertIn("Nothing hidden.", page)
+
+    def test_links_keep_the_filter(self) -> None:
+        page = _view(_example(), item="WI-B", hide=frozenset({"done", "abandoned"}))
+
+        self.assertIn('href="?item=WI-A&amp;hide=done,abandoned"', page)
+        self.assertIn('href="?tab=table&amp;item=WI-B&amp;hide=done,abandoned"', page)
+        self.assertIn("hide=done,abandoned&amp;since=sha256", page)
+        # Done is off, so its toggle turns it back on and keeps the rest.
+        self.assertIn(
+            '<a class="lrh-filter" href="?item=WI-B&amp;hide=abandoned"'
+            ' data-filter-state="done" aria-label="Done: hidden. Show Done.">',
+            page,
+        )
+        self.assertIn(
+            '<a class="lrh-filter" href="?item=WI-B&amp;hide=done,blocked,abandoned"',
+            page,
+        )
+        self.assertIn('<a href="?item=WI-B">Show all</a>', page)
+
+    def test_filters_are_links_without_a_filter_applied(self) -> None:
+        page = _view(_example())
+
+        self.assertIn('<nav class="lrh-filters" aria-label="Filter by state">', page)
+        self.assertIn(
+            '<a class="lrh-filter" href="?hide=done" data-filter-state="done"'
+            ' aria-label="Done: shown. Hide Done.">',
+            page,
+        )
+        self.assertNotIn("lrh-filter-note", page)
+        self.assertNotIn("<script", page)
+        self.assertNotIn("<form", page)
+
+    def test_hiding_everything_says_so(self) -> None:
+        hide = frozenset(render.STATE_STYLES)
+        page = _view(_example(), hide=hide)
+
+        self.assertEqual(_card_ids(page), set())
+        self.assertIn(render.ALL_HIDDEN, page)
+        self.assertNotIn(render.EMPTY_VIEW, page)
+
+    def test_blockers_tab_has_no_filters_but_keeps_them_in_links(self) -> None:
+        page = _view(_example(), tab="blockers", hide=frozenset({"done"}))
+
+        self.assertNotIn(
+            "lrh-filters", page.split("</header>", 1)[1].split("<style", 1)[0]
+        )
+        self.assertIn('href="?tab=blockers&amp;item=WI-B&amp;hide=done"', page)

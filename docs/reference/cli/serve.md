@@ -37,8 +37,8 @@ lrh serve --desktop-protocol
     dependency-map card previews its upstream and downstream. Clicking selects
     it without a reload, opens its drawer, and updates `?item=` and the page's
     tab links. Escape closes it.
-  - **Filters:** checkboxes by state on the map and table. A filter never hides
-    an unfinished item that a shown item still needs.
+  - **Selection after a reload:** when the page opens with `?item=`, for
+    example after a filter change, the selected card is scrolled into view.
   - **Loading:** when a same-origin page takes longer than about 300 ms to
     load, the page dims and a "Loading…" status appears. Links that open
     elsewhere, downloads, and in-page selections never trigger it.
@@ -200,6 +200,15 @@ name.
     modeled yet).
   - `?tab=table` shows every item as a table, and `?tab=blockers` lists each
     waiting or blocked item with what it needs.
+  - `?hide=<state>[,<state>...]` filters the map, list, and table by
+    structural state (`done`, `blocked`, `in_progress`, `waiting`, `unblocked`,
+    `abandoned`, `unknown`; unknown names are ignored). Hidden cards are
+    dropped before layout, so the map collapses: lanes and phases left empty
+    disappear and lines are re-routed. A filter never hides the selected item,
+    or an unfinished item that a shown item still needs; a note counts what is
+    hidden and offers **Show all**. The **Show** toggles above the map are
+    plain links that set `?hide=`, and every in-page link keeps it. The
+    Blockers tab has no filters.
   - **Check for changes** reloads with `?since=<fingerprint>` and says whether
     the control files changed since the snapshot you were viewing.
   - Narrow screens show the map as a list grouped by phase.

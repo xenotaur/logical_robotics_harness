@@ -60,6 +60,31 @@ def parse_hide(value: str | None) -> frozenset[str]:
     )
 
 
+def _hidden_upstream(
+    snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node, links: _Links
+) -> str:
+    """Say how many of a card's in-view prerequisites the filters hide, so a
+    map left without lines still shows that its cards have upstream work.
+    Items outside the view are counted by ``_outside`` instead."""
+
+    if not links.hidden:
+        return ""
+    upstream, _down = _related(snapshot, node.id)
+    count = sum(
+        1 for other in upstream if other in links.hidden and not nodes[other].offscreen
+    )
+    if not count:
+        return ""
+    return f'<span class="lrh-outside">+{count} upstream hidden by filters</span>'
+
+
+def _count_with_hidden(ids: set[str], links: _Links) -> str:
+    hidden = len(ids & links.hidden)
+    if not hidden:
+        return f"{len(ids)} items"
+    return f"{len(ids)} items ({hidden} hidden by filters)"
+
+
 def _outside(node: Node) -> str:
     if not node.offscreen_predecessors:
         return ""
@@ -126,7 +151,7 @@ def render_view(
     tab = tab if tab in dict(TABS) else "map"
     hide = frozenset(hide) & frozenset(STATE_STYLES)
     visible = _visible(snapshot, nodes, hide, selected)
-    links = _Links(hide)
+    links = _Links(hide, frozenset(nodes) - visible)
     # Whether the filter removed any card, so an empty map can say why.
     filtered = any(
         not node.offscreen and node.id not in visible for node in snapshot.nodes
@@ -235,9 +260,11 @@ def _hide_value(hide: frozenset[str]) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class _Links:
-    """In-page links that keep the page's filters."""
+    """In-page links that keep the page's filters, and the IDs those filters
+    hide, so cards and drawers can say what they cannot show."""
 
     hide: frozenset[str]
+    hidden: frozenset[str] = frozenset()
 
     def href(self, tab: str, item: str | None = None) -> str:
         return _href(tab, item, self.hide)
@@ -482,13 +509,15 @@ def _filters(
             for state in STATE_STYLES
             if any(node.state == state for node in hidden)
         ]
+        outside = sum(
+            1 for node in snapshot.nodes if node.offscreen and node.id not in visible
+        )
+        if outside:
+            counts.append(f"{'plus ' if counts else ''}{outside} from outside the view")
         kept = sum(
             1
             for node in snapshot.nodes
-            if not node.offscreen
-            and node.state in hide
-            and node.id in visible
-            and node.id != selected
+            if node.state in hide and node.id in visible and node.id != selected
         )
         parts = [f"Hidden: {', '.join(counts)}." if counts else "Nothing hidden."]
         if kept:
@@ -597,7 +626,7 @@ def _map(
             role = '<span class="lrh-role">Downstream</span>'
         if node.state == "blocked":
             classes += " lrh-card--blocked"
-        outside = _outside(node)
+        outside = _outside(node) + _hidden_upstream(snapshot, nodes, node, links)
         cards.append(
             f'<a class="{classes}" href="{_attr(links.href("map", card.id))}"'
             f"{_data(node)}"
@@ -665,7 +694,8 @@ def _focused_list(
             f"{html.escape(node.title)}</a> {_pill(node.state)}"
             f"{_not_prompt_ready(node)}"
             f'<span class="lrh-card-why">{html.escape(_why(node))}'
-            f"{_outside(node)}</span></li>"
+            f"{_outside(node)}{_hidden_upstream(snapshot, nodes, node, links)}"
+            "</span></li>"
             for node in members
         )
         groups.append(f"<h3>{html.escape(phase.title)}</h3><ul>{items}</ul>")
@@ -695,8 +725,7 @@ def _table(
         needed_by.setdefault(edge.target, []).append(edge.item)
     rows = []
     for node in snapshot.nodes:
-        # Items from outside the view are context, not filtered.
-        if not node.offscreen and node.id not in visible:
+        if node.id not in visible:
             continue
         unmet = list(
             dict.fromkeys(
@@ -722,8 +751,8 @@ def _table(
         )
     return f"""<section class="lrh-console-region lrh-table-wrap">
 <table class="lrh-map-table">
-  <caption>Every item in this view that the filters show, plus items a shown item
-  still needs and items it references from outside.</caption>
+  <caption>Every item in this view, and every item it references from outside,
+  that the filters show, plus any unfinished item a shown item still needs.</caption>
   <thead><tr><th scope="col">ID</th><th scope="col">Title</th>
   <th scope="col">Lane</th><th scope="col">Phase</th><th scope="col">State</th>
   <th scope="col">Lifecycle</th><th scope="col">Prompt-ready</th>
@@ -848,8 +877,8 @@ def _drawer(
     <dt>Why</dt><dd><ul>{reasons}</ul></dd>
     <dt>Needs</dt><dd>{id_links(needs)}</dd>
     <dt>Needed by</dt><dd>{id_links(needed_by)}</dd>
-    <dt>Upstream</dt><dd>{len(upstream)} items</dd>
-    <dt>Downstream</dt><dd>{len(downstream)} items</dd>
+    <dt>Upstream</dt><dd>{_count_with_hidden(upstream, links)}</dd>
+    <dt>Downstream</dt><dd>{_count_with_hidden(downstream, links)}</dd>
     <dt>Source</dt><dd><code>{html.escape(node.source)}</code></dd>
     <dt>Effort</dt><dd>Not modeled yet</dd>
   </dl>

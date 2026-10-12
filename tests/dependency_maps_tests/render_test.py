@@ -651,10 +651,57 @@ class FilterTest(unittest.TestCase):
         self.assertNotIn('data-source="WI-D"', page)
         self.assertEqual(_card_ids(page), {"WI-A"})
 
-    def test_the_table_keeps_items_from_outside_the_view(self) -> None:
+    def test_outside_rows_follow_the_filter_and_are_counted(self) -> None:
         table = _view(_example(), tab="table", hide=frozenset({"unblocked"}))
+        shown = _view(_example(), tab="table", hide=frozenset({"done"}))
 
-        self.assertIn('<tr data-id="WI-OUT">', table)
+        self.assertNotIn('<tr data-id="WI-OUT">', table)
+        self.assertIn("Hidden: 1 from outside the view.", table)
+        self.assertIn('<tr data-id="WI-OUT">', shown)
+
+    def test_outside_rows_are_counted_after_in_view_ones(self) -> None:
+        snapshot = dataclasses.replace(
+            _example(),
+            nodes=_example().nodes
+            + (
+                _node(
+                    "WI-OLD",
+                    None,
+                    None,
+                    "done",
+                    offscreen=True,
+                    lifecycle="resolved",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            ),
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertIn("Hidden: 1 Done, plus 1 from outside the view.", page)
+
+    def test_cards_say_how_much_upstream_the_filters_hide(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-A", "WS-A", "two"), _node("WI-B", "WS-B", "two")),
+            (_edge("WI-A", "WI-D"), _edge("WI-B", "WI-D")),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+        plain = _view(snapshot, item="WI-A")
+
+        # Siblings share a hidden prerequisite: no lines, but each card says so.
+        self.assertNotIn("data-source=", page)
+        self.assertEqual(page.count("+1 upstream hidden by filters"), 4)
+        self.assertIn("<dt>Upstream</dt><dd>1 items (1 hidden by filters)</dd>", page)
+        self.assertNotIn("hidden by filters", plain)
 
     def test_an_empty_view_is_not_blamed_on_the_filters(self) -> None:
         page = _view(_snapshot(()), hide=frozenset({"done"}))

@@ -46,8 +46,10 @@ metrics:
   work_items_filed: 4
   work_items_amended: 1
   python_tests: 2288
+  chrome_comparison_items_checked: 7
+  chrome_differences_found: 0
 blocked_actions:
-  - "The owner used only the LRH Console app. The work item's validation also lists Chrome; no session ran there."
+  - "The Chrome comparison was one pass by the owner over the LCATS worldcon-2026 map, side by side with the app, after the four runs. The LRH view was not compared in Chrome, and no run was conducted in Chrome."
   - "Cycles, missing IDs, and ambiguous lanes do not occur in the LRH or LCATS views, and a stale snapshot needs an edit during a session, so these four were exercised only on throwaway fixtures in the agent's scratchpad, never committed."
   - "Per-run times were not recorded. All four runs took place on 2026-10-12."
   - "Run One ended when the app closed after the owner rewound the chat. No crash report was written; the agent had launched the app from a shell owned by the chat session, and later relaunched it detached. This is recorded as a launch-method artifact, not an app defect, but it was not reproduced."
@@ -201,6 +203,27 @@ code gap, so no gap work item was filed:
   prompt ready / etc"; "Still hard to see all the cards with all that
   whitespace for suppressed items, even in a big window".
 
+### Chrome comparison
+
+After the runs, and in response to PR review, the owner opened the same served
+map (`http://127.0.0.1:57089/project/lcats/dependency-maps/worldcon-2026`) in
+Chrome while the app showed it, as the L1 design asks ("compare the same
+serialized snapshot in Chrome and the embedded renderer"). The owner reported
+"it looks good":
+
+1. "Cards look as before."
+2. "Lines look the same."
+3. "Filters seem to work"
+4. "Highlight and details work"
+5. "Open full page works"
+6. "Scrolling is the same as before"
+7. "Note the bottom scrollbar only appears if the page is not super-wide, and
+   when it does appear you have to scroll all the way to the bottom to see it."
+
+No difference between Chrome and the app was found. Item 7 matches the
+scrollbar friction from Run One, so it is a map-layout issue in both
+renderers, recorded in the backlog.
+
 ### Gate assessment
 
 Runs One, Two, and Four are genuine planning questions spanning LCATS and LRH,
@@ -211,7 +234,8 @@ know") because the only LRH view covers a small slice of the project, and Run
 Four ("not sure on readiness") because of the readiness label defect. The
 agent's traces show that what the maps did display was correct for each view,
 but the owner could not reach a confident answer from the console alone. Whether
-that passes the gate is the owner's call; the agent's recommendation is below.
+that passes the gate was the owner's call; the owner confirmed the agent's
+recommendation below.
 
 ## Adverse cases (agent-run)
 

@@ -36,7 +36,7 @@ acceptance:
 - "The skill reports, for one project or every registered project, its band, the evidence behind it, and the concrete records that put it there (for example, each blocked work item, missing checkout, or validation error)."
 - "For each cause, it proposes a specific fix, such as setting a local checkout with lrh meta set, clearing a stale blocked flag, or fixing a validation error, and applies each fix only after the human confirms it."
 - "It never edits another project's files without an explicit confirmation naming that project, and it never changes triage rules."
-- "LRH Console lets the user re-check one project and see the fix for a missing checkout or project folder from its project page, without a restart, and the project page shows more than the focus summary (for example its active workstreams and next ready work items)."
+- "LRH Console lets the user re-check one project and see the fix for a missing checkout or project folder from its project page, without a restart; and the project page lists each active workstream with its status and stage, and lists the project's next prompt-ready work items by ID and title."
 - "A run moves projects with discoverable checkouts out of Unknown, shown on a fixture registry (the owner's real registry was fixed by hand on 2026-10-12 during the L1 dogfood), and the skill follows the LRH skill pattern, with tests or a dry-run fixture."
 required_evidence:
 - "test_output"
@@ -44,6 +44,7 @@ required_evidence:
 - "lrh_validate"
 artifacts_expected:
 - "src/lrh/serve.py"
+- "tests/cli_tests/serve_test.py"
 - "src/lrh/skills/lrh-project-update/SKILL.md"
 - "CLAUDE.md"
 - "project/design/proposals/proposed/meta-operational-triage-semantics/00_proposal.md"
@@ -72,7 +73,7 @@ In-repo: `lrh meta set`, `lrh meta inspect`, and `lrh meta refresh` edit and ins
 
 - A new interactive skill that diagnoses and, with confirmation, fixes a project's statusboard state.
 - A recorded open question about the Blocked rule.
-- In LRH Console: a per-project re-check action, the fix for a missing checkout or project folder shown on the project page, and a more detailed project page (added from the L1 dogfood).
+- In LRH Console: a per-project re-check action, the fix for a missing checkout or project folder shown on the project page, and a project page that adds each active workstream's status and stage and the next prompt-ready work items (added from the L1 dogfood).
 - Naming: the owner suggested `/lrh-project-doctor` as an alternative name; decide at implementation.
 
 ## Required Changes
@@ -94,7 +95,7 @@ In `project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md` (Run Three), the owner asked 
 - The skill reports, for one project or every registered project, its band, the evidence behind it, and the concrete records that put it there (for example, each blocked work item, missing checkout, or validation error).
 - For each cause, it proposes a specific fix, such as setting a local checkout with lrh meta set, clearing a stale blocked flag, or fixing a validation error, and applies each fix only after the human confirms it.
 - It never edits another project's files without an explicit confirmation naming that project, and it never changes triage rules.
-- LRH Console lets the user re-check one project and see the fix for a missing checkout or project folder from its project page, without a restart, and the project page shows more than the focus summary (for example its active workstreams and next ready work items).
+- LRH Console lets the user re-check one project and see the fix for a missing checkout or project folder from its project page, without a restart; and the project page lists each active workstream with its status and stage, and lists the project's next prompt-ready work items by ID and title.
 - A run moves projects with discoverable checkouts out of Unknown, shown on a fixture registry (the owner's real registry was fixed by hand on 2026-10-12 during the L1 dogfood), and the skill follows the LRH skill pattern, with tests or a dry-run fixture.
 
 ## Validation

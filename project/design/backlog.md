@@ -2373,7 +2373,10 @@ unfinished item that a shown item needs.
 - **Map width and scrollbar.** The LCATS worldcon-2026 map is wider than a
   default window, and the horizontal scrollbar sits at the bottom of the page,
   so the owner had to scroll down to reach it. Keep the map's own scrollbar in
-  view, or fit the map to the window.
+  view, or fit the map to the window. In the Chrome comparison the owner added:
+  "the bottom scrollbar only appears if the page is not super-wide, and when it
+  does appear you have to scroll all the way to the bottom to see it", so this
+  happens in Chrome as well as the app.
 - **Tangled lines.** "The square icons all seem to go through each other, and if
   there is a partial order it isn't clear." This is the target of
   `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`.

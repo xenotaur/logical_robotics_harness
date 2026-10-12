@@ -45,6 +45,7 @@ artifacts_expected:
 - "src/lrh/dependency_maps/layout.py"
 - "src/lrh/serve.py"
 - "tests/dependency_maps_tests/render_test.py"
+- "tests/cli_tests/serve_test.py"
 ---
 
 # Collapse filtered cards on the dependency map
@@ -71,7 +72,7 @@ In-repo: `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT` adds a second layout but does not r
 
 1. Add a filter-aware layout pass (server-side query parameter first, so the no-script path works).
 2. Make the interactive filters request or compute the collapsed layout.
-3. Add tests for collapsed layouts, kept prerequisites, and the no-script parameter.
+3. Add tests for collapsed layouts and kept prerequisites (`tests/dependency_maps_tests/render_test.py`), and a Serve test that the query parameter is parsed and returns the collapsed server-rendered page (`tests/cli_tests/serve_test.py`).
 4. Check with the owner on the LCATS and LRH views.
 
 ## Non-Goals

@@ -92,7 +92,7 @@ In-repo: views are declared per file in `project/views/dependency_maps/`, and la
 
 ## Risk Notes
 
-- A project-wide map of LRH's 55 open work items may be too large for the grid layout; consider it together with `WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE` and `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`.
+- A project-wide map of LRH's 59 open work items (55 during the L1 dogfood, plus the four filed from it) may be too large for the grid layout; consider it together with `WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE` and `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`.
 
 ## Related Workstream and Designs
 

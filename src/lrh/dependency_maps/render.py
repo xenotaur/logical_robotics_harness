@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import dataclasses
 import html
+import json
 import urllib.parse
 
 from lrh.dependency_maps.layout import Layout, LayoutResult
@@ -197,6 +198,20 @@ def _data(node: Node) -> str:
     server's job (``hide``), so no state travels to the script."""
 
     return f' data-id="{_attr(node.id)}"'
+
+
+def _edge_data(snapshot: DependencyMapSnapshot) -> str:
+    """Every edge as a JSON list of [prerequisite, item] pairs.
+
+    The script traces upstream and downstream from this, not from the drawn
+    lines, so tracing still crosses items a filter has hidden, as the
+    server's own ``?item=`` tracing does. JSON, because IDs may contain
+    spaces.
+    """
+
+    return json.dumps(
+        [[edge.target, edge.item] for edge in snapshot.edges], separators=(",", ":")
+    )
 
 
 def _attr(value: str) -> str:
@@ -601,7 +616,8 @@ def _map(
         empty = f'<p class="lrh-muted">{ALL_HIDDEN if filtered else EMPTY_VIEW}</p>'
 
     return f"""<section class="lrh-map-scroll" aria-label="Dependency map">
-{empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px">
+{empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px"
+  data-edges="{_attr(_edge_data(snapshot))}">
   {lanes}{phases}
   <svg class="lrh-lines" width="{result.width}" height="{result.height}"
        aria-hidden="true">
@@ -706,7 +722,8 @@ def _table(
         )
     return f"""<section class="lrh-console-region lrh-table-wrap">
 <table class="lrh-map-table">
-  <caption>Every item in this view, plus items it references from outside.</caption>
+  <caption>Every item in this view that the filters show, plus items a shown item
+  still needs and items it references from outside.</caption>
   <thead><tr><th scope="col">ID</th><th scope="col">Title</th>
   <th scope="col">Lane</th><th scope="col">Phase</th><th scope="col">State</th>
   <th scope="col">Lifecycle</th><th scope="col">Prompt-ready</th>

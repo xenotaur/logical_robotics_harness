@@ -57,6 +57,9 @@ class InteractiveScriptTest(unittest.TestCase):
         self.assertNotIn("lrh-filtered", self.source)
         self.assertNotIn("dataset.state", self.source)
         self.assertIn(".lrh-filters a, .lrh-filter-note a", self.source)
+        # Tracing reads the full graph, so it crosses hidden items.
+        self.assertIn("readEdges(map, lines)", self.source)
+        self.assertIn("JSON.parse(holder.dataset.edges)", self.source)
         self.assertIn('".lrh-card[data-id], .lrh-map-list [data-id]"', self.source)
         self.assertIn(
             'item.scrollIntoView({ block: "center", inline: "center" });', self.source

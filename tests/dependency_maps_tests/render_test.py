@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import html
+import json
 import re
 import unittest
 
@@ -681,6 +683,32 @@ class FilterTest(unittest.TestCase):
         # the hidden card, so it goes.
         self.assertIn("WS-B title", page)
         self.assertNotIn('<h3 class="lrh-phase-title">Two</h3>', page)
+
+    def test_tracing_data_crosses_hidden_items(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "two",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), done, _node("WI-C", "WS-B", "two")),
+            (_edge("WI-D", "WI-A"), _edge("WI-C", "WI-D")),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-C"})
+        self.assertNotIn("data-source=", page)
+        # The script traces from the full graph, so clicking WI-A still
+        # reaches WI-C, as the server's own ?item= tracing does.
+        edges = re.search(r'<div class="lrh-map"[^>]*data-edges="([^"]*)"', page, re.S)
+        self.assertEqual(
+            json.loads(html.unescape(edges[1])), [["WI-A", "WI-D"], ["WI-D", "WI-C"]]
+        )
+        self.assertIn("lrh-card--related", page.split('data-id="WI-C"', 1)[0][-200:])
 
 
 if __name__ == "__main__":

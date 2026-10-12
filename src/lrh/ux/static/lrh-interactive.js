@@ -78,9 +78,9 @@
     const lines = [...map.querySelectorAll("polyline[data-source]")];
     const needs = new Map();
     const neededBy = new Map();
-    for (const line of lines) {
-      const source = line.dataset.source;
-      const item = line.dataset.item;
+    // Trace over every edge the server sends, not only the drawn lines: a
+    // filter can hide an item in the middle of a chain.
+    for (const [source, item] of readEdges(map, lines)) {
       if (!needs.has(item)) needs.set(item, new Set());
       if (!neededBy.has(source)) neededBy.set(source, new Set());
       needs.get(item).add(source);
@@ -246,6 +246,25 @@
         }
       }
     }
+  }
+
+  // data-edges is a JSON list of [prerequisite, item] pairs; IDs may contain
+  // spaces. Without it, fall back to the drawn lines.
+  function readEdges(map, lines) {
+    const holder = map.querySelector("[data-edges]");
+    if (holder) {
+      try {
+        const value = JSON.parse(holder.dataset.edges);
+        if (Array.isArray(value)) {
+          return value
+            .filter((pair) => Array.isArray(pair) && pair.length === 2)
+            .map(([source, item]) => [String(source), String(item)]);
+        }
+      } catch (_error) {
+        // Fall through to the lines.
+      }
+    }
+    return lines.map((line) => [line.dataset.source, line.dataset.item]);
   }
 
   // ----- Loading indication for slow navigations -----

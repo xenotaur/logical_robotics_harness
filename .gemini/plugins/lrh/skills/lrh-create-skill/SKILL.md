@@ -207,12 +207,28 @@ location per CONTRIBUTING.md:
 
 If `src/lrh/skills/<name>/` does not exist, create it.
 
-Then copy to the self-hosted location `.claude/skills/<name>/`. Both
-locations must be byte-for-byte identical. Verify with:
+Then render the new skill into the three committed install targets —
+`.claude/skills/<name>/` (byte-identical), `.agents/skills/<name>/` (Codex),
+and `.gemini/plugins/lrh/skills/<name>/` (Antigravity) — with the installer.
+Do not hand-copy: the Codex and Antigravity renderers rewrite frontmatter.
+Preview first; only the new skill should show as `would install`:
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+lrh skills install --local --target all --source current-repo --dry-run
+lrh skills install --local --target all --source current-repo
 ```
+
+Verify all three targets match `src` with the mirror sync test (CI runs it
+too, so a skill missing from any target fails the PR):
+
+```bash
+python -m unittest tests.packaging_tests.skills_mirror_sync_test
+```
+
+If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
+or no `lrh skills install` (an older or client checkout), fall back to
+copying into `.claude/skills/<name>/` and verifying with
+`diff -r src/lrh/skills/<name>/ .claude/skills/<name>/`.
 
 ### 7. Validate frontmatter
 
@@ -242,7 +258,8 @@ After writing, check these conditions. Fix any failure before proceeding.
 Stage and commit all skill files and the CLAUDE.md update:
 
 ```bash
-git add .claude/skills/<name>/ src/lrh/skills/<name>/ CLAUDE.md
+git add src/lrh/skills/<name>/ .claude/skills/<name>/ .agents/skills/<name>/ \
+  .gemini/plugins/lrh/skills/<name>/ CLAUDE.md
 git commit -m "Add /<name> skill"
 git push -u origin <branch-name>
 gh pr create --title "Add /<name> skill" --body "..."
@@ -281,6 +298,10 @@ Before reporting completion, verify:
 - [ ] Branch created from a fresh `git pull` of main
 - [ ] `.claude/skills/<name>/SKILL.md` exists with valid YAML frontmatter
 - [ ] `src/lrh/skills/<name>/SKILL.md` exists and is byte-for-byte identical
+      to the `.claude/skills/<name>/` copy
+- [ ] The skill was rendered into `.agents/skills/<name>/` and
+      `.gemini/plugins/lrh/skills/<name>/` by the installer, and
+      `tests.packaging_tests.skills_mirror_sync_test` passes
 - [ ] `name` is kebab-case and matches the directory name
 - [ ] `description` is ≤ 1024 characters
 - [ ] `when_to_use` reflects the intended invocation mode;

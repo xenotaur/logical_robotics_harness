@@ -222,28 +222,35 @@ Key expectations:
 
 ## Claude Code skills
 
-LRH distributes project-local Claude Code skills through two locations:
+LRH keeps one canonical skill source and three committed, generated install
+targets:
 
 - **`src/lrh/skills/<name>/`** — canonical source, distributed as Python
   package data via `pyproject.toml`. This is the authoritative version.
-- **`.claude/skills/<name>/`** — self-hosted copy, auto-discovered by Claude
-  Code when working in the LRH repository. No installation step required.
+- **`.claude/skills/<name>/`** — self-hosted Claude Code copy (byte-identical
+  to the source), auto-discovered when working in the LRH repository.
+- **`.agents/skills/<name>/`** — self-hosted Codex copy, rendered by the
+  installer.
+- **`.gemini/plugins/lrh/skills/<name>/`** — self-hosted Antigravity copy,
+  rendered by the installer (plus `.gemini/plugins/lrh/plugin.json`).
 
 **Sync requirement:** When adding or modifying a skill, update
-`src/lrh/skills/<name>/` first and copy the result to `.claude/skills/<name>/`
-in the same PR. Both locations must be byte-for-byte identical at commit time.
-
-Verify for a given skill with:
+`src/lrh/skills/<name>/` first, then regenerate all three targets in the same
+PR with the installer. Do not hand-copy: the Codex and Antigravity renderers
+rewrite frontmatter. Preview first:
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+lrh skills install --local --target all --source current-repo --dry-run
+lrh skills install --local --target all --source current-repo --force
 ```
 
-Note: `src/lrh/skills/` also contains `__init__.py` (Python packaging) and
-`__pycache__/` (build artefacts). These are not copied to `.claude/skills/`
-and should be excluded from any top-level diff.
+If other skills unrelated to your change show as stale, regenerate only your
+skill instead: copy `src/lrh/skills/<name>/` into an empty scratch directory
+and pass that directory as `--source`.
 
-Future CI enforcement is tracked as a Stage 3 item in `WS-SKILLS`.
+CI enforces this: `tests/packaging_tests/skills_mirror_sync_test.py` fails
+unless every committed target matches the installer's render of `src`, file
+by file, with the same set of skills.
 
 To install LRH skills globally (making them available in any project on
 your machine), run `lrh skills install`.

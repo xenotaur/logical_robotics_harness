@@ -2,10 +2,10 @@
 id: "WI-SERVE-PROJECT-SCOPED-WORK-ITEM-ROUTES"
 title: "Finish project scoping on lrh serve work-item routes"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #829 (commit 273c92d4). Project-scoped work-item pages now download and link within /project/<id>/ (prompt?download=1); a missing bound checkout returns the framed 409 naming the path (repo-path check); HEAD on the work-item routes matches GET; served-selectors test tightened; serve docs updated.'
 owner: "anthony"
 contributors:
 - "anthony"

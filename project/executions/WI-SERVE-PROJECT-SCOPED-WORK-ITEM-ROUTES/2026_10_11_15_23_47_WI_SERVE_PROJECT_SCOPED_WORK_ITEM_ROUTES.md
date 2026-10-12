@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_15_23_47_WI_SERVE_PROJECT_SCOPED_WORK_ITEM_ROUTES
 prompt_id: PROMPT(WI-SERVE-PROJECT-SCOPED-WORK-ITEM-ROUTES:WI_SERVE_PROJECT_SCOPED_WORK_ITEM_ROUTES)[2026-10-11T04:27:21+00:00]
 work_item: WI-SERVE-PROJECT-SCOPED-WORK-ITEM-ROUTES
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/829
-commit:
+commit: 273c92d4bee792f06d7131472c5893fe65c70a56
 created_at: 2026-10-11T15:23:47+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SERVE-PROJECT-SCOPED-WORK-ITEM-ROUTES.md
-session_transcript: pending
+session_transcript: claude-app:c94e499e-da6e-4e3f-a979-5876278e9f67
 ---
 # Summary
 

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #833 (commit a4bde3346cf509ef86cbfa6d1ea668471a0faf05): validate_session_link and open_session_link in the Console shell, built from the shared session_links.json and routed through LinkHandoff::offer under the existing rate limit, with no capability or CSP change. A real click check is deferred until a Console page renders session links.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-CONSOLE-DEEPLINK-HANDOFF
 title: "Add an allowlisted session deep-link handoff to the LRH Console shell"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

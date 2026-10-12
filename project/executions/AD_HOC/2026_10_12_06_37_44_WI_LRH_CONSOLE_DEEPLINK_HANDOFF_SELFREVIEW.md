@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_06_37_44_WI_LRH_CONSOLE_DEEPLINK_HANDOFF_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DEEPLINK_HANDOFF_SELFREVIEW)[2026-10-12T06:37:44+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_12_06_41_22_WI_LRH_CONSOLE_DEEPLINK_HANDOFF
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/833
-commit:
+commit: a4bde3346cf509ef86cbfa6d1ea668471a0faf05
 created_at: 2026-10-12T06:37:44+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-CONSOLE-DEEPLINK-HANDOFF.md
-session_transcript: pending
+session_transcript: claude-app:d71d7175-7d16-4509-8b96-cdbaa1e937b5
 ---
 
 # Summary

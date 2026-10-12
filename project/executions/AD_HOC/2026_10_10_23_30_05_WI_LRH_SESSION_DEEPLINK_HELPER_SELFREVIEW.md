@@ -3,7 +3,7 @@ execution_id: 2026_10_10_23_30_05_WI_LRH_SESSION_DEEPLINK_HELPER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_SESSION_DEEPLINK_HELPER_SELFREVIEW)[2026-10-10T23:30:05+00:00]
 work_item: AD_HOC
 status: landed
-rerun_of:
+rerun_of: 2026_10_11_02_22_36_WI_LRH_SESSION_DEEPLINK_HELPER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/822
 commit: 52d34a0359f73fe3ea6cf4aca24a1a1dbf4c140e
 created_at: 2026-10-10T23:30:05+00:00
@@ -32,4 +32,4 @@ The invoking session ran the canonical sequence with the pinned tools in a dedic
 
 # Follow-up
 
-rerun_of is empty by construction: no primary record existed when this diff-mode pass ran. The pr: field is filled in once the PR exists. session_transcript is pending until closeout.
+rerun_of was empty at creation by construction (no primary record existed when this diff-mode pass ran); it was backfilled with the primary record's execution id (2026_10_11_02_22_36_WI_LRH_SESSION_DEEPLINK_HELPER) at the closeout of PR #833, after review of that PR showed the same gap. The pr: field was filled in once the PR existed. session_transcript is pending until closeout.

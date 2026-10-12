@@ -282,8 +282,9 @@ def main() -> None:
         "--diff",
         action="store_true",
         help=(
-            "preview without writing files (implies --dry-run) and print a"
-            " unified diff for each installed item that differs from source"
+            "preview without writing files (implies --dry-run) and report how"
+            " each installed item differs from source (a unified diff for"
+            " changed text files)"
         ),
     )
     skills_status_parser = skills_subparsers.add_parser(

@@ -22,10 +22,15 @@ self-review passes on PR #820.
 
 # Result
 
-- `src/lrh/cli/main.py`: help now reads "print a unified diff for each
-  installed item that differs from source".
-- Docs (`docs/reference/cli/skills.md`,
-  `docs/how-to/keep-skills-up-to-date.md`) were already accurate; no test
+- `src/lrh/cli/main.py`: help now reads "report how each installed item
+  differs from source (a unified diff for changed text files)" (first
+  pushed as "print a unified diff for each installed item that differs
+  from source"; narrowed in review-response).
+- `docs/reference/cli/skills.md`: the `--diff` row also claimed unified
+  diffs for every difference; corrected in review-response to say it
+  reports differences (unified diff for changed text files, one-line notes
+  for added, removed, binary, or symlinked entries).
+  `docs/how-to/keep-skills-up-to-date.md` was already accurate. No test
   asserts on the help string.
 - Prior-art check: no existing WI/backlog entry; the wording originated in
   the resolved `WI-SKILLS-INSTALL-DIFF` and was kept by PR #820.

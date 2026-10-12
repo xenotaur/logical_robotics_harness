@@ -283,7 +283,7 @@ def main() -> None:
         action="store_true",
         help=(
             "preview without writing files (implies --dry-run) and print a"
-            " unified diff for each locally modified skill"
+            " unified diff for each installed item that differs from source"
         ),
     )
     skills_status_parser = skills_subparsers.add_parser(

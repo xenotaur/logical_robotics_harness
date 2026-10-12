@@ -35,8 +35,8 @@ This record covers the owner's LRH Console check for PR #835 (`WI-LRH-CONSOLE-MA
 
 - **Outside rows:** the table now filters rows for items outside the view too. The note counts them separately, for example "Hidden: 39 Done, plus 7 from outside the view." The table caption is updated to match.
 - **Hidden upstream:**
-  - a card whose in-view prerequisites are hidden shows "+N upstream hidden by filters", next to the existing "+N outside this view" marker;
-  - the drawer's Upstream and Downstream rows add "(N hidden by filters)".
+  - a card whose upstream items in this view are hidden, at any depth, shows "+N upstream hidden by filters". It sits next to the existing "+N outside this view" marker, which counts items from outside the view, so nothing is counted twice;
+  - the drawer's Upstream and Downstream rows add "(N hidden by filters)". That hidden count includes items from outside the view, because the drawer's total does too.
 
 **Agent check in the built-in browser:**
 
@@ -47,14 +47,27 @@ This record covers the owner's LRH Console check for PR #835 (`WI-LRH-CONSOLE-MA
   - 11 rows, none Done, and `WI-ASSESS-0031` is gone;
   - the note reads "Hidden: 39 Done, plus 7 from outside the view."
 
+**The owner's re-check, at `97fa6be8`, after Server > Restart:**
+
+3. "Yes! 'Hidden: 39 Done, plus 7 from outside the view. Show all'"
+4. "Yes, it shows the upstream hidden by filters in the card and in the details: 'Upstream 6 items (3 hidden by filters)'"
+
+Acceptance criterion 4 is met.
+
+**Small fixes the owner approved (option A),** from a cold review of `e633dd06..97fa6be8`. That review found no High or Medium issues. It raised five Low points, all fixed:
+
+- The code comments, the marker's tooltip and this record say the count includes items at any depth. They also say outside items are counted separately on cards but included in the drawer.
+- New tests cover counting at any depth, outside items not counted twice, a selected hidden-state item not counted, and the Downstream hidden count.
+- The drawer says "1 item", not "1 items".
+- The table caption mentions the selected item.
+
 # Validation
 
 - `scripts/format --check --diff`: clean.
 - `scripts/lint`: clean.
-- `scripts/test`: 2306 tests, OK.
+- `scripts/test`: 2306 tests, OK, at `97fa6be8`. After the small fixes: 2310 tests, OK.
 - `lrh validate`: 0 errors, 0 warnings.
 
 # Follow-up
 
-- The owner re-checks items 3 and 4.
-- Confirm-fixes for this round.
+- Confirm-fixes for the small-fix commit.

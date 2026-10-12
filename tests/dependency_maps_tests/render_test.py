@@ -700,7 +700,7 @@ class FilterTest(unittest.TestCase):
         # Siblings share a hidden prerequisite: no lines, but each card says so.
         self.assertNotIn("data-source=", page)
         self.assertEqual(page.count("+1 upstream hidden by filters"), 4)
-        self.assertIn("<dt>Upstream</dt><dd>1 items (1 hidden by filters)</dd>", page)
+        self.assertIn("<dt>Upstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
         self.assertNotIn("hidden by filters", plain)
 
     def test_an_empty_view_is_not_blamed_on_the_filters(self) -> None:
@@ -756,6 +756,84 @@ class FilterTest(unittest.TestCase):
             json.loads(html.unescape(edges[1])), [["WI-A", "WI-D"], ["WI-D", "WI-C"]]
         )
         self.assertIn("lrh-card--related", page.split('data-id="WI-C"', 1)[0][-200:])
+
+    def test_hidden_upstream_counts_every_depth(self) -> None:
+        done = _node(
+            "WI-C",
+            "WS-B",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-B", "WS-A", "one"), _node("WI-A", "WS-A", "two")),
+            (_edge("WI-B", "WI-C"), _edge("WI-A", "WI-B")),
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+        cards = re.findall(
+            r'<a class="lrh-card[^>]*data-id="([^"]+)".*?</a>', page, re.S
+        )
+
+        # WI-A reaches the hidden WI-C through the shown WI-B.
+        self.assertEqual(cards, ["WI-B", "WI-A"])
+        for card in re.findall(r'<a class="lrh-card.*?</a>', page, re.S):
+            self.assertIn("+1 upstream hidden by filters", card)
+
+    def test_hidden_items_outside_the_view_are_not_counted_twice(self) -> None:
+        outside = _node(
+            "WI-OLD",
+            None,
+            None,
+            "done",
+            offscreen=True,
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        shown = dataclasses.replace(
+            _node("WI-A", "WS-A", "one"), offscreen_predecessors=1
+        )
+        snapshot = _snapshot((shown, outside), (_edge("WI-A", "WI-OLD"),))
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+
+        self.assertIn("+1 outside this view", page)
+        self.assertNotIn("upstream hidden by filters", page)
+        # The drawer's total includes the outside item, so its hidden part does.
+        self.assertIn("<dt>Upstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
+
+    def test_a_selected_item_in_a_hidden_state_is_not_counted(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-A", "WS-A", "two")), (_edge("WI-A", "WI-D"),)
+        )
+
+        page = _view(snapshot, item="WI-D", hide=frozenset({"done"}), interactive=True)
+
+        self.assertEqual(_card_ids(page), {"WI-D", "WI-A"})
+        self.assertNotIn("hidden by filters", page)
+
+    def test_the_drawer_counts_hidden_downstream_items(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+            ),
+            (_edge("WI-B", "WI-A"),),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"waiting"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A"})
+        self.assertIn("<dt>Downstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
 
 
 if __name__ == "__main__":

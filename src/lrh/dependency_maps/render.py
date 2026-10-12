@@ -63,9 +63,10 @@ def parse_hide(value: str | None) -> frozenset[str]:
 def _hidden_upstream(
     snapshot: DependencyMapSnapshot, nodes: dict[str, Node], node: Node, links: _Links
 ) -> str:
-    """Say how many of a card's in-view prerequisites the filters hide, so a
-    map left without lines still shows that its cards have upstream work.
-    Items outside the view are counted by ``_outside`` instead."""
+    """Say how many of a card's upstream items in this view the filters hide,
+    at any depth (as the drawer's Upstream count does), so a map left without
+    lines still shows that its cards have upstream work. Items outside the
+    view are counted by ``_outside`` instead, never twice."""
 
     if not links.hidden:
         return ""
@@ -75,14 +76,23 @@ def _hidden_upstream(
     )
     if not count:
         return ""
-    return f'<span class="lrh-outside">+{count} upstream hidden by filters</span>'
+    return (
+        '<span class="lrh-outside" title="Upstream items in this view, at any '
+        "depth, that the filters hide. Items from outside the view are counted "
+        f'separately.">+{count} upstream hidden by filters</span>'
+    )
 
 
 def _count_with_hidden(ids: set[str], links: _Links) -> str:
+    """The drawer's Upstream or Downstream count. Its hidden part includes
+    items from outside the view, unlike the card marker, because the total
+    does too."""
+
+    total = f"{len(ids)} item{'' if len(ids) == 1 else 's'}"
     hidden = len(ids & links.hidden)
     if not hidden:
-        return f"{len(ids)} items"
-    return f"{len(ids)} items ({hidden} hidden by filters)"
+        return total
+    return f"{total} ({hidden} hidden by filters)"
 
 
 def _outside(node: Node) -> str:
@@ -752,7 +762,8 @@ def _table(
     return f"""<section class="lrh-console-region lrh-table-wrap">
 <table class="lrh-map-table">
   <caption>Every item in this view, and every item it references from outside,
-  that the filters show, plus any unfinished item a shown item still needs.</caption>
+  that the filters show, plus the selected item and any unfinished item a shown
+  item still needs.</caption>
   <thead><tr><th scope="col">ID</th><th scope="col">Title</th>
   <th scope="col">Lane</th><th scope="col">Phase</th><th scope="col">State</th>
   <th scope="col">Lifecycle</th><th scope="col">Prompt-ready</th>

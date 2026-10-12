@@ -2,10 +2,10 @@
 execution_id: 2026_10_12_20_15_01_LRH_CONSOLE_L1_DOGFOOD_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_L1_DOGFOOD_SELFREVIEW)[2026-10-12T20:15:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/834
-commit:
+commit: 3fda855134d46ff228a55dde0c07f623bc61ba40
 created_at: 2026-10-12T20:15:01+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/834

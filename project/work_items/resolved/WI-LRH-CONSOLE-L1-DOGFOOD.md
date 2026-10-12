@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-L1-DOGFOOD"
 title: "Dogfood the L1 dependency map on real LRH and LCATS planning questions"
 type: "operation"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #834 (commit 3fda8551). The L1 dependency-map gate is closed with recorded limits, as the owner confirmed. LCATS is served through the Meta registry (checkout binding plus the worldcon-2026 view, xenotaur/LCATS PR #497). The owner ran four real planning runs in LRH Console (LCATS special characters, LRH outstanding work, Prosoc status off script, the next Console item), each traced to source records, plus a Chrome-versus-app comparison of the LCATS map with no differences. Adverse cases: hidden dependencies, absent phases, missing checkouts and render time on real data (LCATS map 0.61 to 0.69 s uncached, under 0.1 s served warm); cycles, missing IDs, ambiguous lanes and stale snapshots on scratch fixtures. The owner stayed unsure in all three gate runs. Follow-ups: WI-LRH-CONSOLE-READINESS-VOCABULARY and WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE before L2, WI-LRH-CONSOLE-MAP-PLANNING-CONTEXT as the main L2 design question, WI-LRH-CONSOLE-DESKTOP-BACK-NAV, and an amended WI-LRH-PROJECT-UPDATE-SKILL. Evidence: project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md.'
 owner: "anthony"
 contributors:
 - "anthony"

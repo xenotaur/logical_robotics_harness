@@ -3,8 +3,8 @@ name: lrh-create-skill
 description: 'Create a new project-local Claude Code skill following the LRH pattern.
   Use when the user wants to add a skill to this project, automate a recurring workflow,
   capture domain knowledge for reuse, or asks "can we make a skill for X?" Produces
-  SKILL.md and references/ under .claude/skills/<name>/ and adds an index entry to
-  CLAUDE.md.
+  SKILL.md and references/ under src/lrh/skills/<name>/, renders it into the .claude/,
+  .agents/, and .gemini/ install targets, and adds an index entry to CLAUDE.md.
 
   '
 ---
@@ -180,10 +180,11 @@ Re-check that the skill does not already exist on the freshly pulled main —
 the Step 1 check may be stale if main advanced since the session started:
 
 ```bash
-ls src/lrh/skills/<name>/ .claude/skills/<name>/ 2>&1
+ls -d src/lrh/skills/<name>/ .claude/skills/<name>/ .agents/skills/<name>/ \
+  .gemini/plugins/lrh/skills/<name>/ 2>&1
 ```
 
-If either path exists, stop and report — ask the user to overwrite, extend,
+If any path exists, stop and report — ask the user to overwrite, extend,
 or abort before proceeding.
 
 Create files under `src/lrh/skills/<name>/` first — this is the authoritative
@@ -204,7 +205,9 @@ Then render the new skill into the three committed install targets —
 `.claude/skills/<name>/` (byte-identical), `.agents/skills/<name>/` (Codex),
 and `.gemini/plugins/lrh/skills/<name>/` (Antigravity) — with the installer.
 Do not hand-copy: the Codex and Antigravity renderers rewrite frontmatter.
-Preview first; only the new skill should show as `would install`:
+Run these from the repository root (`--local` and `current-repo` both resolve
+from the current directory). Preview first; only the new skill should show as
+`would install`:
 
 ```bash
 lrh skills install --local --target all --source current-repo --dry-run
@@ -217,6 +220,13 @@ too, so a skill missing from any target fails the PR):
 ```bash
 python -m unittest tests.packaging_tests.skills_mirror_sync_test
 ```
+
+Without `--force`, the installer never overwrites a skill that differs from
+`src`; it prints `warning: <skill> has local modifications — skipped`. If the
+preview shows any such warning, do not add `--force` to the repo-wide command —
+that would sweep unrelated stale skills into this PR. Regenerate only the
+affected skill instead, as described in CONTRIBUTING.md's "Claude Code
+skills" section.
 
 If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
 or no `lrh skills install` (an older or client checkout), fall back to

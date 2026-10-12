@@ -244,13 +244,26 @@ lrh skills install --local --target all --source current-repo --dry-run
 lrh skills install --local --target all --source current-repo --force
 ```
 
-If other skills unrelated to your change show as stale, regenerate only your
-skill instead: copy `src/lrh/skills/<name>/` into an empty scratch directory
-and pass that directory as `--source`.
+Run these from the repository root. If the preview shows unrelated skills as
+stale, regenerate only your skill instead. Copy the skill directory (no
+trailing slash, so the directory itself is copied rather than its contents)
+into an empty scratch directory and install from there:
+
+```bash
+tmp=$(mktemp -d)
+cp -R src/lrh/skills/<name> "$tmp"/
+lrh skills install --local --target all --source "$tmp" --force --dry-run
+lrh skills install --local --target all --source "$tmp" --force
+```
+
+To delete or rename a skill, remove its directory from all four locations by
+hand; the installer never removes skills from a target.
 
 CI enforces this: `tests/packaging_tests/skills_mirror_sync_test.py` fails
 unless every committed target matches the installer's render of `src`, file
-by file, with the same set of skills.
+by file, with the same set of skills. It reads the working tree, so a
+personal, uncommitted skill directory in one of these targets also fails it
+locally.
 
 To install LRH skills globally (making them available in any project on
 your machine), run `lrh skills install`.

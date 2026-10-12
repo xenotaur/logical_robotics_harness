@@ -68,7 +68,9 @@ class SkillsMirrorSyncTest(unittest.TestCase):
                     # Mirror the installer: a symlinked skill dir or file is
                     # never dereferenced and counts as modified, not up to date.
                     self.assertFalse(skill_dir.is_symlink(), REGEN_HINT)
-                    self.assertEqual(installer._collect_fs_symlinks(skill_dir), set())
+                    self.assertEqual(
+                        installer._collect_fs_symlinks(skill_dir), set(), REGEN_HINT
+                    )
                     committed = installer._collect_fs_files(skill_dir)
                     self.assertEqual(sorted(committed), sorted(rendered), REGEN_HINT)
                     for rel_path, content in rendered.items():

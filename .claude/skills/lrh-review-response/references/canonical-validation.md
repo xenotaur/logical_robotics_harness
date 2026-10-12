@@ -66,11 +66,14 @@ On failure: the error message names the specific file and field. Fix, re-run.
 ## For skills work items, also run
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+python -m unittest tests.packaging_tests.skills_mirror_sync_test
 ```
 
 This is not needed for review response commits unless the fixes touch skill
-files. If they do, verify both copies remain in sync.
+files. If they do, regenerate the `.claude/`, `.agents/`, and `.gemini/`
+install targets with `lrh skills install --local --target all` (see
+CONTRIBUTING.md's "Claude Code skills" section) and verify all of them still
+match `src/lrh/skills/` with the test above.
 
 ---
 

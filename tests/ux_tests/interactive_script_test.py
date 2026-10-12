@@ -57,8 +57,9 @@ class InteractiveScriptTest(unittest.TestCase):
         self.assertNotIn("lrh-filtered", self.source)
         self.assertNotIn("dataset.state", self.source)
         self.assertIn(".lrh-filters a, .lrh-filter-note a", self.source)
+        self.assertIn('".lrh-card[data-id], .lrh-map-list [data-id]"', self.source)
         self.assertIn(
-            'card.scrollIntoView({ block: "center", inline: "center" });', self.source
+            'item.scrollIntoView({ block: "center", inline: "center" });', self.source
         )
 
     def test_closing_a_drawer_returns_focus_before_hiding_it(self) -> None:

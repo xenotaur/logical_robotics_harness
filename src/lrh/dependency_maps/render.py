@@ -126,6 +126,10 @@ def render_view(
     hide = frozenset(hide) & frozenset(STATE_STYLES)
     visible = _visible(snapshot, nodes, hide, selected)
     links = _Links(hide)
+    # Whether the filter removed any card, so an empty map can say why.
+    filtered = any(
+        not node.offscreen and node.id not in visible for node in snapshot.nodes
+    )
     parts = [
         _header(snapshot, tab, selected, since, links),
         (
@@ -148,9 +152,11 @@ def render_view(
         result = layout.layout(_filtered(snapshot, visible, hide))
         parts.append(_legend())
         parts.append(
-            _map(snapshot, result, nodes, selected, upstream, downstream, hide, links)
+            _map(
+                snapshot, result, nodes, selected, upstream, downstream, filtered, links
+            )
         )
-        parts.append(_focused_list(snapshot, nodes, selected, visible, hide, links))
+        parts.append(_focused_list(snapshot, nodes, selected, visible, filtered, links))
     if interactive:
         for index, node in enumerate(snapshot.nodes):
             node_up, node_down = _related(snapshot, node.id)
@@ -255,15 +261,22 @@ def _visible(
 def _filtered(
     snapshot: DependencyMapSnapshot, visible: set[str], hide: frozenset[str]
 ) -> DependencyMapSnapshot:
-    """The snapshot the layout sees: only visible items, and, when filtering,
-    only the lanes and phases that still hold one, so nothing is left empty."""
+    """The snapshot the layout sees: only visible items. A lane or phase that
+    the filter empties is dropped, so it leaves no gap; one that was already
+    empty stays, as it does without a filter."""
 
     if not hide:
         return snapshot
     nodes = tuple(node for node in snapshot.nodes if node.id in visible)
-    placed = [node for node in nodes if not node.offscreen]
-    lanes = {node.lane or UNPLACED for node in placed}
-    phases = {node.phase or UNPLACED for node in placed}
+    before = [node for node in snapshot.nodes if not node.offscreen]
+    after = [node for node in nodes if not node.offscreen]
+    lanes = {node.lane or UNPLACED for node in after} | (
+        {row.id for row in snapshot.lanes} - {node.lane or UNPLACED for node in before}
+    )
+    phases = {node.phase or UNPLACED for node in after} | (
+        {row.id for row in snapshot.phases}
+        - {node.phase or UNPLACED for node in before}
+    )
     return dataclasses.replace(
         snapshot,
         nodes=nodes,
@@ -520,7 +533,7 @@ def _map(
     selected: str | None,
     upstream: set[str],
     downstream: set[str],
-    hide: frozenset[str],
+    filtered: bool,
     links: _Links,
 ) -> str:
     # A line is emphasized when both ends lie on a path to or from the
@@ -585,7 +598,7 @@ def _map(
         )
     empty = ""
     if not result.cards:
-        empty = f'<p class="lrh-muted">{ALL_HIDDEN if hide else EMPTY_VIEW}</p>'
+        empty = f'<p class="lrh-muted">{ALL_HIDDEN if filtered else EMPTY_VIEW}</p>'
 
     return f"""<section class="lrh-map-scroll" aria-label="Dependency map">
 {empty}<div class="lrh-map" style="width:{result.width}px;height:{result.height}px">
@@ -613,7 +626,7 @@ def _focused_list(
     nodes: dict[str, Node],
     selected: str | None,
     visible: set[str],
-    hide: frozenset[str],
+    filtered: bool,
     links: _Links,
 ) -> str:
     """The narrow-screen alternative to the map: cards grouped by phase."""
@@ -641,7 +654,9 @@ def _focused_list(
         )
         groups.append(f"<h3>{html.escape(phase.title)}</h3><ul>{items}</ul>")
     if not groups:
-        groups.append(f'<p class="lrh-muted">{ALL_HIDDEN if hide else EMPTY_VIEW}</p>')
+        groups.append(
+            f'<p class="lrh-muted">{ALL_HIDDEN if filtered else EMPTY_VIEW}</p>'
+        )
     return (
         '<section class="lrh-map-list" aria-label="Dependency map as a list">'
         + "".join(groups)
@@ -664,7 +679,8 @@ def _table(
         needed_by.setdefault(edge.target, []).append(edge.item)
     rows = []
     for node in snapshot.nodes:
-        if node.id not in visible:
+        # Items from outside the view are context, not filtered.
+        if not node.offscreen and node.id not in visible:
             continue
         unmet = list(
             dict.fromkeys(

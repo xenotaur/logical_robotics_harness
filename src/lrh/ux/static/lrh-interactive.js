@@ -235,12 +235,13 @@
     });
 
     // Filters reload the page (the server lays the map out again without the
-    // hidden cards), so bring the selection back into view after a reload.
+    // hidden cards), so bring the selection back into view after a reload:
+    // its card on the map, or its entry in the list on a narrow screen.
     const chosen = currentSelection();
     if (chosen) {
-      for (const card of map.querySelectorAll(".lrh-card[data-id]")) {
-        if (card.dataset.id === chosen) {
-          card.scrollIntoView({ block: "center", inline: "center" });
+      for (const item of map.querySelectorAll(".lrh-card[data-id], .lrh-map-list [data-id]")) {
+        if (item.dataset.id === chosen && item.offsetParent !== null) {
+          item.scrollIntoView({ block: "center", inline: "center" });
           break;
         }
       }

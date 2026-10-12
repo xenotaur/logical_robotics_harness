@@ -31,11 +31,12 @@ def _node(
     offscreen: bool = False,
     prompt_ready: bool | None = True,
     title: str | None = None,
+    lifecycle: str = "proposed",
 ) -> Node:
     return Node(
         id=node_id,
         title=title or f"{node_id} title",
-        lifecycle="proposed",
+        lifecycle=lifecycle,
         source=f"project/work_items/proposed/{node_id}.md",
         offscreen=offscreen,
         lane=lane,
@@ -494,10 +495,6 @@ class RenderTest(unittest.TestCase):
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", render.MAP_STYLES))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def _card_ids(page: str) -> set[str]:
     return set(
         re.findall(r'<a class="lrh-card[^"]*" href="[^"]*" data-id="([^"]+)"', page)
@@ -616,3 +613,75 @@ class FilterTest(unittest.TestCase):
             "lrh-filters", page.split("</header>", 1)[1].split("<style", 1)[0]
         )
         self.assertIn('href="?tab=blockers&amp;item=WI-B&amp;hide=done"', page)
+
+    def test_needs_stay_visible_through_several_levels(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-A", "two", "waiting", reasons=_WAIT),
+                _node("WI-C", "WS-B", "two", "blocked"),
+            ),
+            (_edge("WI-B", "WI-A"), _edge("WI-C", "WI-B", "blocked_by")),
+        )
+
+        page = _view(snapshot, hide=frozenset({"waiting", "unblocked"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-B", "WI-C"})
+        self.assertIn("2 kept because a shown item needs them.", page)
+
+    def test_lines_to_hidden_cards_are_dropped(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-B",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), done), (_edge("WI-A", "WI-D"),)
+        )
+
+        full = _view(snapshot)
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertIn('data-source="WI-D"', full)
+        self.assertNotIn('data-source="WI-D"', page)
+        self.assertEqual(_card_ids(page), {"WI-A"})
+
+    def test_the_table_keeps_items_from_outside_the_view(self) -> None:
+        table = _view(_example(), tab="table", hide=frozenset({"unblocked"}))
+
+        self.assertIn('<tr data-id="WI-OUT">', table)
+
+    def test_an_empty_view_is_not_blamed_on_the_filters(self) -> None:
+        page = _view(_snapshot(()), hide=frozenset({"done"}))
+
+        self.assertIn(render.EMPTY_VIEW, page)
+        self.assertNotIn(render.ALL_HIDDEN, page)
+
+    def test_rows_empty_before_filtering_stay(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node(
+                    "WI-D",
+                    "WS-A",
+                    "two",
+                    "done",
+                    lifecycle="resolved",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            )
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        # WS-B held nothing before the filter, so it stays; phase Two held only
+        # the hidden card, so it goes.
+        self.assertIn("WS-B title", page)
+        self.assertNotIn('<h3 class="lrh-phase-title">Two</h3>', page)
+
+
+if __name__ == "__main__":
+    unittest.main()

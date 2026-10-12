@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #822 (commit 52d34a0359f73fe3ea6cf4aca24a1a1dbf4c140e): shared route definition session_links.json, link_for and is_session_link helpers, and the lrh sessions deeplink command, with tests and docs.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-SESSION-DEEPLINK-HELPER
 title: "Add a shared session-link route definition, link_for(pointer) and an lrh sessions deeplink command"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

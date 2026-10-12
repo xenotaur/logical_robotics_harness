@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_02_22_36_WI_LRH_SESSION_DEEPLINK_HELPER
 prompt_id: PROMPT(WI-LRH-SESSION-DEEPLINK-HELPER:WI_LRH_SESSION_DEEPLINK_HELPER)[2026-10-10T18:21:59+00:00]
 work_item: WI-LRH-SESSION-DEEPLINK-HELPER
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/822
-commit:
+commit: 52d34a0359f73fe3ea6cf4aca24a1a1dbf4c140e
 created_at: 2026-10-11T02:22:36+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-SESSION-DEEPLINK-HELPER.md
-session_transcript: pending
+session_transcript: claude-app:d71d7175-7d16-4509-8b96-cdbaa1e937b5
 ---
 
 # Summary

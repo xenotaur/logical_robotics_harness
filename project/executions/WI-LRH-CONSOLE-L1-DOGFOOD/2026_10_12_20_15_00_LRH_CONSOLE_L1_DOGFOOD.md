@@ -34,7 +34,7 @@ This record covers the implementation of `WI-LRH-CONSOLE-L1-DOGFOOD` under `/lrh
   - an amendment to `WI-LRH-PROJECT-UPDATE-SKILL`;
   - backlog notes.
 - **Pre-push self-review:** seven findings, all corrected before the push. See `project/executions/AD_HOC/2026_10_12_20_15_01_LRH_CONSOLE_L1_DOGFOOD_SELFREVIEW.md`.
-- **Gate verdict:** the owner stayed unsure in all three gate runs. The evidence record therefore gives the agent's close-with-limits recommendation, subject to the owner's confirmation.
+- **Gate verdict:** the owner stayed unsure in all three gate runs. The agent recommended closing the gate with limits, and the owner confirmed that in chat on 2026-10-12, after this record was first written.
 
 # Validation
 
@@ -46,4 +46,4 @@ This record covers the implementation of `WI-LRH-CONSOLE-L1-DOGFOOD` under `/lrh
 # Follow-up
 
 - Land through `/lrh-land`.
-- At the merge ask, the owner confirms the gate verdict.
+- The owner later ran the Chrome comparison during review-response round 1 (see the `_REVIEW` record).

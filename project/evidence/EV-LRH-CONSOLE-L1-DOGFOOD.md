@@ -300,8 +300,9 @@ This record changes no code, so the desktop suite was not rerun.
 ## Recommendation
 
 **Close the L1 gate with the limits above.** This was the agent's
-recommendation; the owner confirmed it in chat on 2026-10-12. The maps render real LRH and LCATS views quickly,
-every adverse case is detected and explained, and what they showed was correct.
+recommendation; the owner confirmed it in chat on 2026-10-12. The maps render
+real LRH and LCATS views quickly, every adverse case is detected and explained,
+and what they showed was correct.
 But the owner reached a confident answer in none of the three gate runs, so the
 gate shows the map works, not yet that it answers planning questions alone.
 That gap is what the items below address.

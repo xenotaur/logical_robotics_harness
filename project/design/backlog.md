@@ -2383,3 +2383,50 @@ rather than a profile. Revisit if a real need appears.
 
 **Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
 (Decision 3); owner decision recorded in this session.
+
+---
+
+## ChatGPT export: `## When to use` placement edge cases
+
+**Noted:** 2026-10-11, in the PR #810 closeout
+(`WI-SKILLS-CHATGPT-EXPORT-HARDENING`, deferred follow-up 2).
+
+When `description` plus `when_to_use` exceeds 1024 characters,
+`lrh skills export --target chatgpt` moves the guidance into a generated
+`## When to use` section. `_insert_when_to_use_section` in
+`src/lrh/skills/exporter.py` places it:
+
+- after the body's H1 title, when that title is the first non-blank line
+  (up to 3 spaces of indent);
+- otherwise at the top of the body.
+
+The output is always valid Markdown and never alters existing body text. Four
+cases give a poor result:
+
+1. **Leading HTML comment** (a license header or lint pragma) before
+   `# Title`: the section lands above the comment, before the title.
+2. **Setext H1** (`Title` over `=====`): not recognized as a title, so the
+   section goes to the top.
+3. **The body already has a `## When to use` heading:** the bundle gets two
+   sections with that heading.
+4. **CRLF body whose H1 is its unterminated last line:** the section uses LF,
+   because the newline is taken from the H1 line only.
+
+**Deferred because:** no canonical skill hits any of these. All open with
+`# <name> Skill`, use LF, and have no `## When to use` heading, and only three
+take the section path at all. Review round 1 of PR #810 deliberately narrowed
+placement to "first non-blank line", after three consecutive Markdown edge-case
+findings, rather than grow a partial CommonMark parser.
+
+**Idea:**
+
+- Fix case 3 first, since it is the most plausible: skip insertion, or use a
+  distinct heading, with a notice.
+- Optionally fix case 1, a narrow skip of leading `<!-- … -->` blocks.
+- Document cases 2 and 4 as known limits unless a third-party skill source
+  needs them.
+
+**Source:**
+`project/executions/AD_HOC/2026_10_11_01_25_43_WI_SKILLS_CHATGPT_EXPORT_HARDENING_IMPL_CLOSEOUT_NOTE.md`;
+`project/executions/AD_HOC/2026_10_10_05_51_39_WI_SKILLS_CHATGPT_EXPORT_HARDENING_IMPL_DELTA_SELFREVIEW.md`;
+PR #810.

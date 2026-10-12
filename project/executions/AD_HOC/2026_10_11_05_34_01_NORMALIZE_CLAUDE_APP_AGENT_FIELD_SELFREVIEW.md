@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_05_34_01_NORMALIZE_CLAUDE_APP_AGENT_FIELD_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:NORMALIZE_CLAUDE_APP_AGENT_FIELD_SELFREVIEW)[2026-10-11T05:34:00+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_11_05_34_32_NORMALIZE_CLAUDE_APP_AGENT_FIELD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/828
-commit:
+commit: d9ff456911359e33c5e4b51b55d9feefdb7894f5
 created_at: 2026-10-11T05:34:01+00:00
 agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review diff-mode from lrh-implement Step 7.5 for NORMALIZE_CLAUDE_APP_AGENT_FIELD"
-session_transcript: pending
+session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---
 
 # Summary

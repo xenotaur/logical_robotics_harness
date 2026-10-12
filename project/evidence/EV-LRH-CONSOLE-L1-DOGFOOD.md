@@ -60,6 +60,7 @@ approval_records:
   - "2026-10-12: the owner approved the run plan, including fixtures for adverse cases that do not occur in real data."
   - "2026-10-12: the owner approved binding Prosoc, then supplied the checkout paths for Replication Vector, Narramorph, and Velumin."
   - "2026-10-12: the owner approved filing the four new work items, amending WI-LRH-PROJECT-UPDATE-SKILL, and extending the backlog."
+  - "2026-10-12: the owner, in chat, confirmed the agent's recommendation: close the L1 gate with the recorded limits, land WI-LRH-CONSOLE-READINESS-VOCABULARY and WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE before L2, and make WI-LRH-CONSOLE-MAP-PLANNING-CONTEXT the main L2 design question."
 ---
 
 # LRH Console L1 dependency-map dogfood on LRH and LCATS
@@ -274,8 +275,8 @@ This record changes no code, so the desktop suite was not rerun.
 
 ## Recommendation
 
-**Agent's recommendation: close the L1 gate with the limits above, subject to
-the owner's confirmation.** The maps render real LRH and LCATS views quickly,
+**Close the L1 gate with the limits above.** This was the agent's
+recommendation; the owner confirmed it in chat on 2026-10-12. The maps render real LRH and LCATS views quickly,
 every adverse case is detected and explained, and what they showed was correct.
 But the owner reached a confident answer in none of the three gate runs, so the
 gate shows the map works, not yet that it answers planning questions alone.

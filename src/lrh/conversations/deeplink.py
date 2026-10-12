@@ -8,11 +8,14 @@ pointer string and the packaged route definition ``session_links.json``, never
 the session index, the filesystem, or the network.
 
 ``session_links.json`` is the single route definition. The LRH Console shell
-allowlist (Rust) is planned to be built from the same file, so the builder here
-and the allowlist there cannot drift; that integration is tracked in
-``WI-LRH-CONSOLE-DEEPLINK-HANDOFF`` and does not exist yet. The Claude
-``epitaxy`` route is undocumented by Anthropic and may change; treat every link
-as best-effort.
+allowlist (Rust, ``validate_session_link`` in
+``apps/desktop/src-tauri/src/browser.rs``) embeds the same file at compile time,
+so both sides share one set of route shapes and test vectors. They are separate
+implementations and can still differ at the edges: the Rust side compares a
+case-normalized scheme (``CLAUDE://`` is accepted and opened as ``claude://``)
+where this module compares raw text, and it validates the definition more
+strictly. The Claude ``epitaxy`` route is undocumented by Anthropic and may
+change; treat every link as best-effort.
 
 Claude host ids and child ids are both bare UUIDs and only the session index
 tells them apart, so this module checks the *shape* of an id, not which kind it
@@ -180,10 +183,10 @@ def link_for(pointer: str) -> str | None:
 def is_session_link(url: str) -> bool:
     """Return whether ``url`` is exactly one of the supported deep links.
 
-    This is the Python counterpart of the planned Console shell allowlist
-    (``WI-LRH-CONSOLE-DEEPLINK-HANDOFF``): exact scheme, host and path shape,
-    with no credentials, port, query, fragment, extra path segments or
-    surrounding whitespace.
+    This is the Python counterpart of the Console shell allowlist
+    (``validate_session_link`` in ``apps/desktop/src-tauri/src/browser.rs``):
+    exact scheme, host and path shape, with no credentials, port, query,
+    fragment, extra path segments or surrounding whitespace.
     """
 
     if not isinstance(url, str):

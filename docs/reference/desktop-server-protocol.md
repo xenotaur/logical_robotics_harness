@@ -353,9 +353,14 @@ in URLs.
   web links. The link must match exactly: the entry's scheme, host and path
   shape, a UUID id, and no credentials, port, query, fragment or extra path
   segments. The same file is the Python builder's route definition
-  (`lrh sessions deeplink`), so the two cannot drift; the Rust side embeds it
-  at compile time, which is why it lives under `src/lrh/` (the Python sdist
-  excludes `apps/`). The window gains no capability, the content security
+  (`lrh sessions deeplink`), so both sides share one set of route shapes and
+  test vectors; the Rust side embeds it at compile time, which is why it lives
+  under `src/lrh/` (the Python sdist excludes `apps/`). They are separate
+  implementations and can still differ at the edges: this shell compares a
+  case-normalized scheme (`CLAUDE://` is accepted and opened as `claude://`)
+  where the Python helper rejects the raw uppercase form, and it validates the
+  definition more strictly (schema version, a single `{id}`). The window gains
+  no capability, the content security
   policy is unchanged, and the result is recorded as the last handoff in Server
   Details. The Claude `epitaxy` route is undocumented by Anthropic and may
   change, so treat session links as best-effort. See

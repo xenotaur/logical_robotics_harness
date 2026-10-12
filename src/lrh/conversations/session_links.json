@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Single route definition for agent-session deep links. Read by lrh.conversations.deeplink (Python) and, later, by the LRH Console shell allowlist (Rust, via include_str!). Keep it small and flat: add a field only when both sides use it.",
+  "description": "Single route definition for agent-session deep links. Read by lrh.conversations.deeplink (Python) and embedded by the LRH Console shell allowlist (Rust, via include_str! in apps/desktop/src-tauri/src/browser.rs). Keep it small and flat: add a field only when both sides use it.",
   "id_shapes": {
     "uuid": "Eight-four-four-four-twelve hexadecimal digits, either case, nothing else. Any UUID version is accepted: Codex thread ids are UUIDv7."
   },

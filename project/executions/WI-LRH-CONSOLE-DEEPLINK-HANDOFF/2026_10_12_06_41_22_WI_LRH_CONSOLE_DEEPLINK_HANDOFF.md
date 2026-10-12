@@ -25,7 +25,7 @@ Opened the PR on xenotaur/feat/wi-lrh-console-deeplink-handoff. Changed:
 - apps/desktop/src-tauri/tests/capability_boundaries_test.rs: session links widen no window boundary; capability file and CSP asserted unchanged.
 - docs/reference/desktop-server-protocol.md: paragraph on the allowlisted handoff.
 
-Not verified end to end: no Console page can render a session link yet, so a real click was not tested. The allowlist, launcher selection, rate limit and recorded result are covered by unit tests using the shared vectors; the opener command itself was verified by hand earlier with `open` for both routes.
+Not verified end to end: no Console page can render a session link yet, so a real click was not tested. The allowlist (against the shared vectors), the rate limit and the recorded result are covered by unit tests, and a command-construction test asserts the fixed per-platform program (/usr/bin/open on macOS, /usr/bin/xdg-open on other unix; both CI desktop jobs run it) and that the validated URL is its only argument. Launching an application is deliberately not exercised by any test, and the opener command itself was verified by hand earlier with `open` for both routes.
 
 # Validation
 

@@ -3,7 +3,7 @@ execution_id: 2026_10_12_06_37_44_WI_LRH_CONSOLE_DEEPLINK_HANDOFF_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DEEPLINK_HANDOFF_SELFREVIEW)[2026-10-12T06:37:44+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of:
+rerun_of: 2026_10_12_06_41_22_WI_LRH_CONSOLE_DEEPLINK_HANDOFF
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/833
 commit:
 created_at: 2026-10-12T06:37:44+00:00
@@ -35,4 +35,4 @@ Pinned dedicated conda env bound to this worktree: apps/desktop/scripts/run fmt 
 
 # Follow-up
 
-rerun_of is empty by construction (no primary record existed yet). pr: is filled in once the PR exists. session_transcript is pending until closeout.
+rerun_of was empty at creation by construction (no primary record existed yet) and was backfilled with the primary record's execution id (2026_10_12_06_41_22_WI_LRH_CONSOLE_DEEPLINK_HANDOFF) once it existed, as was pr:. session_transcript is pending until closeout.

@@ -312,19 +312,24 @@ fn launch(_url: &Url, _opened: Opened) -> Result<(), String> {
 /// `/usr/bin/open` on macOS, `/usr/bin/xdg-open` on other unix. No shell, and
 /// the only argument is the validated URL.
 #[cfg(target_os = "macos")]
-fn launch_session_link(url: &Url) -> Result<(), String> {
-    run_opener(
-        Command::new("/usr/bin/open").arg(url.as_str()),
-        "app opener",
-    )
-}
+const SESSION_LINK_OPENER: &str = "/usr/bin/open";
 
 #[cfg(all(unix, not(target_os = "macos")))]
+const SESSION_LINK_OPENER: &str = "/usr/bin/xdg-open";
+
+/// The command that opens one validated session link: a fixed program with
+/// the URL as its only argument. Built apart from running it so a test can
+/// check it without starting an application.
+#[cfg(unix)]
+fn session_link_command(url: &Url) -> Command {
+    let mut command = Command::new(SESSION_LINK_OPENER);
+    command.arg(url.as_str());
+    command
+}
+
+#[cfg(unix)]
 fn launch_session_link(url: &Url) -> Result<(), String> {
-    run_opener(
-        Command::new("/usr/bin/xdg-open").arg(url.as_str()),
-        "app opener",
-    )
+    run_opener(&mut session_link_command(url), "app opener")
 }
 
 #[cfg(not(unix))]
@@ -615,6 +620,25 @@ mod tests {
             open_session_link_with(&link, failing_launch),
             Err("the app opener failed (exit status: 1)".to_string())
         );
+    }
+
+    /// What actually runs, without running it: a fixed program chosen per
+    /// platform, no shell, and the validated URL as the only argument.
+    #[cfg(unix)]
+    #[test]
+    fn the_session_link_opener_is_a_fixed_program_with_only_the_url() {
+        for vector in vectors().accept {
+            let link = url(&vector.link);
+            let command = session_link_command(&link);
+
+            #[cfg(target_os = "macos")]
+            assert_eq!(command.get_program(), "/usr/bin/open");
+            #[cfg(all(unix, not(target_os = "macos")))]
+            assert_eq!(command.get_program(), "/usr/bin/xdg-open");
+
+            let args: Vec<_> = command.get_args().collect();
+            assert_eq!(args, [std::ffi::OsStr::new(link.as_str())]);
+        }
     }
 
     #[test]

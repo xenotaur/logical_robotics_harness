@@ -555,7 +555,7 @@ A card can show, for example, "Unblocked · not prompt-ready". This follows
 `lrh-console-local-dogfood/mockups/README.md:38-40` and
 `lrh-console-local-dogfood/00_proposal.md:258-275`.
 
-#### Readiness vocabulary (`WI-LRH-CONSOLE-READINESS-VOCABULARY`, 2026-10-13)
+#### Readiness vocabulary (`WI-LRH-CONSOLE-READINESS-VOCABULARY`, 2026-10-12)
 
 The L1 dogfood (`project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md`, Run Four) found two
 views showing a fourth, unnamed check as plain "ready" or "not ready". LRH Console now
@@ -564,8 +564,8 @@ uses these four terms, and each view names the check it shows:
 | Term | Check | Where it appears |
 | --- | --- | --- |
 | Unblocked | Structural state: every prerequisite is done | Map cards, list, table, and drawer, as a state pill |
-| Prompt-ready | `prompt_ready` from `lrh work-items readiness` | Map card flag ("Not prompt-ready", open items only), table column, drawer, and the work-item page, with its blocking reasons when No |
-| Execution-ready | The optional run-packet fields read by `src/lrh/control/execution_readiness.py` (`execution_ready` and the other opt-in fields). An item that declares none is **Not declared**, never "not ready" | Work-item page; Statusboard and project pages ("Execution-ready leaves", "Leaves not execution-ready"); workbench |
+| Prompt-ready | `prompt_ready` from `lrh work-items readiness`; open items only, so closed items show "Not applicable (closed)" | Map card flag ("Not prompt-ready"), table column, drawer, and the work-item page, with its blocking reasons when No |
+| Execution-ready | The optional run-packet fields read by `src/lrh/control/execution_readiness.py` (`execution_ready` and the other opt-in fields; `required_evidence` is an ordinary work-item field, not one of them). On the work-item page, an item that declares none is **Not declared** | Work-item page; Statusboard and project pages ("Execution-ready leaves", "Leaves not execution-ready"); workbench ("Execution-ready: yes/no"). The counts and the workbench treat an undeclared item as not execution-ready |
 | Authorized | A human decision; never derived | Drawer and work-item page: "Not derived: needs your approval" |
 
 "Ready" and "not ready" are never shown alone. The Statusboard's counts still count

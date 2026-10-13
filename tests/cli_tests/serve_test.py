@@ -20,6 +20,7 @@ import urllib.parse
 import urllib.request
 
 from lrh import serve
+from lrh.assist import work_item_prompt_core
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
 from lrh.dependency_maps import snapshot as dependency_map_snapshot
@@ -1973,8 +1974,10 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn(
             "<dt>Execution-ready (run packets)</dt><dd>Not declared</dd>", body
         )
-        for field in ("Validation commands", "Required evidence", "Allowed paths"):
+        for field in ("Validation commands", "Allowed paths", "Forbidden paths"):
             self.assertIn(f"<p>{field}: not declared</p>", body)
+        # An ordinary work-item field, so WI-B's empty list reads "none".
+        self.assertIn("<p>Required evidence: none</p>", body)
         self.assertNotIn("not ready", body.lower())
         # Prompt readiness is the map's check, with its reasons when No.
         self.assertIn(
@@ -1985,6 +1988,71 @@ class TestLrhServeRoutes(unittest.TestCase):
             "work item is execution-ready)",
             body,
         )
+
+    def test_project_work_item_page_matches_each_check(self) -> None:
+        resolved = """---
+id: WI-DONE
+title: Done
+type: deliverable
+status: resolved
+blocked: false
+blocked_reason: null
+resolution: "Finished."
+related_focus:
+  - FOCUS-1
+---
+Body.
+"""
+        evidence_only = """---
+id: WI-EVIDENCE
+title: Evidence <only>
+type: deliverable
+status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
+related_focus:
+  - FOCUS-1
+required_evidence:
+  - test_output
+---
+Body.
+"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            work_items = root / "project" / "work_items"
+            _write(work_items / "resolved" / "WI-DONE.md", resolved)
+            _write(work_items / "proposed" / "WI-EVIDENCE.md", evidence_only)
+            _httpd, base_url = self._start_server(root)
+
+            pages = {
+                item: self._read(base_url + f"/project/main/work-items/{item}")[2]
+                for item in ("WI-A", "WI-DONE", "WI-EVIDENCE")
+            }
+            expected = work_item_prompt_core.evaluate_prompt_readiness(
+                work_item_prompt_core.parse_work_item_markdown(
+                    root / "project" / "work_items" / "active" / "WI-A.md"
+                )
+            )
+
+        # The same check as lrh work-items readiness and the map.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>" + ("Yes" if expected.is_ready else "No"),
+            pages["WI-A"],
+        )
+        # Closed work, as the map's drawer says.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>Not applicable (closed)</dd>", pages["WI-DONE"]
+        )
+        # required_evidence is an ordinary field, not a run-packet opt-in.
+        evidence = pages["WI-EVIDENCE"]
+        self.assertIn(
+            "<dt>Execution-ready (run packets)</dt><dd>Not declared</dd>", evidence
+        )
+        self.assertIn("<p>Required evidence: test_output</p>", evidence)
+        self.assertIn("<p>Validation commands: not declared</p>", evidence)
+        self.assertNotIn("Evidence <only>", evidence)
 
     def test_project_work_item_prompt_route_renders_escaped_prompt_preview(
         self,

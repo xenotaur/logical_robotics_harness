@@ -2471,10 +2471,17 @@ def render_project_work_item_page(
     copy_note = (
         "" if copy_enabled else " (available once the work item is execution-ready)"
     )
-    prompt_ready = _prompt_readiness_text(item.path)
+    # Prompt-readiness applies only to open work, as on the map's drawer.
+    prompt_ready = (
+        "Not applicable (closed)"
+        if item.status in ("resolved", "abandoned")
+        else _prompt_readiness_text(item.path)
+    )
     source_path = _relative_repo_path(scoped_config.resolved_project_root(), item.path)
 
     def declared(values: tuple[str, ...] | None) -> str:
+        # An item with no run-packet fields at all is "not declared"; an
+        # opted-in item that leaves one field out (or empty) shows "none".
         if values is None:
             return "not declared"
         return ", ".join(values) or "none"
@@ -2482,8 +2489,12 @@ def render_project_work_item_page(
     validation_commands = declared(
         readiness.validation_commands if readiness is not None else None
     )
+    # required_evidence is an ordinary work-item field, not a run-packet
+    # opt-in (execution_readiness.OPT_IN_FIELDS), so it is shown either way.
     required_evidence = declared(
-        readiness.required_evidence if readiness is not None else None
+        readiness.required_evidence
+        if readiness is not None
+        else tuple(item.required_evidence)
     )
     allowed_paths = declared(readiness.allowed_paths if readiness is not None else None)
     forbidden_paths = declared(

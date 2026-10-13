@@ -177,6 +177,7 @@ def render_view(
             if tab != "blockers"
             else ""
         ),
+        _layout_toggle(layout, selected, hide) if tab == "map" else "",
         _diagnostics(snapshot.diagnostics),
     ]
     if item and selected is None:
@@ -190,7 +191,6 @@ def render_view(
         parts.append(_blockers(snapshot, nodes, links))
     else:
         result = layout.layout(_filtered(snapshot, visible, hide))
-        parts.append(_layout_toggle(layout, selected, hide))
         parts.append(_legend())
         parts.append(
             _map(
@@ -1198,7 +1198,7 @@ MAP_STYLES = """
   .lrh-layout-toggle { margin-top: var(--lrh-space-2); }
   .lrh-layout-toggle [aria-current] { font-weight: 700; }
   @media (max-width: 48rem) {
-    .lrh-map-scroll, .lrh-legend { display: none; }
+    .lrh-map-scroll, .lrh-legend, .lrh-layout-toggle { display: none; }
     .lrh-map-list { display: block; }
   }
 """

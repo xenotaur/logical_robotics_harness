@@ -440,7 +440,8 @@ class RenderTest(unittest.TestCase):
         self.assertIn('<section class="lrh-map-list"', page)
         self.assertRegex(
             render.MAP_STYLES,
-            r"@media \(max-width: 48rem\) \{\s*\.lrh-map-scroll, \.lrh-legend \{ "
+            r"@media \(max-width: 48rem\) \{\s*\.lrh-map-scroll, \.lrh-legend, "
+            r"\.lrh-layout-toggle \{ "
             r"display: none; \}\s*\.lrh-map-list \{ display: block; \}",
         )
 
@@ -926,6 +927,87 @@ class OutlineLayoutTest(unittest.TestCase):
         self.assertIs(layout.layout_named("nope"), layout.DEFAULT_LAYOUT)
         self.assertEqual(layout.layout_named("outline").name, "outline")
 
+    def test_lines_never_cross_other_cards(self) -> None:
+        def crossings(result: layout.LayoutResult) -> list[tuple[str, str]]:
+            found = []
+            for line in result.lines:
+                for (x1, y1), (x2, y2) in zip(line.points, line.points[1:]):
+                    for card in result.cards:
+                        if card.id in (line.source, line.item):
+                            continue
+                        left, right = sorted((x1, x2))
+                        top, bottom = sorted((y1, y2))
+                        if (
+                            left < card.x + card.width
+                            and right > card.x
+                            and top < card.y + card.height
+                            and bottom > card.y
+                        ):
+                            found.append((line.item, card.id))
+            return found
+
+        # A deep source exits left; a deep item is entered two lanes away.
+        nodes = (
+            _node("WI-S", "WS-A", "one"),
+            _node("WI-P0", "WS-C", "two"),
+            _node("WI-P1", "WS-C", "two"),
+            _node("WI-P2", "WS-C", "two"),
+            _node("WI-Q", "WS-C", "two"),
+            _node("WI-X0", "WS-B", "one"),
+            _node("WI-X1", "WS-B", "one"),
+            _node("WI-X2", "WS-B", "one"),
+            _node("WI-X3", "WS-B", "one"),
+            _node("WI-Y", "WS-A", "two"),
+        )
+        edges = (
+            _edge("WI-P1", "WI-P0"),
+            _edge("WI-P2", "WI-P1"),
+            _edge("WI-P2", "WI-S"),
+            _edge("WI-X1", "WI-X0"),
+            _edge("WI-X2", "WI-X1"),
+            _edge("WI-X3", "WI-X2"),
+            _edge("WI-Y", "WI-X3"),
+        )
+        snapshot = _snapshot(nodes, edges, lanes=("WS-A", "WS-B", "WS-C"))
+
+        self.assertEqual(crossings(self.outline.layout(snapshot)), [])
+        self.assertEqual(crossings(self.outline.layout(_example())), [])
+
+    def test_a_cycle_only_reorders_its_own_edges(self) -> None:
+        # WI-A and WI-B form a cycle; WI-AA needs WI-A and must still follow it.
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one")
+                for node_id in ("WI-R", "WI-A", "WI-AA", "WI-B")
+            ),
+            (
+                _edge("WI-A", "WI-R"),
+                _edge("WI-A", "WI-B"),
+                _edge("WI-B", "WI-A"),
+                _edge("WI-AA", "WI-A"),
+            ),
+        )
+
+        order = [card.id for card in self.outline.layout(snapshot).cards]
+
+        self.assertLess(order.index("WI-R"), order.index("WI-A"))
+        self.assertLess(order.index("WI-A"), order.index("WI-AA"))
+
+    def test_the_cycle_diagnostic_stays_visible_in_the_outline(self) -> None:
+        diagnostic = Diagnostic(
+            code="cycle", severity="error", message="depends_on cycle among WI-A, WI-B"
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), _node("WI-B", "WS-A", "one")),
+            (_edge("WI-A", "WI-B"), _edge("WI-B", "WI-A")),
+            diagnostics=(diagnostic,),
+        )
+
+        page = _view(snapshot, layout_override=layout.OutlineLayout())
+
+        self.assertIn("depends_on cycle among WI-A, WI-B", page)
+        self.assertIn("Layout: outline.", page)
+
 
 class LayoutToggleTest(unittest.TestCase):
     def test_links_keep_the_layout_and_the_toggle_switches_it(self) -> None:
@@ -953,6 +1035,14 @@ class LayoutToggleTest(unittest.TestCase):
         self.assertNotIn("layout=layered-grid", page)
         self.assertIn('<span aria-current="true">Grid</span>', page)
         self.assertIn('<a href="?item=WI-B&amp;layout=outline">Outline</a>', page)
+
+    def test_the_toggle_sits_with_the_filters(self) -> None:
+        page = _view(_example())
+
+        self.assertLess(
+            page.index('class="lrh-filters"'), page.index("lrh-layout-toggle")
+        )
+        self.assertLess(page.index("lrh-layout-toggle"), page.index('lrh-legend"'))
 
     def test_other_tabs_have_no_toggle(self) -> None:
         page = _view(_example(), tab="table", layout_override=layout.OutlineLayout())

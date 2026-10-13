@@ -343,8 +343,9 @@ def _outline_order(
     Only edges inside the cell count. Among the cards whose prerequisites are
     all placed, the next one is a dependent of the most recently placed card
     when there is one, so an item sits just under what it needs, as in an
-    outline; otherwise the shallowest, then the first by ID. Cards on a cycle
-    never become ready; they follow in ID order at the depth they reached.
+    outline; otherwise the shallowest, then the first by ID. When a cycle
+    leaves nothing ready, the first remaining card by ID is placed anyway and
+    the normal order resumes, so only the cycle's own edges can point upward.
     """
 
     inside = set(members)
@@ -358,14 +359,13 @@ def _outline_order(
     while remaining:
         ready = [node_id for node_id in remaining if needs[node_id] <= set(order)]
         if not ready:
-            # A cycle: place the rest in a stable order.
-            for node_id in remaining:
-                placed_needs = [
-                    depth[other] for other in needs[node_id] if other in depth
-                ]
-                depth[node_id] = max(placed_needs, default=-1) + 1
-                order.append(node_id)
-            break
+            # A cycle: break it at the first card by ID, then carry on.
+            chosen = remaining[0]
+            placed_needs = [depth[other] for other in needs[chosen] if other in depth]
+            depth[chosen] = max(placed_needs, default=-1) + 1
+            order.append(chosen)
+            remaining.remove(chosen)
+            continue
         chosen = None
         for previous in reversed(order):
             children = [node_id for node_id in ready if previous in needs[node_id]]
@@ -386,6 +386,14 @@ def _outline_order(
     return order, depth
 
 
+def _at_column_edge(card: Card, column_x: dict[str, int]) -> Card:
+    """The card as the grid would place it: at its column's left edge, keeping
+    its real right edge."""
+
+    left = column_x[card.lane] + CELL_PADDING
+    return dataclasses.replace(card, x=left, width=card.x + card.width - left)
+
+
 def _outline_route(
     snapshot: DependencyMapSnapshot,
     cards: dict[str, Card],
@@ -395,8 +403,10 @@ def _outline_route(
     column_x: dict[str, int],
 ) -> tuple[Line, ...]:
     """Lines inside a cell run down the cell's left rail, which no card
-    covers; lines between cells use the grid's routes. Card right edges line
-    up in a column whatever the indent, so the grid's routes still fit."""
+    covers. Lines between cells use the grid's routes, computed as if every
+    card started at its column's edge, so their gutters stay outside the
+    column whatever the indent; the first and last steps then run along the
+    card's own row to its real left edge, where no other card sits."""
 
     lines = []
     tracks: dict[tuple[str, int], int] = {}
@@ -433,7 +443,21 @@ def _outline_route(
                 ]
             )
         else:
-            points = _orthogonal(source, item, lane_ids, phase_ids, row_y, track)
+            points = list(
+                _orthogonal(
+                    _at_column_edge(source, column_x),
+                    _at_column_edge(item, column_x),
+                    lane_ids,
+                    phase_ids,
+                    row_y,
+                    track,
+                )
+            )
+            # Only left edges moved; right edges already line up.
+            if points[0][0] == column_x[source.lane] + CELL_PADDING:
+                points[0] = (source.x, points[0][1])
+            if points[-1][0] == column_x[item.lane] + CELL_PADDING:
+                points[-1] = (item.x, points[-1][1])
         lines.append(
             Line(
                 kind=edge.kind,

@@ -37,7 +37,7 @@ This record covers the implementation of `WI-LRH-CONSOLE-READINESS-VOCABULARY` u
 
 - `scripts/format --check --diff`: clean.
 - `scripts/lint`: clean.
-- `scripts/test`: 2312 tests ran; the one failure was a new test, which is now fixed. The Serve suite (129 tests) passes on the final code.
+- `scripts/test`: one test failed in the first full run, and that test was then fixed. After review-response round 1, the complete `scripts/test` run passed on the final code: 2312 tests, OK.
 - `lrh validate`: 0 errors, 0 warnings.
 
 # Follow-up

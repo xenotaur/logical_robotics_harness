@@ -532,7 +532,7 @@ def render_index(
         </section>
         <section class=\"lrh-console-region\"
           aria-labelledby=\"execution-ready-heading\">
-          <h3 id=\"execution-ready-heading\">Execution-ready leaves</h3>
+          <h3 id=\"execution-ready-heading\">Leaves flagged execution-ready</h3>
           <p>Workbench packet and report previews are local in-memory renderings;
           they are not execution evidence and do not imply work has run.</p>
           {ready_items}
@@ -1260,7 +1260,7 @@ def render_project_operational_dashboard(
     <section class=\"lrh-console-region\"><h2>Primary operational summary</h2>
       <p>Validation status: {validation_status}. Active workstreams:
       {active_workstream_count}. Active work items: {active_work_item_count}.</p>
-      <p>Execution-ready leaves: {ready_leaf_count}. Leaves not execution-ready:
+      <p>Leaves flagged execution-ready: {ready_leaf_count}. Leaves not flagged:
       {readiness_deficient_leaf_count}.</p>
       <p>Current focus: {current_focus}.</p>
     </section>
@@ -1281,8 +1281,8 @@ def render_project_operational_dashboard(
       <h3>Workstream detail pages</h3>{workstream_links}
     </section>
     <section class=\"lrh-console-region\"><h2>Work item summary</h2>
-      <p>Active: {active_work_item_count}; execution-ready leaves:
-      {ready_leaf_count}; leaves not execution-ready:
+      <p>Active: {active_work_item_count}; leaves flagged execution-ready:
+      {ready_leaf_count}; leaves not flagged:
       {readiness_deficient_leaf_count}; blocked leaves: unknown / not
       implemented.</p>
     </section>
@@ -2121,7 +2121,7 @@ def _meta_next_action(card: dict[str, object]) -> str:
         return (
             f"{ready} work item"
             + (" is" if ready == 1 else "s are")
-            + " execution-ready"
+            + " flagged execution-ready"
         )
     return ""
 
@@ -2162,8 +2162,8 @@ def _meta_card_html(card: dict[str, object], read_at: str = "") -> str:
         ("Control-plane validation", "validation_status"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
-        ("Execution-ready leaves", "ready_leaf_count"),
-        ("Leaves not execution-ready", "readiness_deficient_leaf_count"),
+        ("Leaves flagged execution-ready", "ready_leaf_count"),
+        ("Leaves not flagged execution-ready", "readiness_deficient_leaf_count"),
         (
             "Adopted designs not implemented",
             "adopted_not_implemented_design_count",
@@ -2469,7 +2469,9 @@ def render_project_work_item_page(
     )
     disabled = "" if copy_enabled else "disabled"
     copy_note = (
-        "" if copy_enabled else " (available once the work item is execution-ready)"
+        ""
+        if copy_enabled
+        else " (available once the work item's execution-ready flag is set)"
     )
     # Prompt-readiness applies only to open work, as on the map's drawer.
     prompt_ready = (
@@ -2518,12 +2520,14 @@ def render_project_work_item_page(
 <h2>Readiness</h2>
 <dl class="lrh-readiness">
 <dt>Prompt-ready</dt><dd>{prompt_ready}</dd>
-<dt>Execution-ready (run packets)</dt><dd>{html.escape(execution_ready)}</dd>
+<dt>Execution-ready flag (run packets)</dt><dd>{html.escape(execution_ready)}</dd>
 <dt>Authorization</dt><dd>Not derived: needs your approval</dd>
 </dl>
 <p>Prompt-ready is the result of <code>lrh work-items readiness</code>, as on
-the dependency map. Execution-ready reads the optional run-packet fields
-below.</p>
+the dependency map. The execution-ready flag is the work item's own
+<code>execution_ready</code> setting among the optional run-packet fields below;
+generating a run packet also checks that the required fields are present and
+valid.</p>
 <h3>Run-packet fields</h3>
 <p>Validation commands: {html.escape(validation_commands)}</p>
 <p>Required evidence: {html.escape(required_evidence)}</p>
@@ -3630,7 +3634,7 @@ def _workbench_item_row(item: object) -> str:
     return (
         f'<article id="workbench-item-{html.escape(work_item_id, quote=True)}">'
         f"<h3>{html.escape(work_item_id)} — {title}</h3>"
-        f"<p>Status: {status}; Type: {item_type}; Execution-ready: {ready}</p>"
+        f"<p>Status: {status}; Type: {item_type}; Execution-ready flag: {ready}</p>"
         "<ul>"
         f'<li><a href="{prompt_url}">Preview prompt</a></li>'
         f'<li><a href="{packet_url}">Preview run packet</a></li>'

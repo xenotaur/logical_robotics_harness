@@ -1322,7 +1322,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn('class="lrh-status-badge lrh-status-badge--stable"', index_body)
         self.assertIn("Evidence summary", index_body)
         self.assertIn("Observed run/test evidence is not yet available", index_body)
-        self.assertIn("Execution-ready leaves", index_body)
+        self.assertIn("Leaves flagged execution-ready", index_body)
         self.assertIn("does not", index_body)
         self.assertEqual(health_status, 200)
         self.assertIn("application/json", health_type)
@@ -1947,7 +1947,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("<dt>Execution-ready (run packets)</dt><dd>Yes</dd>", body)
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", body)
         self.assertIn("<dt>Prompt-ready</dt><dd>", body)
         self.assertIn(
             "<dt>Authorization</dt><dd>Not derived: needs your approval", body
@@ -1972,7 +1972,7 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn(
-            "<dt>Execution-ready (run packets)</dt><dd>Not declared</dd>", body
+            "<dt>Execution-ready flag (run packets)</dt><dd>Not declared</dd>", body
         )
         for field in ("Validation commands", "Allowed paths", "Forbidden paths"):
             self.assertIn(f"<p>{field}: not declared</p>", body)
@@ -1985,7 +1985,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         )
         self.assertIn(
             "<button disabled>Copy generated prompt</button> (available once the "
-            "work item is execution-ready)",
+            "work item&#x27;s execution-ready flag is set)",
             body,
         )
 
@@ -2048,7 +2048,7 @@ Body.
         # required_evidence is an ordinary field, not a run-packet opt-in.
         evidence = pages["WI-EVIDENCE"]
         self.assertIn(
-            "<dt>Execution-ready (run packets)</dt><dd>Not declared</dd>", evidence
+            "<dt>Execution-ready flag (run packets)</dt><dd>Not declared</dd>", evidence
         )
         self.assertIn("<p>Required evidence: test_output</p>", evidence)
         self.assertIn("<p>Validation commands: not declared</p>", evidence)
@@ -2087,7 +2087,7 @@ Body.
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
         self.assertIn("Project: alpha", body)
-        self.assertIn("<dt>Execution-ready (run packets)</dt><dd>Yes</dd>", body)
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", body)
 
     def test_project_work_item_prompt_route_uses_selected_registered_project(
         self,

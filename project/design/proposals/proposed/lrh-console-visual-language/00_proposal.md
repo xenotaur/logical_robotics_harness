@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Console Visual Language
 status: proposed
 created_on: 2026-05-16
-updated_on: 2026-10-09
+updated_on: 2026-10-12
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -565,11 +565,11 @@ uses these four terms, and each view names the check it shows:
 | --- | --- | --- |
 | Unblocked | Structural state: every prerequisite is done | Map cards, list, table, and drawer, as a state pill |
 | Prompt-ready | `prompt_ready` from `lrh work-items readiness`; open items only, so closed items show "Not applicable (closed)" | Map card flag ("Not prompt-ready"), table column, drawer, and the work-item page, with its blocking reasons when No |
-| Execution-ready | The optional run-packet fields read by `src/lrh/control/execution_readiness.py` (`execution_ready` and the other opt-in fields; `required_evidence` is an ordinary work-item field, not one of them). On the work-item page, an item that declares none is **Not declared** | Work-item page; Statusboard and project pages ("Execution-ready leaves", "Leaves not execution-ready"); workbench ("Execution-ready: yes/no"). The counts and the workbench treat an undeclared item as not execution-ready |
+| Execution-ready flag | The work item's own `execution_ready` setting, one of the optional run-packet fields read by `src/lrh/control/execution_readiness.py` (`required_evidence` is an ordinary work-item field, not one of them). It is a declaration, not a validation: generating a run packet also checks the required fields (`validate_frontmatter(..., require_ready=True)`). On the work-item page, an item that declares no run-packet field is **Not declared** | Work-item page ("Execution-ready flag (run packets)"); Statusboard and project pages ("Leaves flagged execution-ready", "Leaves not flagged execution-ready"); workbench ("Execution-ready flag: yes/no", "Leaves flagged execution-ready"). The counts and the workbench treat an undeclared item as not flagged |
 | Authorized | A human decision; never derived | Drawer and work-item page: "Not derived: needs your approval" |
 
 "Ready" and "not ready" are never shown alone. The Statusboard's counts still count
-execution-ready leaves, which no LRH work item declares today. Whether a band or count
+leaves flagged execution-ready, which no LRH work item declares today. Whether a band or count
 should use prompt readiness instead is an open triage-rule question, like the
 Blocked-rule question `WI-LRH-PROJECT-UPDATE-SKILL` raises for
 `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS`. It is not decided here.

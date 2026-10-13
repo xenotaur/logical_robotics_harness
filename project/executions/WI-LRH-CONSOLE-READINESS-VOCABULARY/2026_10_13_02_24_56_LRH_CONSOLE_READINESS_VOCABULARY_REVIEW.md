@@ -18,7 +18,7 @@ This record covers review-response round 1 for PR #840 (`WI-LRH-CONSOLE-READINES
 
 # Result
 
-**The owner's check,** on the branch code after Server > Restart, quoted:
+**The owner's check,** on the branch code after Server > Restart, quoted. It covers the labels before this round's rename to "Execution-ready flag":
 
 1. On an open item's full page, "Seems good". The page showed Prompt-ready Yes, "Execution-ready (run packets)" Not declared, Authorization "Not derived: needs your approval", and the explanatory note.
 2. On a closed item's full page, "Seems good". It showed Prompt-ready "Not applicable (closed)" and Execution-ready Not declared.

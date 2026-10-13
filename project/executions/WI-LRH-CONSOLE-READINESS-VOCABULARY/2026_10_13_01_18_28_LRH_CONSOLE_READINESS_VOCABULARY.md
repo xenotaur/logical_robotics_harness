@@ -18,6 +18,9 @@ This record covers the implementation of `WI-LRH-CONSOLE-READINESS-VOCABULARY` u
 
 # Result
 
+The labels below are from the implementation round. Review-response round 1 renamed "Execution-ready" to "Execution-ready flag" and "Leaves flagged execution-ready" (see the `_REVIEW` record).
+
+
 - **Work-item page** (`render_project_work_item_page`, `src/lrh/serve.py`): the unqualified "Readiness state" is replaced by three named checks.
   - **Prompt-ready:** `parse_work_item_markdown` and `evaluate_prompt_readiness` run on the item's own file. This is the check behind `lrh work-items readiness` and the map, and the page shows the blocking reasons when the answer is No. Closed items show "Not applicable (closed)".
   - **Execution-ready (run packets):** Yes, No, or "Not declared".

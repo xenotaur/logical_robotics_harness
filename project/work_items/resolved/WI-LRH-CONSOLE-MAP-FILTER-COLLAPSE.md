@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE"
 title: "Collapse the space left by filtered cards on the dependency map"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #835 (commit 4d4efd87). Dependency-map filters are now server-side: ?hide=<state>,... drops hidden cards before layout, so lanes and phases the filter empties disappear and lines re-route (LCATS worldcon-2026 with Done hidden: 50 cards in 5 lanes, 1948x3618 px, became 11 cards in 4 lanes, 1596x932 px). The selection and any unfinished item a shown item needs stay visible. The table and narrow-screen list follow the same filter, including items from outside the view, and the note counts them separately. The Show toggles are plain links that work without scripts, every in-page link keeps the filter, and a note counts what is hidden with Show all. Cards whose upstream is hidden say +N upstream hidden by filters, and the drawer gives hidden counts. Interactive tracing reads the full edge list, so it crosses hidden items. The owner checked it in LRH Console on LCATS and LRH, and re-checked after two changes made from that check. With scripts off, the page does not scroll to the selection.'
 owner: "anthony"
 contributors:
 - "anthony"

@@ -2,10 +2,10 @@
 execution_id: 2026_10_12_21_21_39_LRH_CONSOLE_MAP_FILTER_COLLAPSE_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_MAP_FILTER_COLLAPSE_SELFREVIEW)[2026-10-12T21:21:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_12_21_21_39_LRH_CONSOLE_MAP_FILTER_COLLAPSE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/835
-commit:
+commit: 4d4efd8751909bd8f6d53446ccbfc24b33771f22
 created_at: 2026-10-12T21:21:39+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/835

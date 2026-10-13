@@ -2,10 +2,10 @@
 execution_id: 2026_10_12_21_21_39_LRH_CONSOLE_MAP_FILTER_COLLAPSE
 prompt_id: PROMPT(WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE:LRH_CONSOLE_MAP_FILTER_COLLAPSE)[2026-10-12T20:58:19+00:00]
 work_item: WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/835
-commit:
+commit: 4d4efd8751909bd8f6d53446ccbfc24b33771f22
 created_at: 2026-10-12T21:21:39+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/835

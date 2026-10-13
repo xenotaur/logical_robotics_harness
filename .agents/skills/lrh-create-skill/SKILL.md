@@ -304,7 +304,7 @@ Before reporting completion, verify:
       to the `.claude/skills/<name>/` copy
 - [ ] The skill was rendered into `.agents/skills/<name>/` and
       `.gemini/plugins/lrh/skills/<name>/` by the installer, and
-      `tests.packaging_tests.skills_mirror_sync_test` passes
+      `scripts/test tests/packaging_tests/skills_mirror_sync_test.py` passes
 - [ ] `name` is kebab-case and matches the directory name
 - [ ] `description` is ≤ 1024 characters
 - [ ] `when_to_use` reflects the intended invocation mode;

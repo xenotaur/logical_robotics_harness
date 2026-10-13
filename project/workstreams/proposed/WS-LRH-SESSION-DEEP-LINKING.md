@@ -16,6 +16,7 @@ related_design:
 work_items:
   - WI-LRH-SESSION-DEEPLINK-HELPER
   - WI-LRH-CONSOLE-DEEPLINK-HANDOFF
+  - WI-LRH-CONSOLE-SESSION-LINK-RENDER
 exit_criteria:
   - "One shared route definition (src/lrh/conversations/session_links.json) lists each supported vendor's pointer prefix and link shape plus accept and reject test vectors; the Python builder and the Rust allowlist both read it, and both test suites run the same vectors."
   - "A pure helper maps a session pointer to a deep link for the verified vendors (Claude and Codex) and returns None for unknown or malformed pointers, with unit tests."
@@ -64,6 +65,7 @@ that displays or records links.
 
 - **WI-LRH-SESSION-DEEPLINK-HELPER** — Add the shared route definition, `link_for(pointer)` and one consumer.
 - **WI-LRH-CONSOLE-DEEPLINK-HANDOFF** — Add the allowlisted session-link handoff to the Console shell, built from the shared route definition (depends on the helper item for that file).
+- **WI-LRH-CONSOLE-SESSION-LINK-RENDER** — Show execution-record session links on the project work-item page and record the real click check that closes exit criterion 4 (depends on the two items above, both resolved).
 
 ## Exit Criteria
 

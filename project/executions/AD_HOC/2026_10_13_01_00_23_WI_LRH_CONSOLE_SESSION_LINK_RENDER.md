@@ -26,4 +26,4 @@ lrh validate reported 0 errors and 0 warnings; lrh work-items readiness reports 
 
 # Follow-up
 
-Add this work item to WS-LRH-SESSION-DEEP-LINKING's work_items: list (offered, awaiting approval). Implement later via /lrh-execute on a branch with an -impl suffix, because this planning PR holds the base-slug branch. session_transcript is pending until closeout.
+This work item was added to WS-LRH-SESSION-DEEP-LINKING's work_items: list and Work Items section in this PR, with the owner's approval. Implement later via /lrh-execute on a branch with an -impl suffix, because this planning PR holds the base-slug branch. session_transcript is pending until closeout.

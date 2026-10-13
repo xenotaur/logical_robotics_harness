@@ -237,10 +237,15 @@ targets:
 **Sync requirement:** When adding or modifying a skill, update
 `src/lrh/skills/<name>/` first, then regenerate all three targets in the same
 PR with the installer. Do not hand-copy: the Codex and Antigravity renderers
-rewrite frontmatter. Preview first:
+rewrite frontmatter.
+
+`--force` deletes each differing target skill directory and rewrites it from
+`src`, so any local-only file inside it is lost. Always preview the exact
+forced operation first with `--force --diff`, which is read-only and prints a
+unified diff for every skill it would overwrite, then rerun without `--diff`:
 
 ```bash
-lrh skills install --local --target all --source current-repo --dry-run
+lrh skills install --local --target all --source current-repo --force --diff
 lrh skills install --local --target all --source current-repo --force
 ```
 
@@ -252,7 +257,7 @@ into an empty scratch directory and install from there:
 ```bash
 tmp=$(mktemp -d)
 cp -R src/lrh/skills/<name> "$tmp"/
-lrh skills install --local --target all --source "$tmp" --force --dry-run
+lrh skills install --local --target all --source "$tmp" --force --diff
 lrh skills install --local --target all --source "$tmp" --force
 ```
 

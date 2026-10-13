@@ -225,7 +225,7 @@ Verify all three targets match `src` with the mirror sync test (CI runs it
 too, so a skill missing from any target fails the PR):
 
 ```bash
-python -m unittest tests.packaging_tests.skills_mirror_sync_test
+scripts/test tests/packaging_tests/skills_mirror_sync_test.py
 ```
 
 Without `--force`, the installer never overwrites a skill that differs from

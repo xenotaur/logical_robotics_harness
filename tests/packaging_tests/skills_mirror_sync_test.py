@@ -12,8 +12,11 @@ without regenerating them silently ships stale instructions. These tests
 compare every committed skill file-by-file against the installer's renderer
 output for each target.
 
-To fix a failure, regenerate the targets (append `--dry-run` to preview first):
+To fix a failure, preview the forced regeneration (read-only), then run it.
+`--force` deletes and rewrites each differing skill directory, so check the
+preview for local-only files first:
 
+    lrh skills install --local --target all --source current-repo --force --diff
     lrh skills install --local --target all --source current-repo --force
 """
 
@@ -33,8 +36,9 @@ TARGET_ROOTS = {
     installer.SkillTarget.ANTIGRAVITY: PLUGIN_ROOT / "skills",
 }
 REGEN_HINT = (
-    "regenerate with `lrh skills install --local --target all "
-    "--source current-repo --force`"
+    "preview with `lrh skills install --local --target all "
+    "--source current-repo --force --diff`, then rerun without `--diff` "
+    "to regenerate"
 )
 
 

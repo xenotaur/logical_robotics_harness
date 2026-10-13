@@ -1260,7 +1260,7 @@ def render_project_operational_dashboard(
     <section class=\"lrh-console-region\"><h2>Primary operational summary</h2>
       <p>Validation status: {validation_status}. Active workstreams:
       {active_workstream_count}. Active work items: {active_work_item_count}.</p>
-      <p>Ready leaves: {ready_leaf_count}. Readiness-deficient leaves:
+      <p>Execution-ready leaves: {ready_leaf_count}. Leaves not execution-ready:
       {readiness_deficient_leaf_count}.</p>
       <p>Current focus: {current_focus}.</p>
     </section>
@@ -1281,9 +1281,10 @@ def render_project_operational_dashboard(
       <h3>Workstream detail pages</h3>{workstream_links}
     </section>
     <section class=\"lrh-console-region\"><h2>Work item summary</h2>
-      <p>Active: {active_work_item_count}; ready leaves: {ready_leaf_count};
-      readiness-deficient leaves: {readiness_deficient_leaf_count}; blocked
-      leaves: unknown / not implemented.</p>
+      <p>Active: {active_work_item_count}; execution-ready leaves:
+      {ready_leaf_count}; leaves not execution-ready:
+      {readiness_deficient_leaf_count}; blocked leaves: unknown / not
+      implemented.</p>
     </section>
     <section class=\"lrh-console-region\"><h2>Capability gaps</h2>{gaps}</section>
     <section class=\"lrh-console-region\"><h2>Diagnostics and details</h2>
@@ -2117,7 +2118,11 @@ def _meta_next_action(card: dict[str, object]) -> str:
         return next_action.strip()
     ready = card.get("ready_leaf_count")
     if isinstance(ready, int) and ready > 0:
-        return f"{ready} work item" + (" is" if ready == 1 else "s are") + " ready"
+        return (
+            f"{ready} work item"
+            + (" is" if ready == 1 else "s are")
+            + " execution-ready"
+        )
     return ""
 
 
@@ -2157,8 +2162,8 @@ def _meta_card_html(card: dict[str, object], read_at: str = "") -> str:
         ("Control-plane validation", "validation_status"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
-        ("Ready leaves", "ready_leaf_count"),
-        ("Readiness-deficient leaves", "readiness_deficient_leaf_count"),
+        ("Execution-ready leaves", "ready_leaf_count"),
+        ("Leaves not execution-ready", "readiness_deficient_leaf_count"),
         (
             "Adopted designs not implemented",
             "adopted_not_implemented_design_count",
@@ -2448,29 +2453,41 @@ def render_project_work_item_page(
         item = _resolve_workbench_item(state, work_item_id)
     except (FileNotFoundError, OSError, ValueError) as error:
         return 404, json.dumps({"error": "not_found", "message": str(error)})
+    # "Ready" is never shown unqualified (visual-language proposal, Q3): each
+    # value names the check that produced it.
     readiness = item.execution_readiness
-    readiness_state = "unknown"
     if item.status == "blocked":
-        readiness_state = "blocked"
+        execution_ready = "No (the work item is blocked)"
     elif readiness is None:
-        readiness_state = "not ready"
+        execution_ready = "Not declared"
     elif readiness.execution_ready:
-        readiness_state = "ready"
+        execution_ready = "Yes"
     else:
-        readiness_state = "not ready"
-    disabled = "disabled" if readiness_state != "ready" else ""
+        execution_ready = "No"
+    copy_enabled = (
+        item.status != "blocked" and readiness is not None and readiness.execution_ready
+    )
+    disabled = "" if copy_enabled else "disabled"
+    copy_note = (
+        "" if copy_enabled else " (available once the work item is execution-ready)"
+    )
+    prompt_ready = _prompt_readiness_text(item.path)
     source_path = _relative_repo_path(scoped_config.resolved_project_root(), item.path)
-    validation_commands = (
-        ", ".join(readiness.validation_commands) if readiness is not None else "missing"
+
+    def declared(values: tuple[str, ...] | None) -> str:
+        if values is None:
+            return "not declared"
+        return ", ".join(values) or "none"
+
+    validation_commands = declared(
+        readiness.validation_commands if readiness is not None else None
     )
-    required_evidence = (
-        ", ".join(readiness.required_evidence) if readiness is not None else "missing"
+    required_evidence = declared(
+        readiness.required_evidence if readiness is not None else None
     )
-    allowed_paths = (
-        ", ".join(readiness.allowed_paths) if readiness is not None else "missing"
-    )
-    forbidden_paths = (
-        ", ".join(readiness.forbidden_paths) if readiness is not None else "missing"
+    allowed_paths = declared(readiness.allowed_paths if readiness is not None else None)
+    forbidden_paths = declared(
+        readiness.forbidden_paths if readiness is not None else None
     )
     prompt_preview = (
         f"/project/{_url_quote(project_id)}/work-items/{_url_quote(item.id)}/prompt"
@@ -2487,19 +2504,28 @@ def render_project_work_item_page(
 <p>Project: {html.escape(project_id)} | Status: {html.escape(item.status)}
 | Type: {html.escape(item.type)}</p>
 <p>Source path: <code>{html.escape(source_path)}</code></p>
-<p>Readiness state: <strong>{html.escape(readiness_state)}</strong></p>
-<p>Required changes summary: work item content is the source of truth; use prompt
-preview for a bounded implementation request.</p>
-<p>Acceptance criteria summary: see the approved work item and linked criteria in
-source markdown.</p>
+<h2>Readiness</h2>
+<dl class="lrh-readiness">
+<dt>Prompt-ready</dt><dd>{prompt_ready}</dd>
+<dt>Execution-ready (run packets)</dt><dd>{html.escape(execution_ready)}</dd>
+<dt>Authorization</dt><dd>Not derived: needs your approval</dd>
+</dl>
+<p>Prompt-ready is the result of <code>lrh work-items readiness</code>, as on
+the dependency map. Execution-ready reads the optional run-packet fields
+below.</p>
+<h3>Run-packet fields</h3>
 <p>Validation commands: {html.escape(validation_commands)}</p>
 <p>Required evidence: {html.escape(required_evidence)}</p>
 <p>Allowed paths: {html.escape(allowed_paths)}</p>
 <p>Forbidden paths: {html.escape(forbidden_paths)}</p>
+<p>Required changes summary: work item content is the source of truth; use prompt
+preview for a bounded implementation request.</p>
+<p>Acceptance criteria summary: see the approved work item and linked criteria in
+source markdown.</p>
 <h2>Prompt affordances</h2>
 <ul>
 <li><a href="{prompt_preview}">Preview generated prompt</a></li>
-<li><button {disabled}>Copy generated prompt</button></li>
+<li><button {disabled}>Copy generated prompt</button>{html.escape(copy_note)}</li>
 <li><a href="{prompt_download}">Download generated prompt Markdown</a></li>
 <li>Equivalent CLI: <code>{cli_command}</code></li>
 </ul>
@@ -2507,6 +2533,27 @@ source markdown.</p>
 renderer.</p>
 </div></body></html>"""
     return 200, page
+
+
+def _prompt_readiness_text(path: Path) -> str:
+    """Prompt-readiness for one work item, as HTML: the check behind
+    ``lrh work-items readiness`` and the dependency map, run on this item's
+    file only, with its blocking reasons when the item is not ready."""
+
+    try:
+        parsed = work_item_prompt_core.parse_work_item_markdown(path)
+    except (ValueError, OSError, UnicodeDecodeError):
+        return (
+            "No<ul><li>work item is malformed or missing required frontmatter "
+            "fields</li></ul>"
+        )
+    result = work_item_prompt_core.evaluate_prompt_readiness(parsed)
+    if result.is_ready:
+        return "Yes"
+    reasons = "".join(
+        f"<li>{html.escape(reason)}</li>" for reason in result.blocking_reasons
+    )
+    return f"No<ul>{reasons}</ul>" if reasons else "No"
 
 
 SERVED_PROJECT_SELECTOR = "main"

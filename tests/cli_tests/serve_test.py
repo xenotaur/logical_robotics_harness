@@ -1946,9 +1946,45 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("Readiness state: <strong>ready</strong>", body)
+        self.assertIn("<dt>Execution-ready (run packets)</dt><dd>Yes</dd>", body)
+        self.assertIn("<dt>Prompt-ready</dt><dd>", body)
+        self.assertIn(
+            "<dt>Authorization</dt><dd>Not derived: needs your approval", body
+        )
+        self.assertIn("Validation commands: scripts/test", body)
+        self.assertIn("<button >Copy generated prompt</button></li>", body)
+        self.assertNotIn("Readiness state", body)
         self.assertIn("Preview generated prompt", body)
         self.assertIn("Equivalent CLI:", body)
+
+    def test_project_work_item_route_names_each_readiness_check(self) -> None:
+        # WI-B declares no run-packet fields: it is not "not ready", its
+        # execution readiness is simply not declared.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(
+                base_url + "/project/main/work-items/WI-B"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn(
+            "<dt>Execution-ready (run packets)</dt><dd>Not declared</dd>", body
+        )
+        for field in ("Validation commands", "Required evidence", "Allowed paths"):
+            self.assertIn(f"<p>{field}: not declared</p>", body)
+        self.assertNotIn("not ready", body.lower())
+        # Prompt readiness is the map's check, with its reasons when No.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>No<ul><li>missing Scope section</li>", body
+        )
+        self.assertIn(
+            "<button disabled>Copy generated prompt</button> (available once the "
+            "work item is execution-ready)",
+            body,
+        )
 
     def test_project_work_item_prompt_route_renders_escaped_prompt_preview(
         self,
@@ -1983,7 +2019,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
         self.assertIn("Project: alpha", body)
-        self.assertIn("Readiness state: <strong>ready</strong>", body)
+        self.assertIn("<dt>Execution-ready (run packets)</dt><dd>Yes</dd>", body)
 
     def test_project_work_item_prompt_route_uses_selected_registered_project(
         self,

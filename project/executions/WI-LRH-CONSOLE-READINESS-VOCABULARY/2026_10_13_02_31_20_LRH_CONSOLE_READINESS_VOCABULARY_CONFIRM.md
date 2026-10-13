@@ -2,10 +2,10 @@
 execution_id: 2026_10_13_02_31_20_LRH_CONSOLE_READINESS_VOCABULARY_CONFIRM
 prompt_id: PROMPT(WI-LRH-CONSOLE-READINESS-VOCABULARY:LRH_CONSOLE_READINESS_VOCABULARY_CONFIRM)[2026-10-13T02:31:20+00:00]
 work_item: WI-LRH-CONSOLE-READINESS-VOCABULARY
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/840
-commit:
+commit: fadee470121d09a5a0c15218567ca6f6f26d3406
 created_at: 2026-10-13T02:31:20+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/840

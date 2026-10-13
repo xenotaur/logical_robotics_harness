@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-READINESS-VOCABULARY"
 title: "Show one readiness vocabulary, and fix the work-item page that says every item is not ready"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #840 (commit fadee470). LRH Console names each readiness check instead of plain ready or not ready. The work-item page lists Prompt-ready (the lrh work-items readiness check the map uses, with blocking reasons; Not applicable for closed items), Execution-ready flag (run packets: Yes, No, or Not declared), and Authorization; run-packet fields say not declared instead of missing, and required evidence shows the item''s own field. The Statusboard, project and workbench pages say Leaves flagged execution-ready, with counts unchanged. The vocabulary is recorded in the visual-language proposal. The owner checked it in LRH Console and found the terms clear. Showing the validated run-packet result is deferred to WI-LRH-CONSOLE-RUN-PACKET-READINESS.'
 owner: "anthony"
 contributors:
 - "anthony"

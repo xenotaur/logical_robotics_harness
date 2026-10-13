@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_23_29_20_SKILLS_INSTALL_DIFF_HELP_WORDING_CONFIRM
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_HELP_WORDING_CONFIRM)[2026-10-12T23:29:09+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_12_06_06_28_SKILLS_INSTALL_DIFF_HELP_WORDING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/832
-commit: 
+commit: 4658c53da901bc3e840b101dad7be10bdfce203e
 created_at: 2026-10-12T23:29:20+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/832
-session_transcript: pending
+session_transcript: claude-app:12a73f73-ccc5-4308-abe1-4ceb4827d712
 ---
 
 # Summary

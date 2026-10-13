@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_06_06_28_SKILLS_INSTALL_DIFF_HELP_WORDING
 prompt_id: PROMPT(AD_HOC:SKILLS_INSTALL_DIFF_HELP_WORDING)[2026-10-12T00:40:09+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/832
-commit: 
+commit: 4658c53da901bc3e840b101dad7be10bdfce203e
 created_at: 2026-10-12T06:06:28+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — follow-up to PR 820, make the `lrh skills install --diff` help text match its behavior
-session_transcript: pending
+session_transcript: claude-app:12a73f73-ccc5-4308-abe1-4ceb4827d712
 ---
 
 # Summary
@@ -29,7 +29,8 @@ self-review passes on PR #820.
 - `docs/reference/cli/skills.md`: the `--diff` row also claimed unified
   diffs for every difference; corrected in review-response to say it
   reports differences (unified diff for changed text files, one-line notes
-  for added, removed, binary, or symlinked entries).
+  for added, removed, binary, symlinked, or non-file entries; "non-file"
+  added in review-response round 2).
   `docs/how-to/keep-skills-up-to-date.md` was already accurate. No test
   asserts on the help string.
 - Prior-art check: no existing WI/backlog entry; the wording originated in

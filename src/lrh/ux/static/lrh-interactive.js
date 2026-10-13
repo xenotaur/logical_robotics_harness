@@ -78,9 +78,9 @@
     const lines = [...map.querySelectorAll("polyline[data-source]")];
     const needs = new Map();
     const neededBy = new Map();
-    for (const line of lines) {
-      const source = line.dataset.source;
-      const item = line.dataset.item;
+    // Trace over every edge the server sends, not only the drawn lines: a
+    // filter can hide an item in the middle of a chain.
+    for (const [source, item] of readEdges(map, lines)) {
       if (!needs.has(item)) needs.set(item, new Set());
       if (!neededBy.has(source)) neededBy.set(source, new Set());
       needs.get(item).add(source);
@@ -160,8 +160,8 @@
           const trigger = triggerFor(drawer.dataset.drawerFor);
           restoringFocus = true;
           if (trigger) trigger.focus();
-          // A filtered (invisible) trigger cannot take focus; the map can,
-          // without scrolling the page to its top.
+          // A trigger that is filtered out or not displayed cannot take
+          // focus; the map can, without scrolling the page to its top.
           if (!trigger || document.activeElement !== trigger) {
             map.setAttribute("tabindex", "-1");
             map.focus({ preventScroll: true });
@@ -173,10 +173,11 @@
     }
 
     // Same-page links rendered with the old ?item= (tabs, Check for changes,
-    // the top bar's Refresh) follow the new selection.
+    // the top bar's Refresh, the filters) follow the new selection.
     function syncLinks(id) {
       const links = document.querySelectorAll(
-        ".lrh-tabs a, .lrh-map-header a[href*='since='], .lrh-topbar a[href]",
+        ".lrh-tabs a, .lrh-map-header a[href*='since='], .lrh-topbar a[href], " +
+          ".lrh-filters a, .lrh-filter-note a",
       );
       for (const link of links) {
         const url = new URL(link.href, window.location.href);
@@ -233,71 +234,37 @@
       if (event.key === "Escape" && currentSelection()) select(null);
     });
 
-    setupFilters(map);
-  }
-
-  // data-unmet is a JSON list of IDs, which may contain spaces.
-  function readUnmet(item) {
-    try {
-      const value = JSON.parse(item.dataset.unmet || "[]");
-      return Array.isArray(value) ? value.map(String) : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
-  // Filters hide items by state, but never an unfinished item that a shown
-  // item still needs: blockers stay visible.
-  function setupFilters(map) {
-    const items = [...map.querySelectorAll("[data-state]")];
-    if (!items.length) return;
-    const states = [...new Set(items.map((item) => item.dataset.state))];
-    const header = map.querySelector(".lrh-map-header");
-    if (!header) return;
-    const box = document.createElement("fieldset");
-    box.className = "lrh-filters";
-    const legend = document.createElement("legend");
-    legend.textContent = "Show";
-    box.append(legend);
-    const shown = new Set(states);
-    for (const state of states) {
-      const label = document.createElement("label");
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = true;
-      input.addEventListener("change", () => {
-        if (input.checked) shown.add(state);
-        else shown.delete(state);
-        refresh();
-      });
-      const sample = items.find((item) => item.dataset.state === state);
-      const pill = sample && sample.querySelector(".lrh-pill");
-      label.append(input, " ", pill ? pill.textContent.trim() : state);
-      box.append(label);
-    }
-    header.append(box);
-
-    function refresh() {
-      const byId = new Map();
-      for (const item of items) byId.set(item.dataset.id, readUnmet(item));
-      const visible = new Set(
-        items.filter((item) => shown.has(item.dataset.state)).map((item) => item.dataset.id),
-      );
-      const stack = [...visible];
-      while (stack.length) {
-        for (const need of byId.get(stack.pop()) || []) {
-          if (!visible.has(need)) {
-            visible.add(need);
-            stack.push(need);
-          }
+    // Filters reload the page (the server lays the map out again without the
+    // hidden cards), so bring the selection back into view after a reload:
+    // its card on the map, or its entry in the list on a narrow screen.
+    const chosen = currentSelection();
+    if (chosen) {
+      for (const item of map.querySelectorAll(".lrh-card[data-id], .lrh-map-list [data-id]")) {
+        if (item.dataset.id === chosen && item.offsetParent !== null) {
+          item.scrollIntoView({ block: "center", inline: "center" });
+          break;
         }
       }
-      for (const item of items) item.classList.toggle("lrh-filtered", !visible.has(item.dataset.id));
-      for (const line of map.querySelectorAll("polyline[data-source]")) {
-        const off = !visible.has(line.dataset.source) || !visible.has(line.dataset.item);
-        line.classList.toggle("lrh-filtered", off);
+    }
+  }
+
+  // data-edges is a JSON list of [prerequisite, item] pairs; IDs may contain
+  // spaces. Without it, fall back to the drawn lines.
+  function readEdges(map, lines) {
+    const holder = map.querySelector("[data-edges]");
+    if (holder) {
+      try {
+        const value = JSON.parse(holder.dataset.edges);
+        if (Array.isArray(value)) {
+          return value
+            .filter((pair) => Array.isArray(pair) && pair.length === 2)
+            .map(([source, item]) => [String(source), String(item)]);
+        }
+      } catch (_error) {
+        // Fall through to the lines.
       }
     }
+    return lines.map((line) => [line.dataset.source, line.dataset.item]);
   }
 
   // ----- Loading indication for slow navigations -----

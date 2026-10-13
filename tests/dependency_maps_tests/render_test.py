@@ -33,11 +33,12 @@ def _node(
     offscreen: bool = False,
     prompt_ready: bool | None = True,
     title: str | None = None,
+    lifecycle: str = "proposed",
 ) -> Node:
     return Node(
         id=node_id,
         title=title or f"{node_id} title",
-        lifecycle="proposed",
+        lifecycle=lifecycle,
         source=f"project/work_items/proposed/{node_id}.md",
         offscreen=offscreen,
         lane=lane,
@@ -459,31 +460,12 @@ class RenderTest(unittest.TestCase):
     def test_items_and_lines_carry_data_for_the_script(self) -> None:
         page = _view(_example())
 
-        self.assertIn(
-            'data-id="WI-B" data-state="waiting" data-unmet="[&quot;WI-A&quot;]"',
-            page,
-        )
-        self.assertIn('data-id="WI-A" data-state="unblocked" data-unmet="[]"', page)
+        self.assertIn('<a class="lrh-card" href="?item=WI-B" data-id="WI-B"', page)
+        self.assertNotIn("data-state", page)
+        self.assertNotIn("data-unmet", page)
         self.assertIn('data-source="WI-A" data-item="WI-B"', page)
         self.assertIn('class="lrh-dependency-map" data-lrh-tab="map"', page)
         self.assertEqual(page.count("<aside"), 0)
-
-    def test_unmet_ids_with_spaces_survive_as_a_json_list(self) -> None:
-        page = _view(
-            _snapshot(
-                (
-                    _node("WI-NEEDS REVIEW", "WS-A", "one"),
-                    _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
-                ),
-                (_edge("WI-B", "WI-NEEDS REVIEW"),),
-            )
-        )
-
-        match = re.search(
-            r'data-id="WI-B" data-state="waiting" data-unmet="([^"]*)"', page
-        )
-        self.assertIsNotNone(match)
-        self.assertEqual(json.loads(html.unescape(match.group(1))), ["WI-NEEDS REVIEW"])
 
     def test_untrusted_text_is_escaped_and_there_are_no_scripts(self) -> None:
         hostile = '<script>alert("x")</script>'
@@ -513,6 +495,345 @@ class RenderTest(unittest.TestCase):
 
     def test_styles_use_tokens_not_literal_colors(self) -> None:
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", render.MAP_STYLES))
+
+
+def _card_ids(page: str) -> set[str]:
+    return set(
+        re.findall(r'<a class="lrh-card[^"]*" href="[^"]*" data-id="([^"]+)"', page)
+    )
+
+
+class FilterTest(unittest.TestCase):
+    def test_parse_hide_keeps_known_states_only(self) -> None:
+        self.assertEqual(render.parse_hide(None), frozenset())
+        self.assertEqual(render.parse_hide(""), frozenset())
+        self.assertEqual(
+            render.parse_hide("done, abandoned,nope"), frozenset({"done", "abandoned"})
+        )
+
+    def test_hidden_cards_leave_the_map_table_and_list(self) -> None:
+        page = _view(_example(), hide=frozenset({"done"}))
+        table = _view(_example(), tab="table", hide=frozenset({"done"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-B", "WI-C"})
+        self.assertNotIn('<li data-id="WI-D">', page)
+        self.assertNotIn('<tr data-id="WI-D">', table)
+        self.assertIn('<tr data-id="WI-A">', table)
+        self.assertIn("Hidden: 1 Done.", page)
+
+    def test_empty_phases_and_lanes_collapse(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node(
+                    "WI-D",
+                    "WS-B",
+                    "two",
+                    "done",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            )
+        )
+        full = layout.DEFAULT_LAYOUT.layout(snapshot)
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertEqual({box.id for box in full.phases}, {"one", "two"})
+        self.assertNotIn("WS-B title", page)
+        self.assertNotIn('<h3 class="lrh-phase-title">Two</h3>', page)
+        self.assertIn('<h3 class="lrh-phase-title">One</h3>', page)
+        width = int(re.search(r'<div class="lrh-map" style="width:(\d+)px', page)[1])
+        self.assertLess(width, full.width)
+
+    def test_an_unfinished_item_a_shown_item_needs_stays_visible(self) -> None:
+        page = _view(_example(), hide=frozenset({"unblocked"}))
+
+        self.assertIn("WI-A", _card_ids(page))
+        self.assertIn("1 kept because a shown item needs it.", page)
+
+    def test_needed_ids_with_spaces_stay_visible(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-NEEDS REVIEW", "WS-A", "one"),
+                _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+            ),
+            (_edge("WI-B", "WI-NEEDS REVIEW"),),
+        )
+
+        page = _view(snapshot, hide=frozenset({"unblocked"}))
+
+        self.assertEqual(_card_ids(page), {"WI-NEEDS REVIEW", "WI-B"})
+
+    def test_the_selection_always_stays_visible(self) -> None:
+        page = _view(_example(), item="WI-D", hide=frozenset({"done"}))
+
+        self.assertIn("WI-D", _card_ids(page))
+        self.assertIn("Nothing hidden.", page)
+
+    def test_links_keep_the_filter(self) -> None:
+        page = _view(_example(), item="WI-B", hide=frozenset({"done", "abandoned"}))
+
+        self.assertIn('href="?item=WI-A&amp;hide=done,abandoned"', page)
+        self.assertIn('href="?tab=table&amp;item=WI-B&amp;hide=done,abandoned"', page)
+        self.assertIn("hide=done,abandoned&amp;since=sha256", page)
+        # Done is off, so its toggle turns it back on and keeps the rest.
+        self.assertIn(
+            '<a class="lrh-filter" href="?item=WI-B&amp;hide=abandoned"'
+            ' data-filter-state="done" aria-label="Done: hidden. Show Done.">',
+            page,
+        )
+        self.assertIn(
+            '<a class="lrh-filter" href="?item=WI-B&amp;hide=done,blocked,abandoned"',
+            page,
+        )
+        self.assertIn('<a href="?item=WI-B">Show all</a>', page)
+
+    def test_filters_are_links_without_a_filter_applied(self) -> None:
+        page = _view(_example())
+
+        self.assertIn('<nav class="lrh-filters" aria-label="Filter by state">', page)
+        self.assertIn(
+            '<a class="lrh-filter" href="?hide=done" data-filter-state="done"'
+            ' aria-label="Done: shown. Hide Done.">',
+            page,
+        )
+        self.assertNotIn("lrh-filter-note", page)
+        self.assertNotIn("<script", page)
+        self.assertNotIn("<form", page)
+
+    def test_hiding_everything_says_so(self) -> None:
+        hide = frozenset(render.STATE_STYLES)
+        page = _view(_example(), hide=hide)
+
+        self.assertEqual(_card_ids(page), set())
+        self.assertIn(render.ALL_HIDDEN, page)
+        self.assertNotIn(render.EMPTY_VIEW, page)
+
+    def test_blockers_tab_has_no_filters_but_keeps_them_in_links(self) -> None:
+        page = _view(_example(), tab="blockers", hide=frozenset({"done"}))
+
+        self.assertNotIn(
+            "lrh-filters", page.split("</header>", 1)[1].split("<style", 1)[0]
+        )
+        self.assertIn('href="?tab=blockers&amp;item=WI-B&amp;hide=done"', page)
+
+    def test_needs_stay_visible_through_several_levels(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-A", "two", "waiting", reasons=_WAIT),
+                _node("WI-C", "WS-B", "two", "blocked"),
+            ),
+            (_edge("WI-B", "WI-A"), _edge("WI-C", "WI-B", "blocked_by")),
+        )
+
+        page = _view(snapshot, hide=frozenset({"waiting", "unblocked"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-B", "WI-C"})
+        self.assertIn("2 kept because a shown item needs them.", page)
+
+    def test_lines_to_hidden_cards_are_dropped(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-B",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), done), (_edge("WI-A", "WI-D"),)
+        )
+
+        full = _view(snapshot)
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertIn('data-source="WI-D"', full)
+        self.assertNotIn('data-source="WI-D"', page)
+        self.assertEqual(_card_ids(page), {"WI-A"})
+
+    def test_outside_rows_follow_the_filter_and_are_counted(self) -> None:
+        table = _view(_example(), tab="table", hide=frozenset({"unblocked"}))
+        shown = _view(_example(), tab="table", hide=frozenset({"done"}))
+
+        self.assertNotIn('<tr data-id="WI-OUT">', table)
+        self.assertIn("Hidden: 1 from outside the view.", table)
+        self.assertIn('<tr data-id="WI-OUT">', shown)
+
+    def test_outside_rows_are_counted_after_in_view_ones(self) -> None:
+        snapshot = dataclasses.replace(
+            _example(),
+            nodes=_example().nodes
+            + (
+                _node(
+                    "WI-OLD",
+                    None,
+                    None,
+                    "done",
+                    offscreen=True,
+                    lifecycle="resolved",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            ),
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        self.assertIn("Hidden: 1 Done, plus 1 from outside the view.", page)
+
+    def test_cards_say_how_much_upstream_the_filters_hide(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-A", "WS-A", "two"), _node("WI-B", "WS-B", "two")),
+            (_edge("WI-A", "WI-D"), _edge("WI-B", "WI-D")),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+        plain = _view(snapshot, item="WI-A")
+
+        # Siblings share a hidden prerequisite: no lines, but each card says so.
+        self.assertNotIn("data-source=", page)
+        self.assertEqual(page.count("+1 upstream hidden by filters"), 4)
+        self.assertIn("<dt>Upstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
+        self.assertNotIn("hidden by filters", plain)
+
+    def test_an_empty_view_is_not_blamed_on_the_filters(self) -> None:
+        page = _view(_snapshot(()), hide=frozenset({"done"}))
+
+        self.assertIn(render.EMPTY_VIEW, page)
+        self.assertNotIn(render.ALL_HIDDEN, page)
+
+    def test_rows_empty_before_filtering_stay(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node(
+                    "WI-D",
+                    "WS-A",
+                    "two",
+                    "done",
+                    lifecycle="resolved",
+                    reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+                ),
+            )
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+
+        # WS-B held nothing before the filter, so it stays; phase Two held only
+        # the hidden card, so it goes.
+        self.assertIn("WS-B title", page)
+        self.assertNotIn('<h3 class="lrh-phase-title">Two</h3>', page)
+
+    def test_tracing_data_crosses_hidden_items(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "two",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), done, _node("WI-C", "WS-B", "two")),
+            (_edge("WI-D", "WI-A"), _edge("WI-C", "WI-D")),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A", "WI-C"})
+        self.assertNotIn("data-source=", page)
+        # The script traces from the full graph, so clicking WI-A still
+        # reaches WI-C, as the server's own ?item= tracing does.
+        edges = re.search(r'<div class="lrh-map"[^>]*data-edges="([^"]*)"', page, re.S)
+        self.assertEqual(
+            json.loads(html.unescape(edges[1])), [["WI-A", "WI-D"], ["WI-D", "WI-C"]]
+        )
+        self.assertIn("lrh-card--related", page.split('data-id="WI-C"', 1)[0][-200:])
+
+    def test_hidden_upstream_counts_every_depth(self) -> None:
+        done = _node(
+            "WI-C",
+            "WS-B",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-B", "WS-A", "one"), _node("WI-A", "WS-A", "two")),
+            (_edge("WI-B", "WI-C"), _edge("WI-A", "WI-B")),
+        )
+
+        page = _view(snapshot, hide=frozenset({"done"}))
+        cards = re.findall(
+            r'<a class="lrh-card[^>]*data-id="([^"]+)".*?</a>', page, re.S
+        )
+
+        # WI-A reaches the hidden WI-C through the shown WI-B.
+        self.assertEqual(cards, ["WI-B", "WI-A"])
+        for card in re.findall(r'<a class="lrh-card.*?</a>', page, re.S):
+            self.assertIn("+1 upstream hidden by filters", card)
+
+    def test_hidden_items_outside_the_view_are_not_counted_twice(self) -> None:
+        outside = _node(
+            "WI-OLD",
+            None,
+            None,
+            "done",
+            offscreen=True,
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        shown = dataclasses.replace(
+            _node("WI-A", "WS-A", "one"), offscreen_predecessors=1
+        )
+        snapshot = _snapshot((shown, outside), (_edge("WI-A", "WI-OLD"),))
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"done"}))
+
+        self.assertIn("+1 outside this view", page)
+        self.assertNotIn("upstream hidden by filters", page)
+        # The drawer's total includes the outside item, so its hidden part does.
+        self.assertIn("<dt>Upstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
+
+    def test_a_selected_item_in_a_hidden_state_is_not_counted(self) -> None:
+        done = _node(
+            "WI-D",
+            "WS-A",
+            "one",
+            "done",
+            lifecycle="resolved",
+            reasons=(StateReason(kind="lifecycle", detail="resolved"),),
+        )
+        snapshot = _snapshot(
+            (done, _node("WI-A", "WS-A", "two")), (_edge("WI-A", "WI-D"),)
+        )
+
+        page = _view(snapshot, item="WI-D", hide=frozenset({"done"}), interactive=True)
+
+        self.assertEqual(_card_ids(page), {"WI-D", "WI-A"})
+        self.assertNotIn("hidden by filters", page)
+
+    def test_the_drawer_counts_hidden_downstream_items(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-B", "two", "waiting", reasons=_WAIT),
+            ),
+            (_edge("WI-B", "WI-A"),),
+        )
+
+        page = _view(snapshot, item="WI-A", hide=frozenset({"waiting"}))
+
+        self.assertEqual(_card_ids(page), {"WI-A"})
+        self.assertIn("<dt>Downstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
 
 
 if __name__ == "__main__":

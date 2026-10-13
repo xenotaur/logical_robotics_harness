@@ -17,7 +17,7 @@ import html
 import json
 import urllib.parse
 
-from lrh.dependency_maps.layout import Layout, LayoutResult
+from lrh.dependency_maps.layout import DEFAULT_LAYOUT, LAYOUTS, Layout, LayoutResult
 from lrh.dependency_maps.snapshot import (
     UNPLACED,
     DependencyMapSnapshot,
@@ -161,7 +161,11 @@ def render_view(
     tab = tab if tab in dict(TABS) else "map"
     hide = frozenset(hide) & frozenset(STATE_STYLES)
     visible = _visible(snapshot, nodes, hide, selected)
-    links = _Links(hide, frozenset(nodes) - visible)
+    links = _Links(
+        hide,
+        frozenset(nodes) - visible,
+        None if layout.name == DEFAULT_LAYOUT.name else layout.name,
+    )
     # Whether the filter removed any card, so an empty map can say why.
     filtered = any(
         not node.offscreen and node.id not in visible for node in snapshot.nodes
@@ -186,6 +190,7 @@ def render_view(
         parts.append(_blockers(snapshot, nodes, links))
     else:
         result = layout.layout(_filtered(snapshot, visible, hide))
+        parts.append(_layout_toggle(layout, selected, hide))
         parts.append(_legend())
         parts.append(
             _map(
@@ -253,12 +258,19 @@ def _attr(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def _href(tab: str, item: str | None = None, hide: frozenset[str] = frozenset()) -> str:
+def _href(
+    tab: str,
+    item: str | None = None,
+    hide: frozenset[str] = frozenset(),
+    layout: str | None = None,
+) -> str:
     query = {"tab": tab} if tab != "map" else {}
     if item:
         query["item"] = item
     if hide:
         query["hide"] = _hide_value(hide)
+    if layout:
+        query["layout"] = layout
     encoded = urllib.parse.urlencode(query, safe=",")
     return "?" + encoded if encoded else "?"
 
@@ -270,14 +282,16 @@ def _hide_value(hide: frozenset[str]) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class _Links:
-    """In-page links that keep the page's filters, and the IDs those filters
-    hide, so cards and drawers can say what they cannot show."""
+    """In-page links that keep the page's filters and layout, and the IDs
+    those filters hide, so cards and drawers can say what they cannot show.
+    ``layout`` is None for the default layout, so default URLs stay short."""
 
     hide: frozenset[str]
     hidden: frozenset[str] = frozenset()
+    layout: str | None = None
 
     def href(self, tab: str, item: str | None = None) -> str:
-        return _href(tab, item, self.hide)
+        return _href(tab, item, self.hide, self.layout)
 
 
 def _visible(
@@ -441,6 +455,7 @@ def _header(
                 **({"tab": tab} if tab != "map" else {}),
                 **({"item": selected} if selected else {}),
                 **({"hide": _hide_value(links.hide)} if links.hide else {}),
+                **({"layout": links.layout} if links.layout else {}),
                 "since": snapshot.source_fingerprint,
             },
             safe=",",
@@ -494,7 +509,12 @@ def _filters(
             continue
         label = STATE_STYLES[state][2]
         shown = state not in hide
-        target = _href(tab, selected, hide - {state} if not shown else hide | {state})
+        target = _href(
+            tab,
+            selected,
+            hide - {state} if not shown else hide | {state},
+            links.layout,
+        )
         aria = (
             f"{label}: shown. Hide {label}."
             if shown
@@ -535,7 +555,7 @@ def _filters(
                 f"{kept} kept because a shown item needs "
                 f"{'it' if kept == 1 else 'them'}."
             )
-        show_all = _attr(_href(tab, selected))
+        show_all = _attr(_href(tab, selected, layout=links.layout))
         note = (
             f'<p class="lrh-filter-note lrh-muted" role="status">{" ".join(parts)} '
             f'<a href="{show_all}">Show all</a></p>'
@@ -544,6 +564,28 @@ def _filters(
         '<nav class="lrh-filters" aria-label="Filter by state">'
         '<span class="lrh-filters-label">Show</span>'
         f'{"".join(toggles)}</nav>{note}'
+    )
+
+
+LAYOUT_LABELS = {"layered-grid": "Grid", "outline": "Outline"}
+
+
+def _layout_toggle(layout: Layout, selected: str | None, hide: frozenset[str]) -> str:
+    """Links that switch the map's layout, keeping the selection and filters."""
+
+    links = []
+    for name in LAYOUTS:
+        label = html.escape(LAYOUT_LABELS.get(name, name))
+        if name == layout.name:
+            links.append(f'<span aria-current="true">{label}</span>')
+            continue
+        target = _href(
+            "map", selected, hide, None if name == DEFAULT_LAYOUT.name else name
+        )
+        links.append(f'<a href="{_attr(target)}">{label}</a>')
+    return (
+        '<nav class="lrh-layout-toggle" aria-label="Map layout">'
+        '<span class="lrh-filters-label">Layout</span> ' + " · ".join(links) + "</nav>"
     )
 
 
@@ -1153,6 +1195,8 @@ MAP_STYLES = """
   .lrh-filter:hover { text-decoration: underline; }
   .lrh-filter-box { font-size: 1.1em; }
   .lrh-filter-note { margin-top: var(--lrh-space-2); }
+  .lrh-layout-toggle { margin-top: var(--lrh-space-2); }
+  .lrh-layout-toggle [aria-current] { font-weight: 700; }
   @media (max-width: 48rem) {
     .lrh-map-scroll, .lrh-legend { display: none; }
     .lrh-map-list { display: block; }

@@ -911,6 +911,20 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(map_section(bogus), map_section(full))
         self.assertIn('href="?tab=table&amp;item=WI-A&amp;hide=done"', table)
 
+    def test_dependency_map_layout_query_chooses_the_layout(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        _s, _t, outline = self._read(url + "?layout=outline")
+        _s, _t, unknown = self._read(url + "?layout=nope")
+        _s, _t, table = self._read(url + "?tab=table&layout=outline")
+
+        self.assertIn("Layout: outline.", outline)
+        self.assertIn('<span aria-current="true">Outline</span>', outline)
+        self.assertIn("Layout: layered-grid.", unknown)
+        # The table's Map tab link keeps the layout.
+        self.assertIn('<a href="?layout=outline">Map</a>', table)
+
     def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
 

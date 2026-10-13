@@ -173,11 +173,12 @@
     }
 
     // Same-page links rendered with the old ?item= (tabs, Check for changes,
-    // the top bar's Refresh, the filters) follow the new selection.
+    // the top bar's Refresh, the filters, the layout toggle) follow the new
+    // selection.
     function syncLinks(id) {
       const links = document.querySelectorAll(
         ".lrh-tabs a, .lrh-map-header a[href*='since='], .lrh-topbar a[href], " +
-          ".lrh-filters a, .lrh-filter-note a",
+          ".lrh-filters a, .lrh-filter-note a, .lrh-layout-toggle a",
       );
       for (const link of links) {
         const url = new URL(link.href, window.location.href);

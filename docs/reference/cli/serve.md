@@ -209,6 +209,14 @@ name.
     hidden and offers **Show all**. The **Show** toggles above the map are
     plain links that set `?hide=`, and every in-page link keeps it. The
     Blockers tab has no filters.
+  - `?layout=outline` switches the map to the outline layout: lanes and
+    phases stay as columns and rows, but each cell lists its cards in
+    dependency order (a prerequisite above what needs it), indented by depth
+    within the cell (capped at four levels). Lines inside a cell run down a
+    rail at its left edge; lines between cells route as in the default
+    `layered-grid` layout. The **Layout** toggle above the map switches
+    between Grid and Outline, every in-page link keeps the choice, and an
+    unknown name falls back to the default.
   - **Check for changes** reloads with `?since=<fingerprint>` and says whether
     the control files changed since the snapshot you were viewing.
   - Narrow screens show the map as a list grouped by phase.

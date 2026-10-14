@@ -1,3 +1,4 @@
+import dataclasses
 import datetime
 import json
 import pathlib
@@ -656,6 +657,240 @@ class RestampTest(unittest.TestCase):
             _commit(root, "initial")
             with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
                 chain_defaults_status.plan_restamp(root)
+
+
+class StalenessCategoryTest(unittest.TestCase):
+    """Each stale entry carries a machine-readable `category` so a missing
+    baseline is never mistaken for a real content change."""
+
+    def _client_repo(self, root: pathlib.Path) -> None:
+        _init_repo(root)
+        (root / "README.md").write_text("v1\n")
+        first = _commit(root, "initial")
+        _write_profile(root, confirmed_commit=first)
+        _commit(root, "add profile")
+
+    def _categories(self, root: pathlib.Path, home: pathlib.Path) -> set[str]:
+        with mock.patch.object(pathlib.Path, "home", return_value=home):
+            status = chain_defaults_status.compute_status(root)
+        return {f.category for f in status.staleness.files}
+
+    def _restamped(self, root: pathlib.Path, home: pathlib.Path) -> None:
+        with mock.patch.object(pathlib.Path, "home", return_value=home):
+            plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            chain_defaults_status.apply_restamp(root, plan)
+
+    def test_no_baseline_is_not_reported_as_a_content_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self.assertEqual(
+                self._categories(root, home), {gate_staleness.CATEGORY_NO_BASELINE}
+            )
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            text = chain_defaults_status.format_text(status)
+            self.assertIn("next step:", text)
+            self.assertIn("does not mean it changed", text)
+            payload = json.loads(chain_defaults_status.format_json(status))
+            self.assertEqual(
+                {f["category"] for f in payload["staleness"]["files"]},
+                {"no_baseline"},
+            )
+
+    def test_after_restamp_everything_is_fresh(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self._restamped(root, home)
+            self.assertEqual(
+                self._categories(root, home), {gate_staleness.CATEGORY_FRESH}
+            )
+
+    def test_edited_installed_file_is_content_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self._restamped(root, home)
+            one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+            (home / ".claude" / "skills" / one).write_text("edited\n")
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            by_path = {f.path: f.category for f in status.staleness.files}
+            self.assertEqual(by_path[f"claude:{one}"], "content_changed")
+            self.assertEqual(
+                {c for p, c in by_path.items() if p != f"claude:{one}"}, {"fresh"}
+            )
+
+    def test_store_for_a_different_stamp_is_baseline_stamp_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self._restamped(root, home)
+            profile = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            profile.write_text(
+                profile.read_text().replace(
+                    "confirmed_at: 2026-03-04T05:06:07Z",
+                    'confirmed_at: "2026-01-01T00:00:00Z"',
+                )
+            )
+            self.assertEqual(
+                self._categories(root, home),
+                {gate_staleness.CATEGORY_BASELINE_STAMP_MISMATCH},
+            )
+
+    def test_missing_target_is_target_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self._restamped(root, home)
+            one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+            (home / ".claude" / "skills" / one).unlink()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            by_path = {f.path: f.category for f in status.staleness.files}
+            self.assertEqual(by_path[f"claude:{one}"], "target_missing")
+
+    def test_git_tracked_gate_change_is_gate_definition_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            skill = root / "src" / "lrh" / "skills" / "lrh-land" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "<!-- GATE-DEFINITION -->\nold\n<!-- /GATE-DEFINITION -->\n"
+            )
+            first = _commit(root, "initial")
+            skill.write_text(
+                "<!-- GATE-DEFINITION -->\nnew\n<!-- /GATE-DEFINITION -->\n"
+            )
+            _commit(root, "change gate")
+            result = gate_staleness.check_gate_staleness(
+                root, first, watched_files=("src/lrh/skills/lrh-land/SKILL.md",)
+            )
+            self.assertEqual(
+                [f.category for f in result.stale_files],
+                [gate_staleness.CATEGORY_GATE_DEFINITION_CHANGED],
+            )
+            self.assertIn("next step:", gate_staleness.format_text(result))
+            payload = json.loads(gate_staleness.format_json(result))
+            self.assertEqual(payload["files"][0]["category"], "gate_definition_changed")
+
+    def test_every_stale_category_has_a_next_step(self) -> None:
+        stale = [
+            value
+            for name, value in vars(gate_staleness).items()
+            if name.startswith("CATEGORY_")
+            and isinstance(value, str)
+            and name != "CATEGORY_FRESH"
+        ]
+        self.assertTrue(stale)
+        for category in stale:
+            self.assertIn(category, gate_staleness.CATEGORY_NEXT_STEPS)
+
+    def test_restamp_digest_ignores_category(self) -> None:
+        # The digest binds [path, reason]; adding `category` must not change
+        # what an approved preview's --expect-digest covers.
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            payload = json.loads(chain_defaults_status.format_restamp_json(plan, True))
+            self.assertEqual(
+                {f["category"] for f in payload["staleness"]["stale_files"]},
+                {"no_baseline"},
+            )
+            self.assertEqual(len(plan.digest), 64)
+            relabeled = dataclasses.replace(
+                plan,
+                staleness=dataclasses.replace(
+                    plan.staleness,
+                    files=tuple(
+                        dataclasses.replace(f, category="content_changed")
+                        for f in plan.staleness.files
+                    ),
+                ),
+            )
+            self.assertEqual(relabeled.digest, plan.digest)
+
+    def test_unreadable_target_is_target_unreadable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            self._restamped(root, home)
+            real_read = pathlib.Path.read_bytes
+
+            def flaky_read(self_path: pathlib.Path) -> bytes:
+                if self_path.parent.parent.parent == home / ".claude":
+                    raise PermissionError("denied")
+                return real_read(self_path)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                with mock.patch.object(pathlib.Path, "read_bytes", flaky_read):
+                    status = chain_defaults_status.compute_status(root)
+            self.assertTrue(status.staleness.stale_files)
+            self.assertEqual(
+                {f.category for f in status.staleness.stale_files},
+                {gate_staleness.CATEGORY_TARGET_UNREADABLE},
+            )
+
+    def test_unresolved_target_is_target_unresolved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            result = gate_staleness.check_target_staleness(
+                root,
+                "HEAD",
+                "HEAD",
+                gate_staleness.WatchTarget("claude:x/SKILL.md", kind="unresolved"),
+                None,
+            )
+            self.assertEqual(result.category, gate_staleness.CATEGORY_TARGET_UNRESOLVED)
+            self.assertIsNotNone(result.next_step)
+
+    def test_absent_strict_path_is_unverifiable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("x\n")
+            first = _commit(root, "initial")
+            result = gate_staleness.check_file_staleness(
+                root, first, first, "missing.md", fail_closed_if_absent=True
+            )
+            self.assertEqual(result.category, gate_staleness.CATEGORY_UNVERIFIABLE)
+
+
+class CliProvenanceTest(unittest.TestCase):
+    def test_status_json_reports_cli_capabilities_including_restamp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("v1\n")
+            first = _commit(root, "initial")
+            _write_profile(root, confirmed_commit=first)
+            _commit(root, "add profile")
+            payload = json.loads(
+                chain_defaults_status.format_json(
+                    chain_defaults_status.compute_status(root)
+                )
+            )
+        cli = payload["cli"]
+        self.assertIn("restamp", cli["chain_defaults_capabilities"])
+        self.assertTrue(cli["version"])
+        self.assertTrue(pathlib.Path(cli["module_path"]).is_dir())
+
+    def test_capability_mismatch_hint_does_not_blame_gate_files(self) -> None:
+        hint = chain_defaults_status.capability_mismatch_hint()
+        self.assertIn("older than the installed skills", hint)
+        self.assertIn("which -a lrh", hint)
+        self.assertIn("does not mean any gate file changed", hint)
 
 
 if __name__ == "__main__":

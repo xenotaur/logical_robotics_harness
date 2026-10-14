@@ -796,3 +796,29 @@ is invisible to this check by construction, the same failure shape as the
 old under-watch defect, just scoped to one file instead of the whole
 mechanism.
 <!-- /GATE-DEFINITION -->
+
+**CLI/skill preflight (not a gate; run before the first `chain-defaults` call).**
+These instructions name `lrh chain-defaults` subcommands that only newer CLIs
+provide. Confirm the CLI on `PATH` matches the installed skills first:
+
+```bash
+lrh chain-defaults --help   # the {...} list must include: check-staleness,status,restamp
+lrh chain-defaults status --project-root . --format json   # see the "cli" block
+```
+
+If `restamp` is missing, or `lrh chain-defaults restamp` fails with
+`invalid choice`, stop: the CLI is older than these skills (typically a second
+`lrh` earlier on `PATH`, or an editable install pointing at an older
+checkout). Check `which -a lrh`, `lrh --version`, and the `cli.module_path`
+the status JSON reports, reinstall the CLI from the checkout the skills were
+installed from, and re-run. Do not treat this as the gate files having
+changed, and do not hand-edit `confirmed_commit`, `confirmed_at`, or the
+fingerprint store to get past it.
+
+Read each stale entry by its `category` (`status`/`check-staleness`/`restamp`
+`--format json`): `no_baseline` means no fingerprint was ever recorded, **not**
+that the file changed; `content_changed` means the installed file differs from
+its recorded fingerprint; `baseline_stamp_mismatch` means the recorded
+fingerprints belong to a different confirmation stamp than the profile; the
+`target_*` categories mean the installed file is missing, unreadable, or
+unresolvable. Text output prints a `next step:` line per category.

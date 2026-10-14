@@ -26,7 +26,9 @@ import subprocess
 
 import yaml
 
+import lrh
 from lrh import gate_staleness
+from lrh import version as lrh_version
 
 #: Path to the chain-defaults profile, relative to the project root.
 CHAIN_DEFAULTS_PATH = "project/config/chain-defaults.yaml"
@@ -45,6 +47,36 @@ HUMAN_DECIDABLE_FIELDS = (
 #: Documented read-only per `chain-defaults.md:40-46` -- the shipped,
 #: unconditional `/lrh-land` merge+closeout behavior, never a toggle.
 READ_ONLY_FIELD = "closeout_with_merge"
+
+
+#: The `lrh chain-defaults` subcommands this CLI provides. Installed skills
+#: name these subcommands; a skill that names one missing here was written for
+#: a newer CLI than the one running.
+CLI_CAPABILITIES = ("check-staleness", "status", "restamp")
+
+
+def cli_provenance() -> dict:
+    """Which CLI is answering: version, import path, and `chain-defaults`
+    capabilities, so a skill/CLI mismatch is diagnosable from one read."""
+    return {
+        "version": lrh_version.format_cli_version(),
+        "module_path": str(pathlib.Path(lrh.__file__).resolve().parent),
+        "chain_defaults_capabilities": list(CLI_CAPABILITIES),
+    }
+
+
+def capability_mismatch_hint() -> str:
+    """Guidance appended to an unknown `chain-defaults` subcommand error."""
+    info = cli_provenance()
+    return (
+        f"this CLI ({info['version']}, {info['module_path']}) provides "
+        f"chain-defaults subcommands: {', '.join(CLI_CAPABILITIES)}. If an "
+        "installed skill told you to run a subcommand not listed, the CLI is "
+        "likely older than the installed skills (or a different `lrh` is first "
+        "on PATH). Check `which -a lrh` and `lrh --version`, reinstall the CLI "
+        "from the same checkout the skills were installed from, then retry. "
+        "This does not mean any gate file changed."
+    )
 
 
 class ChainDefaultsStatusError(RuntimeError):
@@ -215,7 +247,12 @@ def format_json(status: ChainDefaultsStatus) -> str:
                     "head": status.staleness.head,
                     "stale": status.staleness.stale,
                     "files": [
-                        {"path": f.path, "stale": f.stale, "reason": f.reason}
+                        {
+                            "path": f.path,
+                            "stale": f.stale,
+                            "reason": f.reason,
+                            "category": f.category,
+                        }
                         for f in status.staleness.files
                     ],
                 }
@@ -223,6 +260,7 @@ def format_json(status: ChainDefaultsStatus) -> str:
                 else None
             ),
             "staleness_error": status.staleness_error,
+            "cli": cli_provenance(),
         },
         indent=2,
     )
@@ -251,6 +289,10 @@ def format_text(status: ChainDefaultsStatus) -> str:
         if status.staleness.stale:
             for stale_file in status.staleness.stale_files:
                 lines.append(f"    - {stale_file.path}: {stale_file.reason}")
+            for step in gate_staleness.distinct_next_steps(
+                status.staleness.stale_files
+            ):
+                lines.append(f"  next step: {step}")
     else:
         lines.append(f"  unavailable: {status.staleness_error}")
 
@@ -488,7 +530,7 @@ def _restamp_payload(plan: RestampPlan, dry_run: bool) -> dict:
             {
                 "stale": plan.staleness.stale,
                 "stale_files": [
-                    {"path": f.path, "reason": f.reason}
+                    {"path": f.path, "reason": f.reason, "category": f.category}
                     for f in plan.staleness.stale_files
                 ],
             }
@@ -528,6 +570,8 @@ def format_restamp_text(plan: RestampPlan, dry_run: bool) -> str:
         if plan.staleness.stale:
             for stale_file in plan.staleness.stale_files:
                 lines.append(f"  - {stale_file.path}: {stale_file.reason}")
+            for step in gate_staleness.distinct_next_steps(plan.staleness.stale_files):
+                lines.append(f"  next step: {step}")
         else:
             lines.append("  (none -- not stale)")
     else:

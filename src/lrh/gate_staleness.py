@@ -103,11 +103,68 @@ class LineRange:
         return self.start <= other_end and other_start <= self.end
 
 
+#: Machine-readable staleness categories, so a reader can tell "no baseline
+#: was ever recorded" apart from "the file really changed" without parsing
+#: `reason` prose. Values map to the next step in `CATEGORY_NEXT_STEPS`.
+CATEGORY_FRESH = "fresh"
+CATEGORY_NO_BASELINE = "no_baseline"
+CATEGORY_CONTENT_CHANGED = "content_changed"
+CATEGORY_BASELINE_STAMP_MISMATCH = "baseline_stamp_mismatch"
+CATEGORY_TARGET_MISSING = "target_missing"
+CATEGORY_TARGET_UNREADABLE = "target_unreadable"
+CATEGORY_TARGET_UNRESOLVED = "target_unresolved"
+CATEGORY_GATE_DEFINITION_CHANGED = "gate_definition_changed"
+CATEGORY_UNVERIFIABLE = "unverifiable"
+
+#: What the user can do next for each stale category. Deliberately never
+#: implies that a missing baseline means the file changed.
+CATEGORY_NEXT_STEPS = {
+    CATEGORY_NO_BASELINE: (
+        "No fingerprint baseline is recorded for this installed file; that "
+        "does not mean it changed. Preview a baseline with `lrh "
+        "chain-defaults restamp --dry-run`, then re-confirm."
+    ),
+    CATEGORY_CONTENT_CHANGED: (
+        "The installed file differs from its recorded fingerprint. Review the "
+        "change, then re-confirm and re-stamp."
+    ),
+    CATEGORY_BASELINE_STAMP_MISMATCH: (
+        "The recorded fingerprints belong to a different confirmation stamp "
+        "than the profile. Preview with `lrh chain-defaults restamp "
+        "--dry-run`, then re-confirm; do not edit the store by hand."
+    ),
+    CATEGORY_TARGET_MISSING: (
+        "The installed file is missing. Reinstall skills (`lrh skills "
+        "install`) and re-check."
+    ),
+    CATEGORY_TARGET_UNREADABLE: (
+        "The installed file cannot be read. Fix its permissions and re-check."
+    ),
+    CATEGORY_TARGET_UNRESOLVED: (
+        "The installed skill target could not be located. Install skills "
+        "(`lrh skills install`) or run from the project root."
+    ),
+    CATEGORY_GATE_DEFINITION_CHANGED: (
+        "A gate-definition region changed since confirmation. Review the "
+        "diff, then re-confirm and re-stamp."
+    ),
+    CATEGORY_UNVERIFIABLE: (
+        "Staleness could not be verified from git history. Check the watched "
+        "path exists, then re-run."
+    ),
+}
+
+
 @dataclasses.dataclass(frozen=True)
 class FileStaleness:
     path: str
     stale: bool
     reason: str
+    category: str = ""
+
+    @property
+    def next_step(self) -> str | None:
+        return CATEGORY_NEXT_STEPS.get(self.category) if self.stale else None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -306,17 +363,27 @@ def check_file_staleness(
                     "resolved installed-target path absent at both commits "
                     "-- unable to verify, failing closed"
                 ),
+                category=CATEGORY_UNVERIFIABLE,
             )
         return FileStaleness(
-            relative_path, stale=False, reason="absent at both commits"
+            relative_path,
+            stale=False,
+            reason="absent at both commits",
+            category=CATEGORY_FRESH,
         )
     if old_content is None:
         return FileStaleness(
-            relative_path, stale=True, reason="file added since confirmation"
+            relative_path,
+            stale=True,
+            reason="file added since confirmation",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
     if new_content is None:
         return FileStaleness(
-            relative_path, stale=True, reason="file removed since confirmation"
+            relative_path,
+            stale=True,
+            reason="file removed since confirmation",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
 
     diff_text = _run_git(
@@ -324,7 +391,9 @@ def check_file_staleness(
         project_root,
     )
     if not diff_text.strip():
-        return FileStaleness(relative_path, stale=False, reason="no change")
+        return FileStaleness(
+            relative_path, stale=False, reason="no change", category=CATEGORY_FRESH
+        )
 
     hunks = parse_unified_diff_hunks(diff_text)
     old_ranges = extract_marker_ranges(old_content)
@@ -334,11 +403,13 @@ def check_file_staleness(
             relative_path,
             stale=True,
             reason="diff touches a GATE-DEFINITION region",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
     return FileStaleness(
         relative_path,
         stale=False,
         reason="diff present but outside all GATE-DEFINITION regions",
+        category=CATEGORY_FRESH,
     )
 
 
@@ -772,6 +843,7 @@ def check_target_staleness(
             target.canonical_name,
             stale=True,
             reason="installed target could not be resolved -- failing closed",
+            category=CATEGORY_TARGET_UNRESOLVED,
         )
     if target.kind == "git":
         if target.relative_path is None:
@@ -794,7 +866,10 @@ def check_target_staleness(
         )
     if store_unavailable_reason is not None:
         return FileStaleness(
-            target.canonical_name, stale=True, reason=store_unavailable_reason
+            target.canonical_name,
+            stale=True,
+            reason=store_unavailable_reason,
+            category=CATEGORY_BASELINE_STAMP_MISMATCH,
         )
     if fingerprints is None or target.canonical_name not in fingerprints:
         return FileStaleness(
@@ -804,12 +879,14 @@ def check_target_staleness(
                 "no persisted content fingerprint on record for this "
                 "untracked installed target -- failing closed"
             ),
+            category=CATEGORY_NO_BASELINE,
         )
     if not target.absolute_path.is_file():
         return FileStaleness(
             target.canonical_name,
             stale=True,
             reason="installed target file missing -- failing closed",
+            category=CATEGORY_TARGET_MISSING,
         )
     try:
         content = target.absolute_path.read_bytes()
@@ -818,6 +895,7 @@ def check_target_staleness(
             target.canonical_name,
             stale=True,
             reason="installed target file unreadable -- failing closed",
+            category=CATEGORY_TARGET_UNREADABLE,
         )
     current = compute_fingerprint(content)
     stored = fingerprints[target.canonical_name]
@@ -826,11 +904,13 @@ def check_target_staleness(
             target.canonical_name,
             stale=True,
             reason="installed file content differs from persisted fingerprint",
+            category=CATEGORY_CONTENT_CHANGED,
         )
     return FileStaleness(
         target.canonical_name,
         stale=False,
         reason="installed file content matches persisted fingerprint",
+        category=CATEGORY_FRESH,
     )
 
 
@@ -913,6 +993,16 @@ def check_gate_staleness(
     )
 
 
+def distinct_next_steps(files: typing.Iterable[FileStaleness]) -> list[str]:
+    """Each distinct next-step text for the stale `files`, in first-seen order."""
+    steps: list[str] = []
+    for f in files:
+        step = f.next_step
+        if step and step not in steps:
+            steps.append(step)
+    return steps
+
+
 def format_json(result: StalenessResult) -> str:
     return json.dumps(
         {
@@ -920,7 +1010,12 @@ def format_json(result: StalenessResult) -> str:
             "head": result.head,
             "stale": result.stale,
             "files": [
-                {"path": f.path, "stale": f.stale, "reason": f.reason}
+                {
+                    "path": f.path,
+                    "stale": f.stale,
+                    "reason": f.reason,
+                    "category": f.category,
+                }
                 for f in result.files
             ],
         },
@@ -938,6 +1033,8 @@ def format_text(result: StalenessResult) -> str:
         lines.append("stale files:")
         for stale_file in result.stale_files:
             lines.append(f"  - {stale_file.path}: {stale_file.reason}")
+        for step in distinct_next_steps(result.stale_files):
+            lines.append(f"next step: {step}")
     else:
         lines.append("no gate-definition changes since confirmation")
     return "\n".join(lines)

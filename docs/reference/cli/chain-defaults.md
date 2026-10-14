@@ -50,6 +50,26 @@ Reports:
   the specific stale files if so. See `check-staleness` below for how
   "counts as stale" differs between git-diffable and user-scope
   installed targets.
+  Each stale entry has a `category` (`no_baseline`, `content_changed`,
+  `baseline_stamp_mismatch`, `confirmed_at_not_supplied`,
+  `baseline_store_invalid`, `target_missing`, `target_unreadable`,
+  `target_unresolved`, `gate_definition_changed`, `unverifiable`); a
+  `no_baseline` entry means no fingerprint was ever recorded, not that the
+  file changed. A missing or unreadable installed file is reported as
+  `target_*` before any baseline question, `confirmed_at_not_supplied` means
+  `check-staleness` was run without `--confirmed-at`, and
+  `baseline_store_invalid` means the recorded store itself is unreadable or
+  malformed. Text output prints a `next step:` line per category.
+- **Coverage** (`coverage` in JSON) — the watched installations, whether
+  they came from `project/agent_skills.yaml`, and any
+  `unwatched_installations` (LRH skills present in a directory outside the
+  configured targets). `verification_scope` is `configured_targets_only`
+  unless every installation is watched, so a clean result is "configured
+  targets verified", not "all installations verified". See
+  [Agent Skills Config](../schemas/agent-skills-config.md).
+- **CLI** (`cli` in JSON) — the running CLI's version, module path, and
+  `chain-defaults` subcommands, for diagnosing a CLI older than the
+  installed skills.
 
 ### Example
 

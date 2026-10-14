@@ -350,8 +350,37 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                     project_root=root, confirmed_commit=confirmed_commit
                 )
             self.assertTrue(result.stale)
+            # The installed files are absent too, and a missing target is
+            # reported as such before any baseline question (restamp refuses
+            # missing targets, so "preview a baseline" would be a dead end).
             for stale_file in result.stale_files:
-                self.assertIn("fingerprint", stale_file.reason)
+                self.assertIn("missing", stale_file.reason)
+                self.assertEqual(
+                    stale_file.category, gate_staleness.CATEGORY_TARGET_MISSING
+                )
+
+    def test_untracked_target_present_without_fingerprint_is_no_baseline(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("placeholder\n")
+            confirmed_commit = _commit(root, "initial")
+            fake_home = pathlib.Path(home)
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+                self._write_gate_file(fake_home / ".claude" / "skills" / name)
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=confirmed_commit
+                )
+            self.assertTrue(result.stale)
+            for stale_file in result.stale_files:
+                self.assertIn("no persisted content fingerprint", stale_file.reason)
+                self.assertEqual(
+                    stale_file.category, gate_staleness.CATEGORY_NO_BASELINE
+                )
 
     def test_untracked_target_matching_fingerprint_not_stale(self) -> None:
         with (
@@ -769,8 +798,12 @@ class StampBoundFingerprintStoreTest(unittest.TestCase):
                         )
                         self.assertTrue(result.stale)
                         for stale_file in result.stale_files:
-                            self.assertIn(
-                                "no persisted content fingerprint", stale_file.reason
+                            # An unusable store is its own diagnosis, not a
+                            # "no baseline was ever recorded" one.
+                            self.assertIn("fingerprint store", stale_file.reason)
+                            self.assertEqual(
+                                stale_file.category,
+                                gate_staleness.CATEGORY_BASELINE_STORE_INVALID,
                             )
 
     def test_refused_record_leaves_existing_store_untouched(self) -> None:

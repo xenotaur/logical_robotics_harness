@@ -55,6 +55,27 @@ Relative filesystem paths in `sources` are resolved from the repository root
 that contains `project/agent_skills.yaml`. Relative paths supplied to the
 `--source` CLI flag remain shell-relative.
 
+## Which installations the gate-staleness check watches
+
+`lrh chain-defaults status`, `check-staleness` and `restamp` watch exactly the
+`targets` and `scope` resolved by this file (defaults: `claude`, `user`), and
+a restamp records a fingerprint baseline for those installations only.
+`status` and `restamp` (including `--dry-run`) also print a `coverage` block
+(`check-staleness` does not; use `status` to see it): `watched_installations`, plus
+`unwatched_installations` for any directory that holds LRH skills but is
+outside that set (for example `~/.agents/skills` for Codex while only
+`claude` is configured). A clean result then means "configured targets
+verified", not "all installations verified"
+(`verification_scope: configured_targets_only`). To cover Codex as well:
+
+```yaml
+schema_version: 1
+targets:
+  - claude
+  - codex
+scope: user
+```
+
 ## Destinations
 
 User scope:

@@ -23,9 +23,11 @@ Make `lrh chain-defaults` diagnostics distinguish a missing fingerprint baseline
 - Diff-mode self-review: two P3 test-quality findings, both fixed (see the `_SELFREVIEW` record).
 - No LCATS state, consent, or shared install was touched.
 
+- Round 2 (LCATS follow-up, same PR): `coverage` block (watched vs. unwatched installations; `verification_scope`) in `status` and `restamp` output, excluded from the plan digest; docs now distinguish "configured targets verified" from "all installations verified"; `cli.legacy_distributions` plus a status warning for leftover `logical-robotics-harness` metadata, with a how-to section that warns `pip uninstall logical-robotics-harness` can delete the shared `bin/lrh`.
+
 # Validation
 
-`scripts/format --check`, `scripts/lint`, `scripts/test` (2325 tests OK; the final test-only additions re-ran the affected modules, 88 tests OK), `lrh validate` (0 errors, 0 warnings).
+`scripts/format --check`, `scripts/lint`, `scripts/test` (2336 tests OK after round 2), `lrh validate` (0 errors, 0 warnings).
 
 # Follow-up
 

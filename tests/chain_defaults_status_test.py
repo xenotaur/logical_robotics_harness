@@ -893,5 +893,160 @@ class CliProvenanceTest(unittest.TestCase):
         self.assertIn("does not mean any gate file changed", hint)
 
 
+class WatchCoverageTest(unittest.TestCase):
+    """A clean result covers only the configured targets; installs outside
+    them must be reported rather than silently treated as verified."""
+
+    def _client_repo(self, root: pathlib.Path) -> None:
+        _init_repo(root)
+        (root / "README.md").write_text("v1\n")
+        first = _commit(root, "initial")
+        _write_profile(root, confirmed_commit=first)
+        _commit(root, "add profile")
+
+    def _install(self, home: pathlib.Path, *relative_dirs: str) -> None:
+        for rel in relative_dirs:
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+                path = home / rel / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    "<!-- GATE-DEFINITION -->\nWait.\n<!-- /GATE-DEFINITION -->\n"
+                )
+
+    def _status(self, root: pathlib.Path, home: pathlib.Path):
+        with mock.patch.object(pathlib.Path, "home", return_value=home):
+            return chain_defaults_status.compute_status(root)
+
+    def test_default_claude_only_reports_unwatched_codex_install(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            self._install(home, ".claude/skills", ".agents/skills")
+            status = self._status(root, home)
+            cov = status.coverage
+            self.assertFalse(cov["targets_from_project_config"])
+            self.assertEqual(
+                [r["target"] for r in cov["watched_installations"]], ["claude"]
+            )
+            self.assertEqual(
+                [r["target"] for r in cov["unwatched_installations"]], ["codex"]
+            )
+            self.assertEqual(cov["verification_scope"], "configured_targets_only")
+            text = chain_defaults_status.format_text(status)
+            self.assertIn("NOT watched, but LRH skills are installed there", text)
+            self.assertIn("not all installations", text)
+            payload = json.loads(chain_defaults_status.format_json(status))
+            self.assertEqual(payload["coverage"], cov)
+
+    def test_configuring_both_targets_watches_and_verifies_both(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            self._install(home, ".claude/skills", ".agents/skills")
+            (root / "project" / "agent_skills.yaml").write_text(
+                "schema_version: 1\ntargets:\n  - claude\n  - codex\nscope: user\n"
+            )
+            status = self._status(root, home)
+            cov = status.coverage
+            self.assertTrue(cov["targets_from_project_config"])
+            self.assertEqual(cov["unwatched_installations"], [])
+            self.assertEqual(cov["verification_scope"], "all_installations")
+            prefixes = {f.path.split(":")[0] for f in status.staleness.files}
+            self.assertEqual(prefixes, {"claude", "codex"})
+            self.assertNotIn("NOT watched", chain_defaults_status.format_text(status))
+
+    def test_restamp_baselines_every_configured_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            self._install(home, ".claude/skills", ".agents/skills")
+            (root / "project" / "agent_skills.yaml").write_text(
+                "schema_version: 1\ntargets:\n  - claude\n  - codex\nscope: user\n"
+            )
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                names = {e.name.split(":")[0] for e in plan.fingerprint_plan.entries}
+                self.assertEqual(names, {"claude", "codex"})
+                payload = json.loads(
+                    chain_defaults_status.format_restamp_json(plan, True)
+                )
+                self.assertEqual(
+                    payload["coverage"]["verification_scope"], "all_installations"
+                )
+                chain_defaults_status.apply_restamp(root, plan)
+                # Drift in the Codex install alone is now detected.
+                one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+                (home / ".agents" / "skills" / one).write_text("drifted\n")
+                status = chain_defaults_status.compute_status(root)
+            by_path = {f.path: f.category for f in status.staleness.files}
+            self.assertEqual(by_path[f"codex:{one}"], "content_changed")
+            self.assertEqual(by_path[f"claude:{one}"], "fresh")
+
+    def test_coverage_does_not_change_restamp_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            self._install(home, ".claude/skills")
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertIsNotNone(plan.coverage)
+            stripped = dataclasses.replace(plan, coverage=None)
+            self.assertEqual(stripped.digest, plan.digest)
+
+    def test_harness_repo_has_no_coverage_block(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "src" / "lrh" / "skills").mkdir(parents=True)
+            self.assertIsNone(gate_staleness.describe_watch_coverage(root))
+            self.assertEqual(chain_defaults_status.coverage_lines(None), [])
+
+
+class LegacyDistributionTest(unittest.TestCase):
+    class _FakeDist:
+        def __init__(self, name: str, version: str) -> None:
+            self.metadata = {"Name": name}
+            self.version = version
+            self._path = pathlib.Path("/site-packages") / f"{name}.dist-info"
+
+    def test_legacy_distribution_is_reported_without_touching_current_one(
+        self,
+    ) -> None:
+        fakes = [
+            self._FakeDist("lrh", "0.2.5"),
+            self._FakeDist("logical_robotics_harness", "0.2.3.dev173"),
+        ]
+        with mock.patch("importlib.metadata.distributions", return_value=iter(fakes)):
+            found = chain_defaults_status.legacy_distributions()
+        self.assertEqual([d["name"] for d in found], ["logical-robotics-harness"])
+        self.assertEqual(found[0]["version"], "0.2.3.dev173")
+
+    def test_no_legacy_distribution_reports_empty_and_no_warning(self) -> None:
+        with mock.patch(
+            "importlib.metadata.distributions",
+            return_value=iter([self._FakeDist("lrh", "0.2.5")]),
+        ):
+            self.assertEqual(chain_defaults_status.legacy_distributions(), [])
+
+    def test_status_text_warns_when_legacy_distribution_found(self) -> None:
+        status = chain_defaults_status.ChainDefaultsStatus(
+            profile_exists=True,
+            fields={n: "x" for n in chain_defaults_status.HUMAN_DECIDABLE_FIELDS},
+            read_only_fields={chain_defaults_status.READ_ONLY_FIELD: True},
+            consent=chain_defaults_status.ConsentStatus(None, "h", False),
+            staleness=None,
+            staleness_error="n/a",
+        )
+        legacy = [
+            {"name": "logical-robotics-harness", "version": "0.2.3", "path": "/p"}
+        ]
+        with mock.patch.object(
+            chain_defaults_status, "legacy_distributions", return_value=legacy
+        ):
+            text = chain_defaults_status.format_text(status)
+            payload = json.loads(chain_defaults_status.format_json(status))
+        self.assertIn("legacy distribution metadata", text)
+        self.assertEqual(payload["cli"]["legacy_distributions"], legacy)
+
+
 if __name__ == "__main__":
     unittest.main()

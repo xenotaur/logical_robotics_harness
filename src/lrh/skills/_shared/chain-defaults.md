@@ -389,6 +389,18 @@ fingerprints belong to a different confirmation stamp than the profile; the
 `target_*` categories mean the installed file is missing, unreadable, or
 unresolvable. Text output prints a `next step:` line per category.
 
+**Configured targets verified is not all installations verified.** The
+staleness check and `restamp` watch only the targets in
+`project/agent_skills.yaml` (default when absent: `claude`, user scope). A
+clean result, or a restamp, establishes a baseline for those installations
+only. `status` and `restamp --dry-run` print a `coverage` block listing the
+watched installations and any `unwatched_installations` — directories that
+hold LRH skills (for example `~/.agents/skills` for Codex) but are not
+watched; when it is non-empty, `verification_scope` is
+`configured_targets_only` and the report must not be read as approving those
+installations. To watch them, list them under `targets:` (for example
+`targets: [claude, codex]`) via `/lrh-config-skills`, then re-preview.
+
 ## Consuming sites
 
 | Skill | Location |

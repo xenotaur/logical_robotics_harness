@@ -18,6 +18,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import hashlib
+import importlib.metadata
 import json
 import os
 import pathlib
@@ -55,6 +56,90 @@ READ_ONLY_FIELD = "closeout_with_merge"
 CLI_CAPABILITIES = ("check-staleness", "status", "restamp")
 
 
+def coverage_payload(project_root: pathlib.Path) -> dict | None:
+    """Which installations the check verifies, and which it does not.
+
+    `verification_scope` is `"configured_targets_only"` unless no LRH skill
+    installation exists outside the watch set; callers must not read a clean
+    staleness result as covering the `unwatched_installations`.
+    """
+    coverage = gate_staleness.describe_watch_coverage(project_root)
+    if coverage is None:
+        return None
+
+    def ref(r: gate_staleness.InstallationRef) -> dict:
+        return {"target": r.target, "scope": r.scope, "skills_dir": str(r.skills_dir)}
+
+    return {
+        "targets_from_project_config": coverage.configured,
+        "watched_installations": [ref(r) for r in coverage.watched],
+        "unwatched_installations": [ref(r) for r in coverage.unwatched],
+        "verification_scope": (
+            "all_installations"
+            if coverage.all_installations_verified
+            else "configured_targets_only"
+        ),
+    }
+
+
+def coverage_lines(payload: dict | None, indent: str = "  ") -> list[str]:
+    """Human-readable coverage lines; empty when there is nothing to say."""
+    if payload is None:
+        return []
+    origin = (
+        "project/agent_skills.yaml"
+        if payload["targets_from_project_config"]
+        else "defaults (no project/agent_skills.yaml targets)"
+    )
+    watched = ", ".join(
+        f"{r['target']} ({r['skills_dir']})" for r in payload["watched_installations"]
+    )
+    lines = [f"{indent}watched installations [{origin}]: {watched}"]
+    if payload["unwatched_installations"]:
+        unwatched = ", ".join(
+            f"{r['target']} ({r['skills_dir']})"
+            for r in payload["unwatched_installations"]
+        )
+        lines.append(
+            f"{indent}NOT watched, but LRH skills are installed there: {unwatched}"
+        )
+        lines.append(
+            f"{indent}A clean result covers only the watched installations, not "
+            "all installations. To watch the others, list them under `targets:` "
+            "in project/agent_skills.yaml (/lrh-config-skills)."
+        )
+    return lines
+
+
+#: The package's own distribution name, and the pre-rename name it shipped
+#: under. A leftover distribution under the old name can still be discovered
+#: (its dist-info, or a stale `*.egg-info` on the editable source path) and
+#: report a different version than the running CLI.
+_LEGACY_DISTRIBUTION_NAMES = ("logical-robotics-harness",)
+
+
+def legacy_distributions() -> list[dict]:
+    """Other discoverable distributions that also claim to be this package.
+
+    Reports each with its version and metadata path so a conflicting
+    `importlib.metadata.version("logical-robotics-harness")` is explainable
+    without guessing. Read-only: it never suggests deleting anything blindly
+    (a legacy dist-info's RECORD can list the shared `bin/lrh` script).
+    """
+    found: list[dict] = []
+    for dist in importlib.metadata.distributions():
+        name = (dist.metadata["Name"] or "").lower().replace("_", "-")
+        if name in _LEGACY_DISTRIBUTION_NAMES:
+            found.append(
+                {
+                    "name": name,
+                    "version": dist.version,
+                    "path": str(getattr(dist, "_path", "")),
+                }
+            )
+    return found
+
+
 def cli_provenance() -> dict:
     """Which CLI is answering: version, import path, and `chain-defaults`
     capabilities, so a skill/CLI mismatch is diagnosable from one read."""
@@ -62,6 +147,7 @@ def cli_provenance() -> dict:
         "version": lrh_version.format_cli_version(),
         "module_path": str(pathlib.Path(lrh.__file__).resolve().parent),
         "chain_defaults_capabilities": list(CLI_CAPABILITIES),
+        "legacy_distributions": legacy_distributions(),
     }
 
 
@@ -103,6 +189,9 @@ class ChainDefaultsStatus:
     #: no staleness check applies yet.
     staleness: gate_staleness.StalenessResult | None
     staleness_error: str | None
+    #: Which installations the staleness check watches vs. leaves unwatched
+    #: (see `coverage_payload`); None for the harness repo or unresolved targets.
+    coverage: dict | None = None
 
 
 def _run_git(
@@ -227,6 +316,7 @@ def compute_status(
         consent=consent,
         staleness=staleness,
         staleness_error=staleness_error,
+        coverage=coverage_payload(project_root),
     )
 
 
@@ -260,6 +350,7 @@ def format_json(status: ChainDefaultsStatus) -> str:
                 else None
             ),
             "staleness_error": status.staleness_error,
+            "coverage": status.coverage,
             "cli": cli_provenance(),
         },
         indent=2,
@@ -295,6 +386,16 @@ def format_text(status: ChainDefaultsStatus) -> str:
                 lines.append(f"  next step: {step}")
     else:
         lines.append(f"  unavailable: {status.staleness_error}")
+    lines.extend(coverage_lines(status.coverage))
+    legacy = legacy_distributions()
+    if legacy:
+        found = ", ".join(f"{d['name']} {d['version']} ({d['path']})" for d in legacy)
+        lines.append(
+            f"Warning: legacy distribution metadata also found: {found}. It does "
+            "not affect which code runs, but can report a conflicting version; "
+            "see docs/how-to/keep-skills-up-to-date.md (Legacy distribution "
+            "metadata)."
+        )
 
     return "\n".join(lines)
 
@@ -318,6 +419,8 @@ class RestampPlan:
     new_confirmed_commit: str
     #: Canonical `confirmed_at`, written to both the profile and the store.
     new_confirmed_at: str
+    #: Watched vs. unwatched installations; informational, not part of `digest`.
+    coverage: dict | None = None
 
     @property
     def digest(self) -> str:
@@ -429,6 +532,7 @@ def plan_restamp(
         fingerprint_plan=fingerprint_plan,
         new_confirmed_commit=new_commit,
         new_confirmed_at=new_at,
+        coverage=coverage_payload(project_root),
     )
 
 
@@ -538,6 +642,7 @@ def _restamp_payload(plan: RestampPlan, dry_run: bool) -> dict:
             else None
         ),
         "staleness_error": plan.staleness_error,
+        "coverage": plan.coverage,
         "fingerprints": {
             "nothing_to_do": plan.fingerprint_plan.nothing_to_do,
             "entries": [
@@ -576,6 +681,8 @@ def format_restamp_text(plan: RestampPlan, dry_run: bool) -> str:
             lines.append("  (none -- not stale)")
     else:
         lines.append(f"  unavailable: {plan.staleness_error}")
+    lines.append("Installations covered by this re-confirmation:")
+    lines.extend(coverage_lines(plan.coverage) or ["  (not applicable)"])
     lines.append("Fingerprints (user-scope installed targets):")
     if plan.fingerprint_plan.nothing_to_do:
         lines.append("  nothing to fingerprint")

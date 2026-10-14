@@ -519,6 +519,90 @@ def resolve_watch_targets(
     return tuple(resolved)
 
 
+@dataclasses.dataclass(frozen=True)
+class InstallationRef:
+    """One agent-skills install location: its target name and skills directory."""
+
+    target: str
+    skills_dir: pathlib.Path
+    scope: str  # "user" or "project"
+
+
+@dataclasses.dataclass(frozen=True)
+class WatchCoverage:
+    """Which LRH skill installations the staleness check actually watches.
+
+    "Not stale" is only a statement about `watched`. Any `unwatched` entry is
+    an installation that holds LRH gate-bearing skills but is outside the
+    configured targets, so it can drift without this check noticing.
+    """
+
+    #: True when `project/agent_skills.yaml` supplied the targets/scope;
+    #: False when the conventional default (claude, user scope) applies.
+    configured: bool
+    watched: tuple[InstallationRef, ...]
+    unwatched: tuple[InstallationRef, ...]
+
+    @property
+    def all_installations_verified(self) -> bool:
+        return not self.unwatched
+
+
+def describe_watch_coverage(project_root: pathlib.Path) -> WatchCoverage | None:
+    """Report watched vs. present-but-unwatched LRH skill installations.
+
+    Returns None for the harness repo itself (its own `src/lrh/skills/` tree is
+    the watch set) and when installed-target resolution fails (every target is
+    reported `unresolved` elsewhere). Checks every target in both user and
+    project scope, and lists those where at least one canonical gate-bearing
+    skill is present but whose directory is not being watched.
+    """
+    if (project_root / "src" / "lrh" / "skills").is_dir():
+        return None
+    try:
+        from lrh.skills import installer
+    except ImportError:
+        return None
+    try:
+        config = installer.load_agent_skills_config(project_root)
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+        watched_targets = installer.resolve_install_targets(
+            target=plan.target, local=plan.local, project_root=project_root
+        )
+    except (installer.SkillSourceError, ValueError, IndexError, OSError):
+        return None
+    scope_of = {True: "project", False: "user"}
+    watched = tuple(
+        InstallationRef(t.target.value, t.skills_dir, scope_of[plan.local])
+        for t in watched_targets
+    )
+    watched_dirs = {ref.skills_dir for ref in watched}
+    unwatched: list[InstallationRef] = []
+    for local in (False, True):
+        for candidate in installer.resolve_install_targets(
+            target=installer.TargetSelection.ALL,
+            local=local,
+            project_root=project_root,
+        ):
+            if candidate.skills_dir in watched_dirs:
+                continue
+            if any(
+                (candidate.skills_dir / name).exists()
+                for name in INSTALLED_CANONICAL_SKILL_NAMES
+            ):
+                unwatched.append(
+                    InstallationRef(
+                        candidate.target.value, candidate.skills_dir, scope_of[local]
+                    )
+                )
+    return WatchCoverage(
+        configured=config is not None
+        and (config.target is not None or config.local is not None),
+        watched=watched,
+        unwatched=tuple(unwatched),
+    )
+
+
 def compute_fingerprint(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 

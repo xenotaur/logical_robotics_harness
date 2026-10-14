@@ -6,8 +6,8 @@ status: in_progress
 agent: claude_app
 instruction_source: ad-hoc task (chain-defaults CLI/skill capability-mismatch diagnostic), invoked via /lrh-implement
 session_transcript: pending
-rerun_of:
-pr:
+rerun_of: 2026_10_14_02_34_59_CHAIN_DEFAULTS_CAPABILITY_DIAGNOSTIC
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/844
 commit:
 created_at: 2026-10-14T02:32:14+00:00
 ---

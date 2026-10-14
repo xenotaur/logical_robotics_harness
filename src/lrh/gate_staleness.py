@@ -110,6 +110,8 @@ CATEGORY_FRESH = "fresh"
 CATEGORY_NO_BASELINE = "no_baseline"
 CATEGORY_CONTENT_CHANGED = "content_changed"
 CATEGORY_BASELINE_STAMP_MISMATCH = "baseline_stamp_mismatch"
+CATEGORY_CONFIRMED_AT_NOT_SUPPLIED = "confirmed_at_not_supplied"
+CATEGORY_BASELINE_STORE_INVALID = "baseline_store_invalid"
 CATEGORY_TARGET_MISSING = "target_missing"
 CATEGORY_TARGET_UNREADABLE = "target_unreadable"
 CATEGORY_TARGET_UNRESOLVED = "target_unresolved"
@@ -132,6 +134,18 @@ CATEGORY_NEXT_STEPS = {
         "The recorded fingerprints belong to a different confirmation stamp "
         "than the profile. Preview with `lrh chain-defaults restamp "
         "--dry-run`, then re-confirm; do not edit the store by hand."
+    ),
+    CATEGORY_CONFIRMED_AT_NOT_SUPPLIED: (
+        "The check was run without the profile's confirmed_at, so a recorded "
+        "baseline could not be validated; that is not a content change. Re-run "
+        "with `--confirmed-at <profile confirmed_at>`, or use `lrh "
+        "chain-defaults status`, which supplies it."
+    ),
+    CATEGORY_BASELINE_STORE_INVALID: (
+        "The recorded fingerprint store could not be read or is malformed, so "
+        "no baseline can be trusted; that is not a content change. Preview "
+        "with `lrh chain-defaults restamp --dry-run` and re-confirm to write a "
+        "fresh baseline; do not edit the store by hand."
     ),
     CATEGORY_TARGET_MISSING: (
         "The installed file is missing. Reinstall skills (`lrh skills "
@@ -691,41 +705,57 @@ class FingerprintStore:
     fingerprints: dict[str, str]
 
 
+def read_fingerprint_store(
+    project_root: pathlib.Path,
+) -> tuple[FingerprintStore | None, str | None]:
+    """Load the persisted fingerprint store and say why it is unusable, if so.
+
+    Returns `(store, None)` for a valid store, `(None, None)` when no store
+    was ever recorded, and `(None, detail)` when one exists or its location
+    is needed but it cannot be used -- unreadable, malformed (including one
+    missing either stamp key, such as the old bare name-to-hash map), or the
+    git common dir cannot be resolved. Never raises.
+    """
+    try:
+        path = fingerprint_store_path(project_root)
+    except GateStalenessError as err:
+        return None, f"fingerprint store location could not be resolved: {err}"
+    if not path.exists():
+        return None, None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
+        return None, f"fingerprint store is unreadable or not valid JSON ({err})"
+    if not isinstance(data, dict):
+        return None, "fingerprint store is not a JSON object"
+    commit = data.get("confirmed_commit")
+    confirmed_at = data.get("confirmed_at")
+    fingerprints = data.get("fingerprints")
+    if not isinstance(commit, str) or not commit:
+        return None, "fingerprint store has no confirmed_commit stamp"
+    if not isinstance(confirmed_at, str) or not confirmed_at:
+        return None, "fingerprint store has no confirmed_at stamp"
+    if not isinstance(fingerprints, dict):
+        return None, "fingerprint store has no fingerprints map"
+    return (
+        FingerprintStore(
+            confirmed_commit=commit,
+            confirmed_at=confirmed_at,
+            fingerprints={str(key): str(value) for key, value in fingerprints.items()},
+        ),
+        None,
+    )
+
+
 def load_fingerprint_store(project_root: pathlib.Path) -> FingerprintStore | None:
     """Load the persisted fingerprint store, or None if unavailable.
 
     Returns None (never raises) on a missing, unreadable, or malformed store
     -- including one missing either stamp key, such as the old bare
-    name-to-hash map -- and when the git common dir cannot be resolved.
-    `check_gate_staleness` treats None as "no fingerprint on record" and
-    fails every untracked target closed.
+    name-to-hash map -- and when the git common dir cannot be resolved. Use
+    `read_fingerprint_store` to learn *why* a store is unusable.
     """
-    try:
-        path = fingerprint_store_path(project_root)
-    except GateStalenessError:
-        return None
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    commit = data.get("confirmed_commit")
-    confirmed_at = data.get("confirmed_at")
-    fingerprints = data.get("fingerprints")
-    if not isinstance(commit, str) or not commit:
-        return None
-    if not isinstance(confirmed_at, str) or not confirmed_at:
-        return None
-    if not isinstance(fingerprints, dict):
-        return None
-    return FingerprintStore(
-        confirmed_commit=commit,
-        confirmed_at=confirmed_at,
-        fingerprints={str(key): str(value) for key, value in fingerprints.items()},
-    )
+    return read_fingerprint_store(project_root)[0]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -887,22 +917,25 @@ def _store_mismatch_reason(
     store: FingerprintStore,
     resolved_commit: str,
     confirmed_at: object | None,
-) -> str | None:
-    """Return why `store` can't be trusted for this stamp, or None if it can."""
+) -> tuple[str, str] | None:
+    """Return `(reason, category)` for why `store` can't be trusted for this
+    stamp, or None if it can."""
     if confirmed_at is None:
         return (
             "no confirmed_at supplied, so the fingerprint store's stamp cannot "
-            "be validated -- failing closed"
+            "be validated -- failing closed",
+            CATEGORY_CONFIRMED_AT_NOT_SUPPLIED,
         )
     try:
         wanted_at = canonical_confirmed_at(confirmed_at)
         stored_at = canonical_confirmed_at(store.confirmed_at)
     except GateStalenessError as err:
-        return f"{err} -- failing closed"
+        return f"{err} -- failing closed", CATEGORY_BASELINE_STORE_INVALID
     if store.confirmed_commit != resolved_commit or stored_at != wanted_at:
         return (
             "fingerprint store was recorded for a different confirmation "
-            "stamp -- failing closed"
+            "stamp -- failing closed",
+            CATEGORY_BASELINE_STAMP_MISMATCH,
         )
     return None
 
@@ -914,13 +947,20 @@ def check_target_staleness(
     target: WatchTarget,
     fingerprints: dict[str, str] | None,
     store_unavailable_reason: str | None = None,
+    store_unavailable_category: str = CATEGORY_BASELINE_STAMP_MISMATCH,
 ) -> FileStaleness:
     """Check one resolved `WatchTarget` for staleness, by whichever means
     its `kind` supports.
 
     `store_unavailable_reason`, when set, fails every fingerprint-kind
-    target closed with that reason (e.g. the store's stamp does not match
-    the profile being checked).
+    target closed with that reason and `store_unavailable_category` (e.g.
+    the store's stamp does not match the profile being checked, or no
+    `confirmed_at` was supplied to validate it, or the store is unusable).
+
+    For a fingerprint-kind target the installed file is checked first: a
+    missing or unreadable file is reported as such regardless of the
+    baseline, because that is what the user must fix first (restamp refuses
+    such targets) and it is true whether or not a baseline exists.
     """
     if target.kind == "unresolved":
         return FileStaleness(
@@ -948,23 +988,6 @@ def check_target_staleness(
             f"WatchTarget {target.canonical_name!r} has kind='fingerprint' "
             "but no absolute_path -- malformed WatchTarget"
         )
-    if store_unavailable_reason is not None:
-        return FileStaleness(
-            target.canonical_name,
-            stale=True,
-            reason=store_unavailable_reason,
-            category=CATEGORY_BASELINE_STAMP_MISMATCH,
-        )
-    if fingerprints is None or target.canonical_name not in fingerprints:
-        return FileStaleness(
-            target.canonical_name,
-            stale=True,
-            reason=(
-                "no persisted content fingerprint on record for this "
-                "untracked installed target -- failing closed"
-            ),
-            category=CATEGORY_NO_BASELINE,
-        )
     if not target.absolute_path.is_file():
         return FileStaleness(
             target.canonical_name,
@@ -980,6 +1003,23 @@ def check_target_staleness(
             stale=True,
             reason="installed target file unreadable -- failing closed",
             category=CATEGORY_TARGET_UNREADABLE,
+        )
+    if store_unavailable_reason is not None:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason=store_unavailable_reason,
+            category=store_unavailable_category,
+        )
+    if fingerprints is None or target.canonical_name not in fingerprints:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason=(
+                "no persisted content fingerprint on record for this "
+                "untracked installed target -- failing closed"
+            ),
+            category=CATEGORY_NO_BASELINE,
         )
     current = compute_fingerprint(content)
     stored = fingerprints[target.canonical_name]
@@ -1050,13 +1090,17 @@ def check_gate_staleness(
         targets = resolve_watch_targets(project_root)
         fingerprints: dict[str, str] | None = None
         store_reason: str | None = None
+        store_category = CATEGORY_BASELINE_STAMP_MISMATCH
         if any(target.kind == "fingerprint" for target in targets):
-            store = load_fingerprint_store(project_root)
+            store, store_problem = read_fingerprint_store(project_root)
             if store is not None:
-                store_reason = _store_mismatch_reason(
-                    store, resolved_commit, confirmed_at
-                )
+                mismatch = _store_mismatch_reason(store, resolved_commit, confirmed_at)
+                if mismatch is not None:
+                    store_reason, store_category = mismatch
                 fingerprints = store.fingerprints
+            elif store_problem is not None:
+                store_reason = f"{store_problem} -- failing closed"
+                store_category = CATEGORY_BASELINE_STORE_INVALID
         files = tuple(
             check_target_staleness(
                 project_root,
@@ -1065,6 +1109,7 @@ def check_gate_staleness(
                 target,
                 fingerprints,
                 store_reason,
+                store_category,
             )
             for target in targets
         )

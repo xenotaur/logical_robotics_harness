@@ -819,9 +819,13 @@ Read each stale entry by its `category` (`status`/`check-staleness`/`restamp`
 `--format json`): `no_baseline` means no fingerprint was ever recorded, **not**
 that the file changed; `content_changed` means the installed file differs from
 its recorded fingerprint; `baseline_stamp_mismatch` means the recorded
-fingerprints belong to a different confirmation stamp than the profile; the
+fingerprints belong to a different confirmation stamp than the profile;
+`confirmed_at_not_supplied` means the check was run without `--confirmed-at`,
+so a recorded baseline could not be validated (re-run with it; not a change);
+`baseline_store_invalid` means the recorded store is unreadable or malformed
+(preview a fresh baseline with `restamp --dry-run`; never hand-edit it); the
 `target_*` categories mean the installed file is missing, unreadable, or
-unresolvable. Text output prints a `next step:` line per category.
+unresolvable, and are reported before any baseline question. Text output prints a `next step:` line per category.
 
 **Configured targets verified is not all installations verified.** The
 staleness check and `restamp` watch only the targets in

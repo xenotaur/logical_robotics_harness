@@ -1048,5 +1048,104 @@ class LegacyDistributionTest(unittest.TestCase):
         self.assertEqual(payload["cli"]["legacy_distributions"], legacy)
 
 
+class StoreDiagnosisTest(unittest.TestCase):
+    """Review findings on PR 844: the category must follow the actual cause."""
+
+    def _client_repo(self, root: pathlib.Path) -> str:
+        _init_repo(root)
+        (root / "README.md").write_text("v1\n")
+        first = _commit(root, "initial")
+        _write_profile(root, confirmed_commit=first)
+        _commit(root, "add profile")
+        return first
+
+    def test_no_store_plus_missing_target_is_target_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+            (home / ".claude" / "skills" / one).unlink()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            by_path = {f.path: f.category for f in status.staleness.files}
+            self.assertEqual(by_path[f"claude:{one}"], "target_missing")
+            others = {c for p, c in by_path.items() if p != f"claude:{one}"}
+            self.assertEqual(others, {"no_baseline"})
+            text = chain_defaults_status.format_text(status)
+            self.assertIn("Reinstall skills", text)
+
+    def test_omitted_confirmed_at_with_store_is_not_a_stamp_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            first = self._client_repo(root)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=first
+                )
+            self.assertTrue(result.stale_files)
+            self.assertEqual(
+                {f.category for f in result.stale_files},
+                {gate_staleness.CATEGORY_CONFIRMED_AT_NOT_SUPPLIED},
+            )
+            text = gate_staleness.format_text(result)
+            self.assertIn("--confirmed-at", text)
+            self.assertNotIn("re-stamp", text.split("next step:", 1)[1])
+
+    def test_corrupt_store_is_baseline_store_invalid_not_no_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            store = gate_staleness.fingerprint_store_path(root)
+            store.parent.mkdir(parents=True, exist_ok=True)
+            store.write_text("{not json")
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            self.assertEqual(
+                {f.category for f in status.staleness.files},
+                {"baseline_store_invalid"},
+            )
+            text = chain_defaults_status.format_text(status)
+            self.assertIn("do not edit the store by hand", text)
+            self.assertNotIn("no fingerprint was ever recorded", text)
+
+    def test_absent_store_stays_no_baseline_with_unchanged_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                status = chain_defaults_status.compute_status(root)
+            for f in status.staleness.files:
+                self.assertEqual(f.category, "no_baseline")
+                self.assertEqual(
+                    f.reason,
+                    "no persisted content fingerprint on record for this "
+                    "untracked installed target -- failing closed",
+                )
+
+    def test_read_fingerprint_store_reports_why(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            self.assertEqual(gate_staleness.read_fingerprint_store(root), (None, None))
+            store = gate_staleness.fingerprint_store_path(root)
+            store.parent.mkdir(parents=True, exist_ok=True)
+            for payload, expect in (
+                ("{not json", "not valid JSON"),
+                ("[]", "not a JSON object"),
+                ('{"fingerprints": {}}', "no confirmed_commit"),
+            ):
+                store.write_text(payload)
+                found, problem = gate_staleness.read_fingerprint_store(root)
+                self.assertIsNone(found)
+                self.assertIn(expect, problem)
+                self.assertIsNone(gate_staleness.load_fingerprint_store(root))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -59,8 +59,9 @@ that contains `project/agent_skills.yaml`. Relative paths supplied to the
 
 `lrh chain-defaults status`, `check-staleness` and `restamp` watch exactly the
 `targets` and `scope` resolved by this file (defaults: `claude`, `user`), and
-a restamp records a fingerprint baseline for those installations only. They
-also print a `coverage` block: `watched_installations`, plus
+a restamp records a fingerprint baseline for those installations only.
+`status` and `restamp` (including `--dry-run`) also print a `coverage` block
+(`check-staleness` does not; use `status` to see it): `watched_installations`, plus
 `unwatched_installations` for any directory that holds LRH skills but is
 outside that set (for example `~/.agents/skills` for Codex while only
 `claude` is configured). A clean result then means "configured targets

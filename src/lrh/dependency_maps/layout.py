@@ -367,10 +367,10 @@ def _outline_order(
     Only edges inside the cell count. Among the cards whose prerequisites are
     all placed, the next one is a dependent of the most recently placed card
     when there is one, so an item sits just under what it needs, as in an
-    outline; otherwise the shallowest, then the first by ID. When a cycle
-    leaves nothing ready, the first remaining card by ID that lies on a cycle
-    is placed anyway and the normal order resumes, so only the cycle's own
-    edges can point upward.
+    outline; otherwise the shallowest, then the first by ID. When cycles
+    leave nothing ready, the order is broken inside a cycle that needs no
+    unplaced card outside itself (see ``_cycle_to_break``) and resumes, so
+    only a cycle's own edges can point upward.
     """
 
     inside = set(members)
@@ -384,13 +384,7 @@ def _outline_order(
     while remaining:
         ready = [node_id for node_id in remaining if needs[node_id] <= set(order)]
         if not ready:
-            # A cycle: break it at the first card by ID that is on a cycle,
-            # so items that only depend on a cycle stay below it.
-            chosen = next(
-                node_id
-                for node_id in remaining
-                if _on_cycle(node_id, needs, set(remaining))
-            )
+            chosen = _cycle_to_break(remaining, needs)
             placed_needs = [depth[other] for other in needs[chosen] if other in depth]
             depth[chosen] = max(placed_needs, default=-1) + 1
             order.append(chosen)
@@ -441,20 +435,39 @@ def _real_edge(
     return x
 
 
-def _on_cycle(start: str, needs: dict[str, set[str]], remaining: set[str]) -> bool:
-    """Whether ``start`` can reach itself through unplaced prerequisites."""
+def _cycle_to_break(remaining: list[str], needs: dict[str, set[str]]) -> str:
+    """Pick the card that breaks a stalled order: the first by ID that lies
+    on a cycle and whose unplaced prerequisites all lie on that same cycle.
 
-    seen: set[str] = set()
-    stack = [other for other in needs[start] if other in remaining]
-    while stack:
-        node_id = stack.pop()
-        if node_id == start:
-            return True
-        if node_id in seen:
+    When nothing is ready every unplaced card needs another, so the unplaced
+    cards contain at least one cycle that needs nothing outside itself (a
+    sink of their strongly connected components); breaking there never puts
+    a card above an outside prerequisite. ``remaining`` is in ID order.
+    """
+
+    pool = set(remaining)
+
+    def reach(start: str) -> set[str]:
+        found: set[str] = set()
+        stack = [other for other in needs[start] if other in pool]
+        while stack:
+            node_id = stack.pop()
+            if node_id in found:
+                continue
+            found.add(node_id)
+            stack.extend(other for other in needs[node_id] if other in pool)
+        return found
+
+    reachable = {node_id: reach(node_id) for node_id in remaining}
+    for node_id in remaining:
+        if node_id not in reachable[node_id]:
             continue
-        seen.add(node_id)
-        stack.extend(other for other in needs[node_id] if other in remaining)
-    return False
+        own_cycle = {
+            other for other in reachable[node_id] if node_id in reachable[other]
+        }
+        if reachable[node_id] <= own_cycle:
+            return node_id
+    raise AssertionError("a stalled order always contains a closed cycle")
 
 
 def _outline_route(

@@ -42,7 +42,7 @@ This record covers review-response round 1 for PR #842 (`WI-LRH-CONSOLE-MAP-OUTL
 
 **Threads:**
 
-1. **Copilot and Codex P2 (cycle broken at a card not on the cycle):** valid. The pre-push fix broke a stall at the first remaining card by ID, which could be a card that only depends on the cycle. It now breaks at the first card by ID that can reach itself through unplaced prerequisites (`_on_cycle`). A test uses the bots' case: X and Y in a cycle, with an earlier-sorting A depending on X.
+1. **Copilot and Codex P2 (cycle broken at a card not on the cycle):** valid. The pre-push fix broke a stall at the first remaining card by ID, which could be a card that only depends on the cycle. It now breaks at the first card by ID that can reach itself through unplaced prerequisites (`_on_cycle`). A test uses the bots' case: X and Y in a cycle, with an earlier-sorting A depending on X. Correction: confirm-fixes found that this round's fix was still partial when one cycle depends on another. Round 2 replaces it with `_cycle_to_break` (see the `_CONFIRM` record).
 2. **Copilot (owner comparison and default decision):** settled.
    - `DEFAULT_LAYOUT` is now the outline, and Grid stays reachable at `?layout=layered-grid`.
    - The decision is recorded in the visual-language proposal ("Default map layout", `updated_on: 2026-10-14`) and in `layout.py`.

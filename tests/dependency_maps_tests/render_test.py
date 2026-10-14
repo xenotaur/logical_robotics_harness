@@ -1022,6 +1022,27 @@ class OutlineLayoutTest(unittest.TestCase):
 
         self.assertLess(order.index("WI-X"), order.index("WI-A"))
 
+    def test_a_cycle_that_needs_another_stays_below_it(self) -> None:
+        # Two cycles, WI-A/WI-B and WI-C/WI-D; WI-A needs WI-C.
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one")
+                for node_id in ("WI-A", "WI-B", "WI-C", "WI-D")
+            ),
+            (
+                _edge("WI-A", "WI-B"),
+                _edge("WI-B", "WI-A"),
+                _edge("WI-C", "WI-D"),
+                _edge("WI-D", "WI-C"),
+                _edge("WI-A", "WI-C"),
+            ),
+        )
+
+        order = [card.id for card in self.outline.layout(snapshot).cards]
+
+        self.assertLess(order.index("WI-C"), order.index("WI-A"))
+        self.assertLess(order.index("WI-D"), order.index("WI-A"))
+
     def test_the_cycle_diagnostic_stays_visible_in_the_outline(self) -> None:
         diagnostic = Diagnostic(
             code="cycle", severity="error", message="depends_on cycle among WI-A, WI-B"

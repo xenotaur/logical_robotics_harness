@@ -4,18 +4,18 @@ A layout is reached only through the ``Layout`` interface, so the renderer
 never depends on how positions are chosen and another implementation (a
 curved router, or a library) can replace the default.
 
-The default ``LayeredGridLayout`` follows Revision 2 (Q7): the view's lane and
+``LayeredGridLayout`` follows Revision 2 (Q7): the view's lane and
 phase grid fixes each card's cell, so it chooses only the order of cards
 within a cell (barycenter sweeps, the standard crossing-reduction step of a
 layered layout) and right-angled line routes through the gaps between lanes
 and phases. No layout library fits a fixed grid without Node or a native
 binary; see the evaluation recorded in PR for WI-LRH-CONSOLE-MAP-STATIC.
 
-``OutlineLayout`` keeps the same lane columns and phase rows, but lists each
-cell's cards in dependency order (a prerequisite above what needs it) and
+``OutlineLayout``, the default, keeps the same lane columns and phase rows, but
+lists each cell's cards in dependency order (a prerequisite above what needs it) and
 indents each card by its dependency depth within the cell. Lines inside a cell
 run down a rail at the cell's left edge; lines between cells route through the
-gaps as in the grid. Pages choose a layout by name (``?layout=outline``).
+gaps as in the grid. Pages choose a layout by name (``?layout=layered-grid``).
 
 Lines run from the prerequisite (or blocker) to the item that needs it.
 Offscreen items are not placed; cards count them instead.
@@ -97,7 +97,7 @@ class Layout(Protocol):
 
 
 class LayeredGridLayout:
-    """The default: fixed lane and phase cells, ordered cards, right angles."""
+    """Fixed lane and phase cells, ordered cards, right angles."""
 
     name = "layered-grid"
 
@@ -212,10 +212,11 @@ class OutlineLayout:
     """Lane columns and phase rows as in the grid, but each cell is an
     outline: cards in dependency order, indented by depth within the cell.
 
-    Indentation is capped at ``OUTLINE_MAX_DEPTH`` levels so deep chains do
-    not squeeze cards; deeper items keep the deepest indent. A cycle cannot be
-    ordered, so its items fall back to a stable order (by ID) and the
-    snapshot's cycle diagnostic stays visible.
+    Cards keep their full width; a lane widens by the deepest indent it
+    uses, capped at ``OUTLINE_MAX_DEPTH`` levels, and deeper items keep the
+    deepest indent. A cycle cannot be ordered, so it is broken at a stable
+    point (see ``_outline_order``) and the snapshot's cycle diagnostic stays
+    visible. This is the default layout.
     """
 
     name = "outline"
@@ -250,12 +251,31 @@ class OutlineLayout:
             phase: max([len(cells.get((lane, phase), [])) for lane in lane_ids] + [1])
             for phase in phase_ids
         }
-        column_width = CARD_WIDTH + 2 * CELL_PADDING + OUTLINE_RAIL
+        # Cards keep their full width; a lane widens by the deepest indent it
+        # uses (at most OUTLINE_MAX_DEPTH levels) instead.
+        indent_of = {
+            node_id: min(depth[node_id], OUTLINE_MAX_DEPTH) * OUTLINE_INDENT
+            for node_id in cell_of
+        }
+        column_width = {
+            lane: CARD_WIDTH
+            + 2 * CELL_PADDING
+            + OUTLINE_RAIL
+            + max(
+                [
+                    indent_of[node_id]
+                    for node_id in cell_of
+                    if cell_of[node_id][0] == lane
+                ]
+                + [0]
+            )
+            for lane in lane_ids
+        }
         column_x = {}
         x = LABEL_WIDTH + LANE_GUTTER
         for lane in lane_ids:
             column_x[lane] = x
-            x += column_width + LANE_GUTTER
+            x += column_width[lane] + LANE_GUTTER
         width = x
         row_y = {}
         y = HEADER_HEIGHT + PHASE_GUTTER
@@ -267,14 +287,14 @@ class OutlineLayout:
         cards: dict[str, Card] = {}
         for (lane, phase), members in cells.items():
             for index, node_id in enumerate(members):
-                indent = min(depth[node_id], OUTLINE_MAX_DEPTH) * OUTLINE_INDENT
+                indent = indent_of[node_id]
                 cards[node_id] = Card(
                     id=node_id,
                     lane=lane,
                     phase=phase,
                     x=column_x[lane] + CELL_PADDING + OUTLINE_RAIL + indent,
                     y=row_y[phase] + CELL_PADDING + index * (CARD_HEIGHT + CARD_GAP),
-                    width=CARD_WIDTH - indent,
+                    width=CARD_WIDTH,
                     height=CARD_HEIGHT,
                 )
 
@@ -284,7 +304,7 @@ class OutlineLayout:
                 title=row.title,
                 x=column_x[row.id],
                 y=0,
-                width=column_width,
+                width=column_width[row.id],
                 height=height,
             )
             for row in snapshot.lanes
@@ -301,7 +321,9 @@ class OutlineLayout:
             )
             for phase in phase_ids
         )
-        lines = _outline_route(snapshot, cards, lane_ids, phase_ids, row_y, column_x)
+        lines = _outline_route(
+            snapshot, cards, lane_ids, phase_ids, row_y, column_x, column_width
+        )
         return LayoutResult(
             name=self.name,
             width=width,
@@ -322,9 +344,11 @@ class OutlineLayout:
         )
 
 
-DEFAULT_LAYOUT: Layout = LayeredGridLayout()
+# The owner chose the outline as the default after comparing both on real
+# views (WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT); the grid stays one click away.
+DEFAULT_LAYOUT: Layout = OutlineLayout()
 LAYOUTS: dict[str, Layout] = {
-    layout.name: layout for layout in (DEFAULT_LAYOUT, OutlineLayout())
+    layout.name: layout for layout in (DEFAULT_LAYOUT, LayeredGridLayout())
 }
 
 
@@ -344,8 +368,9 @@ def _outline_order(
     all placed, the next one is a dependent of the most recently placed card
     when there is one, so an item sits just under what it needs, as in an
     outline; otherwise the shallowest, then the first by ID. When a cycle
-    leaves nothing ready, the first remaining card by ID is placed anyway and
-    the normal order resumes, so only the cycle's own edges can point upward.
+    leaves nothing ready, the first remaining card by ID that lies on a cycle
+    is placed anyway and the normal order resumes, so only the cycle's own
+    edges can point upward.
     """
 
     inside = set(members)
@@ -359,8 +384,13 @@ def _outline_order(
     while remaining:
         ready = [node_id for node_id in remaining if needs[node_id] <= set(order)]
         if not ready:
-            # A cycle: break it at the first card by ID, then carry on.
-            chosen = remaining[0]
+            # A cycle: break it at the first card by ID that is on a cycle,
+            # so items that only depend on a cycle stay below it.
+            chosen = next(
+                node_id
+                for node_id in remaining
+                if _on_cycle(node_id, needs, set(remaining))
+            )
             placed_needs = [depth[other] for other in needs[chosen] if other in depth]
             depth[chosen] = max(placed_needs, default=-1) + 1
             order.append(chosen)
@@ -386,12 +416,45 @@ def _outline_order(
     return order, depth
 
 
-def _at_column_edge(card: Card, column_x: dict[str, int]) -> Card:
-    """The card as the grid would place it: at its column's left edge, keeping
-    its real right edge."""
+def _at_column_edges(
+    card: Card, column_x: dict[str, int], column_width: dict[str, int]
+) -> Card:
+    """The card stretched across its column's content area, so routes built
+    from its edges keep their gutters outside the column."""
 
     left = column_x[card.lane] + CELL_PADDING
-    return dataclasses.replace(card, x=left, width=card.x + card.width - left)
+    return dataclasses.replace(
+        card, x=left, width=column_width[card.lane] - 2 * CELL_PADDING
+    )
+
+
+def _real_edge(
+    x: int, card: Card, column_x: dict[str, int], column_width: dict[str, int]
+) -> int:
+    """Map a stretched card's left or right edge back to the real card's."""
+
+    left = column_x[card.lane] + CELL_PADDING
+    if x == left:
+        return card.x
+    if x == column_x[card.lane] + column_width[card.lane] - CELL_PADDING:
+        return card.x + card.width
+    return x
+
+
+def _on_cycle(start: str, needs: dict[str, set[str]], remaining: set[str]) -> bool:
+    """Whether ``start`` can reach itself through unplaced prerequisites."""
+
+    seen: set[str] = set()
+    stack = [other for other in needs[start] if other in remaining]
+    while stack:
+        node_id = stack.pop()
+        if node_id == start:
+            return True
+        if node_id in seen:
+            continue
+        seen.add(node_id)
+        stack.extend(other for other in needs[node_id] if other in remaining)
+    return False
 
 
 def _outline_route(
@@ -401,12 +464,13 @@ def _outline_route(
     phase_ids: list[str],
     row_y: dict[str, int],
     column_x: dict[str, int],
+    column_width: dict[str, int],
 ) -> tuple[Line, ...]:
     """Lines inside a cell run down the cell's left rail, which no card
     covers. Lines between cells use the grid's routes, computed as if every
-    card started at its column's edge, so their gutters stay outside the
-    column whatever the indent; the first and last steps then run along the
-    card's own row to its real left edge, where no other card sits."""
+    card spanned its column, so their gutters stay outside the column
+    whatever the indent; the first and last steps then run along the card's
+    own row to its real edge, where no other card sits."""
 
     lines = []
     tracks: dict[tuple[str, int], int] = {}
@@ -445,19 +509,23 @@ def _outline_route(
         else:
             points = list(
                 _orthogonal(
-                    _at_column_edge(source, column_x),
-                    _at_column_edge(item, column_x),
+                    _at_column_edges(source, column_x, column_width),
+                    _at_column_edges(item, column_x, column_width),
                     lane_ids,
                     phase_ids,
                     row_y,
                     track,
                 )
             )
-            # Only left edges moved; right edges already line up.
-            if points[0][0] == column_x[source.lane] + CELL_PADDING:
-                points[0] = (source.x, points[0][1])
-            if points[-1][0] == column_x[item.lane] + CELL_PADDING:
-                points[-1] = (item.x, points[-1][1])
+            # Extend the end steps along each card's own row to its edge.
+            points[0] = (
+                _real_edge(points[0][0], source, column_x, column_width),
+                points[0][1],
+            )
+            points[-1] = (
+                _real_edge(points[-1][0], item, column_x, column_width),
+                points[-1][1],
+            )
         lines.append(
             Line(
                 kind=edge.kind,

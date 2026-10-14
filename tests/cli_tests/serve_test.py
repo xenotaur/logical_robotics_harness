@@ -875,7 +875,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("text/html", content_type)
         self.assertIn('<nav class="lrh-sidebar"', body)
         self.assertIn('class="lrh-map"', body)
-        self.assertIn("Layout: layered-grid.", body)
+        self.assertIn("Layout: outline.", body)
         self.assertIn("Dependency maps</span>", body)
         self.assertNotIn("<script", body.lower())
         self.assertEqual(selected.count('<aside class="lrh-drawer"'), 1)
@@ -915,15 +915,16 @@ class TestLrhServeRoutes(unittest.TestCase):
         _root, base_url = self._dependency_map_server()
         url = base_url + "/project/main/dependency-maps/main"
 
-        _s, _t, outline = self._read(url + "?layout=outline")
+        _s, _t, grid = self._read(url + "?layout=layered-grid")
         _s, _t, unknown = self._read(url + "?layout=nope")
-        _s, _t, table = self._read(url + "?tab=table&layout=outline")
+        _s, _t, table = self._read(url + "?tab=table&layout=layered-grid")
 
-        self.assertIn("Layout: outline.", outline)
-        self.assertIn('<span aria-current="true">Outline</span>', outline)
-        self.assertIn("Layout: layered-grid.", unknown)
+        self.assertIn("Layout: layered-grid.", grid)
+        self.assertIn('<span aria-current="true">Grid</span>', grid)
+        # An unknown name falls back to the default, the outline.
+        self.assertIn("Layout: outline.", unknown)
         # The table's Map tab link keeps the layout.
-        self.assertIn('<a href="?layout=outline">Map</a>', table)
+        self.assertIn('<a href="?layout=layered-grid">Map</a>', table)
 
     def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
         _root, base_url = self._dependency_map_server()

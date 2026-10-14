@@ -10,6 +10,7 @@ invoke or probe the desktop toolchain, and that every ``--desktop`` mode fails
 import os
 import pathlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -167,6 +168,26 @@ class DesktopModesTestBase(unittest.TestCase):
         self.xdo_header = self.root / "xdo.h"
         self.xdo_header.write_text("", encoding="utf-8")
 
+    def _tools_dir(self) -> pathlib.Path:
+        """Fill in python/black/ruff/pip the interpreter's directory lacks.
+
+        Some interpreters (e.g. Homebrew's) ship only ``python3`` in their
+        directory, so a sanitized PATH built from it alone loses the tools the
+        scripts call. Link ``python`` to the running interpreter and the rest
+        from the caller's PATH, so these tests do not depend on that layout.
+        """
+        tools = self.root / "tools"
+        tools.mkdir(exist_ok=True)
+        interpreter_dir = pathlib.Path(sys.executable).parent
+        for name in ("python", "black", "ruff", "pip"):
+            link = tools / name
+            if (interpreter_dir / name).exists() or link.exists():
+                continue
+            target = sys.executable if name == "python" else shutil.which(name)
+            if target:
+                link.symlink_to(target)
+        return tools
+
     def _run(
         self,
         argv: list[str],
@@ -192,7 +213,12 @@ class DesktopModesTestBase(unittest.TestCase):
             path_entries.append(str(fake_python_path.parent))
         # The real interpreter's directory supplies python/ruff/black/pip for
         # lint, format, and version; system dirs supply sh, sed, grep, uname.
-        path_entries += [str(pathlib.Path(sys.executable).parent), "/usr/bin", "/bin"]
+        path_entries += [
+            str(self._tools_dir()),
+            str(pathlib.Path(sys.executable).parent),
+            "/usr/bin",
+            "/bin",
+        ]
         env = {
             "PATH": os.pathsep.join(path_entries),
             "HOME": str(self.home),

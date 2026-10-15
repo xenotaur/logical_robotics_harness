@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-RESTART-SHORTCUT"
 title: "Add a Cmd+Shift+I shortcut to start or restart the LRH Console server"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #845 (commit 3a233c6b). Cmd+Shift+I starts a stopped server at once and restarts a running one after a native confirmation sheet on the main window (''Restart the server? The current page will reload.'', Restart or Cancel). Start Server and Restart Server are one menu item, labelled by state, that always carries the shortcut, because muda 0.20 cannot clear a menu item''s key equivalent on macOS. Only one prompt can be open, a confirmed restart holds the guard until the worker claims it, and the stopped and failed pages mention the shortcut. The dialog comes from tauri-plugin-dialog 2.8.3, pinned and used from Rust only; tests check that its commands are denied in every window. The owner checked it on the branch app. A remaining narrow race between a Settings restart and a confirmed shortcut restart is tracked in WI-LRH-CONSOLE-RESTART-REQUEST-TOKEN.'
 owner: "anthony"
 contributors:
 - "anthony"

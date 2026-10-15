@@ -2,10 +2,10 @@
 execution_id: 2026_10_15_01_28_23_LRH_CONSOLE_DESKTOP_RESTART_SHORTCUT
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-RESTART-SHORTCUT:LRH_CONSOLE_DESKTOP_RESTART_SHORTCUT)[2026-10-15T00:19:28+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-RESTART-SHORTCUT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/845
-commit:
+commit: 3a233c6b86553b663e95bc1156cb5ce4f063c790
 created_at: 2026-10-15T01:28:23+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/845

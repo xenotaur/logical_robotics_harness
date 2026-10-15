@@ -2,10 +2,10 @@
 execution_id: 2026_10_13_20_17_26_LRH_CONSOLE_MAP_OUTLINE_LAYOUT
 prompt_id: PROMPT(WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT:LRH_CONSOLE_MAP_OUTLINE_LAYOUT)[2026-10-13T19:38:35+00:00]
 work_item: WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/842
-commit:
+commit: 1ee5fefbee240e680aac50938b7d88c420d3b657
 created_at: 2026-10-13T20:17:26+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/842

@@ -2,10 +2,10 @@
 execution_id: 2026_10_13_20_17_26_LRH_CONSOLE_MAP_OUTLINE_LAYOUT_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_MAP_OUTLINE_LAYOUT_SELFREVIEW)[2026-10-13T20:17:26+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_13_20_17_26_LRH_CONSOLE_MAP_OUTLINE_LAYOUT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/842
-commit:
+commit: 1ee5fefbee240e680aac50938b7d88c420d3b657
 created_at: 2026-10-13T20:17:26+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/842

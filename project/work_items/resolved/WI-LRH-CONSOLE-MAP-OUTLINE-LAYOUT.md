@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT"
 title: "Add an indented outline layout that orders cards by dependency depth"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #842 (commit 1ee5fefb). Dependency maps have an outline layout, which the owner chose as the default after comparing both layouts on lrh-console-l1 and LCATS worldcon-2026 ("The outline is more readable than the grid"). Each lane-and-phase cell lists its cards in dependency order and indents them by depth (24 px per level, capped at four); cards keep full width and lanes widen. Lines inside a cell run down a left rail, and lines between cells route from the column edge so none crosses a card. Cycles are broken inside a cycle that needs nothing outside itself, and diagnostics stay visible. A Layout toggle beside the filters and ?layout=layered-grid keep the grid one click away, and the grid''s output is unchanged. The decision is recorded in the visual-language proposal. Line readability (ports, curves, color, hover) is deferred to WI-LRH-CONSOLE-MAP-EDGE-READABILITY.'
 owner: "anthony"
 contributors:
 - "anthony"

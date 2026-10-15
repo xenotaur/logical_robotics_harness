@@ -21,7 +21,7 @@ Created work item WI-LRH-CONSOLE-WORK-ITEM-BROWSER via /lrh-work-item after an /
 - Wrote `project/work_items/proposed/WI-LRH-CONSOLE-WORK-ITEM-BROWSER.md` (deliverable, parent WS-LRH-CONSOLE-LOCAL-DOGFOOD).
 - With owner approval, added the ID to `WS-LRH-CONSOLE-LOCAL-DOGFOOD` `work_items`.
 - Opened PR #836.
-- Design findings recorded in the work item: `/workbench` already lists every work item, and only 9 of 35 workstreams set `related_roadmap`, so the tree is rooted at workstreams.
+- Design findings recorded in the work item: `/workbench` already lists every work item, and only 9 of 28 workstreams set `related_roadmap`, so the tree is rooted at workstreams.
 
 # Validation
 

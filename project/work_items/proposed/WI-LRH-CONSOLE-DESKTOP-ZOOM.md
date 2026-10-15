@@ -30,7 +30,7 @@ forbidden_actions:
 - "publish_package"
 - "deploy_remote_service"
 acceptance:
-- "The View menu has Zoom In (Cmd+= and Cmd++), Zoom Out (Cmd+-), and Actual Size (Cmd+0) items that change the main window's page zoom."
+- "The View menu has Zoom In (Cmd+=), Zoom Out (Cmd+-), and Actual Size (Cmd+0) items that change the main window's page zoom. (Owner decision at the plan gate: Cmd+= only, since the menu library allows one shortcut per item; Statusboard moves from Cmd+0 to Cmd+Shift+H.)"
 - "The zoom level is global, survives navigation, Server > Restart, and quitting the app, and Actual Size resets it."
 - "The current zoom level is visible somewhere unobtrusive (for example the window title or the menu) when it is not 100%."
 required_evidence:
@@ -40,7 +40,6 @@ required_evidence:
 artifacts_expected:
 - "apps/desktop/src-tauri/src/shell.rs"
 - "apps/desktop/src-tauri/src/settings.rs"
-- "apps/desktop/src-tauri/tauri.conf.json"
 ---
 
 # Page zoom in LRH Console
@@ -76,7 +75,7 @@ In-repo: no zoom handling exists in `apps/desktop/`. Recommendation: proceed.
 
 ## Acceptance Criteria
 
-- The View menu has Zoom In (Cmd+= and Cmd++), Zoom Out (Cmd+-), and Actual Size (Cmd+0) items that change the main window's page zoom.
+- The View menu has Zoom In (Cmd+=), Zoom Out (Cmd+-), and Actual Size (Cmd+0) items that change the main window's page zoom. (Owner decision at the plan gate: Cmd+= only, since the menu library allows one shortcut per item; Statusboard moves from Cmd+0 to Cmd+Shift+H.)
 - The zoom level is global, survives navigation, Server > Restart, and quitting the app, and Actual Size resets it.
 - The current zoom level is visible somewhere unobtrusive (for example the window title or the menu) when it is not 100%.
 

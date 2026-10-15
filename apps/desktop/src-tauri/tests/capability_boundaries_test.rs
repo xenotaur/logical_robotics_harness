@@ -295,6 +295,16 @@ fn settings_window_capability_grants_exactly_its_commands() {
 }
 
 #[test]
+fn the_app_requires_macos_11_for_page_zoom() {
+    // View > Zoom uses WKWebView pageZoom, which exists only on macOS 11+;
+    // wry calls it unconditionally, so older systems must not run the app.
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+
+    assert_eq!(config["bundle"]["macOS"]["minimumSystemVersion"], "11.0");
+}
+
+#[test]
 fn content_security_policy_is_unchanged() {
     let config: serde_json::Value =
         serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();

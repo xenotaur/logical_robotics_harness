@@ -503,24 +503,9 @@ impl WindowStateStore {
 
     /// Writes the frame atomically, so a crash never leaves half a file.
     pub fn save(&self, saved: &SavedWindow) -> Result<(), String> {
-        let dir = self
-            .path
-            .parent()
-            .ok_or_else(|| "window state path has no directory".to_string())?;
-        std::fs::create_dir_all(dir)
-            .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
         let text = serde_json::to_string(saved)
             .map_err(|error| format!("could not encode window state: {error}"))?;
-        // A unique temp file, so overlapping saves never share one.
-        static SAVES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let count = SAVES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let temp = self
-            .path
-            .with_extension(format!("json.{}.{count}.tmp", std::process::id()));
-        std::fs::write(&temp, format!("{text}\n"))
-            .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
-        std::fs::rename(&temp, &self.path)
-            .map_err(|error| format!("could not replace {}: {error}", self.path.display()))
+        write_atomically(&self.path, &text)
     }
 
     /// Forgets the saved frame. Having none is not an error.
@@ -533,9 +518,139 @@ impl WindowStateStore {
     }
 }
 
+/// Writes `text` to `path` through a unique temp file and a rename, so a
+/// crash never leaves half a file and overlapping saves never share one.
+fn write_atomically(path: &Path, text: &str) -> Result<(), String> {
+    let dir = path
+        .parent()
+        .ok_or_else(|| format!("{} has no directory", path.display()))?;
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
+    static SAVES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = SAVES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp = path.with_extension(format!("json.{}.{count}.tmp", std::process::id()));
+    std::fs::write(&temp, format!("{text}\n"))
+        .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
+    std::fs::rename(&temp, path)
+        .map_err(|error| format!("could not replace {}: {error}", path.display()))
+}
+
+/// Where the page zoom level is remembered, next to the window state. It is
+/// kept apart from the window state so resetting the window keeps the zoom.
+pub const ZOOM_FILE: &str = "zoom.json";
+
+/// The zoom steps, as in Chrome: View > Zoom In and Zoom Out move one step.
+pub const ZOOM_LEVELS: [f64; 13] = [
+    0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0,
+];
+
+/// The level one step in (`true`) or out from `level`, held at the ends.
+pub fn zoom_step(level: f64, zoom_in: bool) -> f64 {
+    let level = snap_zoom(level);
+    if zoom_in {
+        ZOOM_LEVELS
+            .iter()
+            .copied()
+            .find(|step| *step > level + 1e-9)
+            .unwrap_or(level)
+    } else {
+        ZOOM_LEVELS
+            .iter()
+            .rev()
+            .copied()
+            .find(|step| *step < level - 1e-9)
+            .unwrap_or(level)
+    }
+}
+
+/// The nearest zoom step, so a hand-edited or stale value stays on a step.
+pub fn snap_zoom(level: f64) -> f64 {
+    if !level.is_finite() {
+        return 1.0;
+    }
+    ZOOM_LEVELS
+        .iter()
+        .copied()
+        .min_by(|a, b| (a - level).abs().total_cmp(&(b - level).abs()))
+        .unwrap_or(1.0)
+}
+
+/// The level as a whole percentage, for the menu.
+pub fn zoom_percent(level: f64) -> u32 {
+    (level * 100.0).round() as u32
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+struct SavedZoom {
+    level: f64,
+}
+
+/// Reads and writes the page zoom level. A missing or unreadable file just
+/// means 100%.
+#[derive(Debug, Clone)]
+pub struct ZoomStore {
+    path: PathBuf,
+}
+
+impl ZoomStore {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        ZoomStore { path: path.into() }
+    }
+
+    /// The store inside an app config directory.
+    pub fn in_dir(dir: &Path) -> Self {
+        Self::new(dir.join(ZOOM_FILE))
+    }
+
+    /// The saved level, snapped to a step, or 100%.
+    pub fn load(&self) -> f64 {
+        std::fs::read_to_string(&self.path)
+            .ok()
+            .and_then(|text| serde_json::from_str::<SavedZoom>(&text).ok())
+            .map(|saved| snap_zoom(saved.level))
+            .unwrap_or(1.0)
+    }
+
+    pub fn save(&self, level: f64) -> Result<(), String> {
+        let text = serde_json::to_string(&SavedZoom {
+            level: snap_zoom(level),
+        })
+        .map_err(|error| format!("could not encode zoom: {error}"))?;
+        write_atomically(&self.path, &text)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zoom_steps_like_chrome_and_holds_at_the_ends() {
+        assert_eq!(zoom_step(1.0, true), 1.1);
+        assert_eq!(zoom_step(1.0, false), 0.9);
+        assert_eq!(zoom_step(3.0, true), 3.0);
+        assert_eq!(zoom_step(0.5, false), 0.5);
+        // Off-step values snap first.
+        assert_eq!(zoom_step(1.03, true), 1.1);
+        assert_eq!(snap_zoom(f64::NAN), 1.0);
+        assert_eq!(snap_zoom(9.0), 3.0);
+        assert_eq!(zoom_percent(1.25), 125);
+        assert_eq!(zoom_percent(0.67), 67);
+    }
+
+    #[test]
+    fn zoom_is_remembered_and_a_bad_file_means_100_percent() {
+        let temp = TempDir::new("zoom");
+        let dir = temp.0.clone();
+        let store = ZoomStore::in_dir(&dir);
+        assert_eq!(store.load(), 1.0, "no file yet");
+        store.save(1.5).unwrap();
+        assert_eq!(ZoomStore::in_dir(&dir).load(), 1.5);
+        std::fs::write(dir.join(ZOOM_FILE), "not json").unwrap();
+        assert_eq!(store.load(), 1.0);
+        std::fs::write(dir.join(ZOOM_FILE), r#"{"level": 1.27}"#).unwrap();
+        assert_eq!(store.load(), 1.25, "snapped to a step");
+    }
 
     fn frame(x: f64, y: f64, width: f64, height: f64) -> WindowFrame {
         WindowFrame {

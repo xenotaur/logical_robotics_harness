@@ -215,11 +215,46 @@ impl NavigationPolicy {
     /// the running backend's origin. The shell opens native Settings for it
     /// instead of loading the page.
     pub fn is_settings_request(&self, url: &Url) -> bool {
-        url.path() == SETTINGS_PAGE_PATH
-            && lock(&self.backend)
-                .as_ref()
-                .is_some_and(|backend| backend.origin() == url.origin())
+        url.path() == SETTINGS_PAGE_PATH && self.is_backend_origin(url)
     }
+
+    /// `Some(true)` for the page's Back button, `Some(false)` for Forward,
+    /// on the current backend only.
+    pub fn history_request(&self, url: &Url) -> Option<bool> {
+        if !self.is_backend_origin(url) {
+            return None;
+        }
+        match url.path() {
+            HISTORY_BACK_PATH => Some(true),
+            HISTORY_FORWARD_PATH => Some(false),
+            _ => None,
+        }
+    }
+
+    fn is_backend_origin(&self, url: &Url) -> bool {
+        lock(&self.backend)
+            .as_ref()
+            .is_some_and(|backend| backend.origin() == url.origin())
+    }
+}
+
+/// The page's Back and Forward buttons link to these Serve paths
+/// (`lrh.ux.frame.HISTORY_BACK_PATH` and `HISTORY_FORWARD_PATH`). The app
+/// intercepts them, like the gear, and moves through its own history.
+pub const HISTORY_BACK_PATH: &str = "/desktop/back";
+pub const HISTORY_FORWARD_PATH: &str = "/desktop/forward";
+
+/// Marks every page in the main window as shown inside the app, so the
+/// frame's Back and Forward buttons appear (`lrh.ux.frame.HISTORY_APP_CLASS`).
+/// It runs natively before the page's own scripts and needs none of them.
+pub const IN_APP_SCRIPT: &str = "(function () {\n  var mark = function () {\n    if (document.documentElement) {\n      document.documentElement.classList.add('lrh-in-app');\n    }\n  };\n  mark();\n  document.addEventListener('DOMContentLoaded', mark);\n})();";
+
+/// The script that greys out the page's Back and Forward buttons to match
+/// the app's history. Only booleans are interpolated.
+pub fn history_buttons_script(back: bool, forward: bool) -> String {
+    format!(
+        "(function (state) {{\n  for (var name in state) {{\n    var button = document.querySelector('[data-lrh-history=\"' + name + '\"]');\n    if (!button) continue;\n    button.setAttribute('aria-disabled', state[name] ? 'false' : 'true');\n    if (state[name]) button.removeAttribute('tabindex');\n    else button.setAttribute('tabindex', '-1');\n  }}\n}})({{back: {back}, forward: {forward}}});"
+    )
 }
 
 /// The Serve path the frame's gear links to (`lrh.ux.frame.SETTINGS_PATH`).
@@ -1036,6 +1071,19 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
                 }
                 return false;
             }
+            // The page's Back and Forward buttons do what the View menu does.
+            if let Some(back) = policy.history_request(url) {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    let id = if back {
+                        menu_id::BACK
+                    } else {
+                        menu_id::FORWARD
+                    };
+                    handle_menu(&handle, id);
+                });
+                return false;
+            }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
                 // Navigation decisions run on the main thread, like every
@@ -1062,9 +1110,25 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         })
         // Downloads (Serve's `?download=1` prompt Markdown) open in the
         // browser, which saves them; the app never writes files itself.
+        .initialization_script(IN_APP_SCRIPT)
         .on_page_load(move |window, payload| {
-            if payload.event() == PageLoadEvent::Finished && load_cue.end() {
+            if payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+            if load_cue.end() {
                 set_main_title(&window, false);
+            }
+            // Grey out the page's Back and Forward to match the menu.
+            if let Some(state) = window.try_state::<ShellState>() {
+                let backend = state.policy.backend();
+                let (back, forward) = {
+                    let pages = lock(&state.history);
+                    (
+                        pages.can_go_back(backend.as_ref()),
+                        pages.can_go_forward(backend.as_ref()),
+                    )
+                };
+                let _ = window.eval(history_buttons_script(back, forward));
             }
         })
         .on_download(move |webview, event| {
@@ -2837,6 +2901,43 @@ mod tests {
             SettingsSection::Details.show_script(),
             r#"window.lrhShowSection && window.lrhShowSection("details");"#
         );
+    }
+
+    #[test]
+    fn only_the_backend_history_paths_are_history_requests() {
+        let policy = NavigationPolicy::default();
+        let back = Url::parse("http://127.0.0.1:49152/desktop/back").unwrap();
+        assert_eq!(policy.history_request(&back), None, "no backend yet");
+
+        policy.set_backend(Some(&Url::parse("http://127.0.0.1:49152/").unwrap()));
+        assert_eq!(policy.history_request(&back), Some(true));
+        assert_eq!(
+            policy.history_request(&Url::parse("http://127.0.0.1:49152/desktop/forward").unwrap()),
+            Some(false)
+        );
+        for other in [
+            "http://127.0.0.1:49153/desktop/back",
+            "http://127.0.0.1:49152/desktop/backx",
+            "http://127.0.0.1:49152/desktop",
+            "http://127.0.0.1:49152/meta",
+            "https://example.com/desktop/back",
+        ] {
+            assert_eq!(
+                policy.history_request(&Url::parse(other).unwrap()),
+                None,
+                "{other}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_page_buttons_are_marked_and_greyed_out_by_native_scripts() {
+        assert!(IN_APP_SCRIPT.contains("classList.add('lrh-in-app')"));
+        let script = history_buttons_script(true, false);
+        assert!(script.ends_with("({back: true, forward: false});"));
+        assert!(script.contains("[data-lrh-history=\"' + name + '\"]"));
+        assert!(script.contains("'aria-disabled'"));
+        assert!(history_buttons_script(false, true).ends_with("({back: false, forward: true});"));
     }
 
     #[test]

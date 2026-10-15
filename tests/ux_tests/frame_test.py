@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import pathlib
 import re
 import unittest
 
@@ -141,6 +142,42 @@ class FrameTest(unittest.TestCase):
         self.assertIn("The Montserrat Project Authors", font)
         self.assertIn("SIL OPEN FONT LICENSE Version 1.1", font)
         self.assertIn("ISC License", icons)
+
+    def test_back_and_forward_render_hidden_after_the_sidebar_toggle(self) -> None:
+        page = _framed("/project/lcats", {})
+        topbar = page.split('<header class="lrh-topbar">', 1)[1].split("</header>", 1)[
+            0
+        ]
+
+        toggle = topbar.index("lrh-rail-button")
+        back = topbar.index(f'href="{frame.HISTORY_BACK_PATH}"')
+        forward = topbar.index(f'href="{frame.HISTORY_FORWARD_PATH}"')
+        self.assertLess(toggle, back)
+        self.assertLess(back, forward)
+        self.assertLess(forward, topbar.index("lrh-pagename"))
+        self.assertIn('data-lrh-history="back"', topbar)
+        self.assertIn('data-lrh-history="forward"', topbar)
+        # Hidden unless LRH Console marks the page, so a browser never shows them.
+        self.assertIn(".lrh-history { display: none; }", frame.FRAME_STYLES)
+        self.assertIn(
+            f".{frame.HISTORY_APP_CLASS} .lrh-history {{ display: inline-flex; }}",
+            frame.FRAME_STYLES,
+        )
+
+    def test_the_desktop_app_uses_the_same_history_paths_and_class(self) -> None:
+        shell = (
+            pathlib.Path(__file__).resolve().parents[2]
+            / "apps"
+            / "desktop"
+            / "src-tauri"
+            / "src"
+            / "shell.rs"
+        ).read_text(encoding="utf-8")
+        self.assertIn(f'HISTORY_BACK_PATH: &str = "{frame.HISTORY_BACK_PATH}";', shell)
+        self.assertIn(
+            f'HISTORY_FORWARD_PATH: &str = "{frame.HISTORY_FORWARD_PATH}";', shell
+        )
+        self.assertIn(f"classList.add('{frame.HISTORY_APP_CLASS}')", shell)
 
     def test_the_frame_uses_no_scripts(self) -> None:
         page = _framed("/project/lcats", {"item": "WI-ONE"})

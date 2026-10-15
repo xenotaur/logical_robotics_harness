@@ -24,6 +24,12 @@ import urllib.parse
 HOME_PATH = "/meta"
 OWN_DRAWER_MARKER = "data-lrh-own-drawer"
 SETTINGS_PATH = "/settings"
+# The Back and Forward buttons link here. LRH Console intercepts these paths
+# and moves through its own history; the buttons stay hidden unless the app
+# marks the page with HISTORY_APP_CLASS, so a browser never shows them.
+HISTORY_BACK_PATH = "/desktop/back"
+HISTORY_FORWARD_PATH = "/desktop/forward"
+HISTORY_APP_CLASS = "lrh-in-app"
 STATIC_PREFIX = "/static/"
 
 # Every file /static/ may serve, with its content type. Nothing else is
@@ -40,6 +46,8 @@ STATIC_FILES = {
 }
 
 ICON_NAMES = (
+    "chevron-left",
+    "chevron-right",
     "external-link",
     "folder",
     "house",
@@ -220,6 +228,12 @@ def _frame_open(
     </a>
     <label for="lrh-rail" class="lrh-iconbtn lrh-rail-button">{icon("panel-left")}
       <span class="lrh-tip">Collapse or expand the sidebar</span></label>
+    <a class="lrh-iconbtn lrh-history" href="{HISTORY_BACK_PATH}"
+       data-lrh-history="back">{icon("chevron-left")}
+      <span class="lrh-tip">Back (⌘[)</span></a>
+    <a class="lrh-iconbtn lrh-history" href="{HISTORY_FORWARD_PATH}"
+       data-lrh-history="forward">{icon("chevron-right")}
+      <span class="lrh-tip">Forward (⌘])</span></a>
     <div class="lrh-pagename">
       <span class="lrh-pagetitle">{html.escape(title)}</span>
       <span class="lrh-scopename">{html.escape(scope_label)}</span>
@@ -408,6 +422,15 @@ FRAME_STYLES = """
     position: relative;
   }
   .lrh-iconbtn:hover { background: var(--lrh-color-surface-sunken); }
+  /* Back and Forward: shown only inside LRH Console, which marks the page and
+     greys out a direction with no history (aria-disabled). */
+  .lrh-history { display: none; }
+  .lrh-in-app .lrh-history { display: inline-flex; }
+  .lrh-history[aria-disabled="true"] {
+    color: var(--lrh-color-text-muted);
+    opacity: 0.45;
+    pointer-events: none;
+  }
   .lrh-tip {
     background: var(--lrh-color-text-primary);
     border-radius: var(--lrh-radius-sm);

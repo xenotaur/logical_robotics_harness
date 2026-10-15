@@ -18,6 +18,9 @@ This record covers the implementation of `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT` und
 
 # Result
 
+This section describes the implementation round. Review then made the outline the default (the toggle now reads Outline · Grid), kept indented cards full width, and refined the cycle break. See the `_REVIEW` and `_CONFIRM` records.
+
+
 - **`layout.py`:**
   - `OutlineLayout` lists each lane-and-phase cell's cards in dependency order, with a dependent just under what it needs.
   - It indents cards by depth within the cell: 24 px per level, capped at 4 levels.

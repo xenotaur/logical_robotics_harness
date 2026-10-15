@@ -53,9 +53,9 @@ pub const ENV_WORKSPACE: &str = "LRH_CONSOLE_WORKSPACE";
 pub mod menu_id {
     pub const SETTINGS: &str = "app-settings";
     pub const QUIT: &str = "app-quit";
-    pub const START: &str = "server-start";
+    /// One item that reads Start Server or Restart Server with the state.
+    pub const START_OR_RESTART: &str = "server-start-or-restart";
     pub const STOP: &str = "server-stop";
-    pub const RESTART: &str = "server-restart";
     pub const DETAILS: &str = "server-details";
     pub const STATUSBOARD: &str = "view-statusboard";
     pub const WORKSPACE: &str = "view-workspace";
@@ -675,16 +675,19 @@ pub enum ConfigSource {
     Environment,
 }
 
-/// The start-or-restart shortcut. It sits on whichever of Start Server and
-/// Restart Server is enabled, so one key starts a stopped server or restarts
-/// a running one; while the server is busy, neither has it.
+/// The shortcut of the one Start Server / Restart Server item. One item, so
+/// the shortcut never moves: on macOS, muda 0.20 cannot clear a menu item's
+/// key equivalent, so a shortcut moved between two items would stay on both
+/// and the disabled one would swallow it.
 pub const SERVER_SHORTCUT: &str = "CmdOrCtrl+Shift+I";
 
 /// The confirmation shown before a restart, which reloads the page.
 pub const RESTART_PROMPT: &str = "Restart the server? The current page will reload.";
 
-/// Which server action holds [`SERVER_SHORTCUT`] for an enablement.
-pub fn shortcut_action(enablement: MenuEnablement) -> Option<Action> {
+/// What the Start Server / Restart Server item does for an enablement:
+/// start a stopped server, restart (after asking) a running one, or nothing
+/// while the server is busy or there is nothing to start.
+pub fn server_item_action(enablement: MenuEnablement) -> Option<Action> {
     if enablement.restart {
         Some(Action::Restart)
     } else if enablement.start {
@@ -694,26 +697,30 @@ pub fn shortcut_action(enablement: MenuEnablement) -> Option<Action> {
     }
 }
 
+/// The item's label for an action; while busy it keeps its last label.
+pub fn server_item_label(action: Action) -> &'static str {
+    match action {
+        Action::Restart => "Restart Server",
+        _ => "Start Server",
+    }
+}
+
 /// Handles to the menu items whose enablement follows state.
 struct StateItems<R: Runtime> {
-    start: MenuItem<R>,
+    /// Start Server or Restart Server, with [`SERVER_SHORTCUT`].
+    run: MenuItem<R>,
     stop: MenuItem<R>,
-    restart: MenuItem<R>,
     running_views: Vec<MenuItem<R>>,
 }
 
 impl<R: Runtime> StateItems<R> {
     fn apply(&self, enablement: MenuEnablement) {
-        let _ = self.start.set_enabled(enablement.start);
+        let action = server_item_action(enablement);
+        let _ = self.run.set_enabled(action.is_some());
+        if let Some(action) = action {
+            let _ = self.run.set_text(server_item_label(action));
+        }
         let _ = self.stop.set_enabled(enablement.stop);
-        let _ = self.restart.set_enabled(enablement.restart);
-        let holder = shortcut_action(enablement);
-        let _ = self
-            .start
-            .set_accelerator((holder == Some(Action::Start)).then_some(SERVER_SHORTCUT));
-        let _ = self
-            .restart
-            .set_accelerator((holder == Some(Action::Restart)).then_some(SERVER_SHORTCUT));
         for item in &self.running_views {
             let _ = item.set_enabled(enablement.running_views);
         }
@@ -734,6 +741,9 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
+    /// True while the restart confirmation is open, so a second press of the
+    /// shortcut does not stack another.
+    confirming: AtomicBool,
     /// The main window's loading cue, so View > Reload can mark its load.
     cue: Arc<LoadingCue>,
     /// Where the main window's frame is remembered, if there is a config dir.
@@ -1089,9 +1099,13 @@ fn build_menu<R: Runtime>(
         "Open in Chrome (not found: uses default browser)"
     };
     let items = StateItems {
-        start: item(menu_id::START, "Start Server", false, None)?,
+        run: item(
+            menu_id::START_OR_RESTART,
+            "Start Server",
+            false,
+            Some(SERVER_SHORTCUT),
+        )?,
         stop: item(menu_id::STOP, "Stop Server", false, None)?,
-        restart: item(menu_id::RESTART, "Restart Server", false, None)?,
         running_views: vec![
             item(
                 menu_id::STATUSBOARD,
@@ -1178,9 +1192,8 @@ fn build_menu<R: Runtime>(
         "Server",
         true,
         &[
-            &items.start,
+            &items.run,
             &items.stop,
-            &items.restart,
             &PredefinedMenuItem::separator(app)?,
             &details,
         ],
@@ -1621,6 +1634,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         chrome_available,
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
+        confirming: AtomicBool::new(false),
         cue,
         window_state,
         window_saver: Arc::default(),
@@ -1755,25 +1769,36 @@ fn current_backend_page<R: Runtime>(app: &AppHandle<R>, state: &ShellState) -> O
 }
 
 /// Asks before restarting, since a restart reloads the page; Cancel does
-/// nothing. The menu item and its shortcut share this path. The dialog runs
-/// without blocking the main thread.
+/// nothing. The dialog is a sheet on the main window, only one can be open
+/// at a time, and the restart happens only if the server is still running
+/// when the user answers. It runs without blocking the main thread.
 fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-    let handle = app.clone();
-    app.dialog()
+    let state = app.state::<ShellState>();
+    if state.confirming.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let mut dialog = app
+        .dialog()
         .message(RESTART_PROMPT)
         .title("Restart Server")
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::OkCancelCustom(
             "Restart".to_string(),
             "Cancel".to_string(),
-        ))
-        .show(move |restart| {
-            if restart {
-                handle.state::<ShellState>().request(Action::Restart);
-            }
-        });
+        ));
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        dialog = dialog.parent(&window);
+    }
+    let handle = app.clone();
+    dialog.show(move |restart| {
+        let state = handle.state::<ShellState>();
+        state.confirming.store(false, Ordering::SeqCst);
+        if restart && state.supervisor.state() == State::Running {
+            state.request(Action::Restart);
+        }
+    });
 }
 
 /// Handles a menu event by ID.
@@ -1786,9 +1811,16 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             }
         }
         menu_id::QUIT => app.exit(0),
-        menu_id::START => state.request(Action::Start),
+        menu_id::START_OR_RESTART => {
+            let configured = state.supervisor.is_configured();
+            let enablement = MenuEnablement::for_state(state.supervisor.state(), configured);
+            match server_item_action(enablement) {
+                Some(Action::Restart) => confirm_restart(app),
+                Some(action) => state.request(action),
+                None => {}
+            }
+        }
         menu_id::STOP => state.request(Action::Stop),
-        menu_id::RESTART => confirm_restart(app),
         menu_id::STATUSBOARD => {
             if let Some(url) = backend_page(&state, HOME_PAGE) {
                 navigate_main(app, &url);
@@ -2764,28 +2796,19 @@ mod tests {
     }
 
     #[test]
-    fn the_server_shortcut_starts_a_stopped_server_and_restarts_a_running_one() {
-        let at = |state, configured| shortcut_action(MenuEnablement::for_state(state, configured));
+    fn one_item_starts_a_stopped_server_and_restarts_a_running_one() {
+        let at =
+            |state, configured| server_item_action(MenuEnablement::for_state(state, configured));
         assert_eq!(at(State::Stopped, true), Some(Action::Start));
         assert_eq!(at(State::Failed, true), Some(Action::Start));
         assert_eq!(at(State::Running, true), Some(Action::Restart));
-        // Busy, or nothing to start: the shortcut does nothing.
+        // Busy, or nothing to start: the item is disabled.
         assert_eq!(at(State::Starting, true), None);
         assert_eq!(at(State::Stopping, true), None);
         assert_eq!(at(State::Stopped, false), None);
+        assert_eq!(server_item_label(Action::Start), "Start Server");
+        assert_eq!(server_item_label(Action::Restart), "Restart Server");
         assert_eq!(SERVER_SHORTCUT, "CmdOrCtrl+Shift+I");
-    }
-
-    #[test]
-    fn a_restart_asks_first_and_a_start_does_not() {
-        let source = include_str!("shell.rs");
-        let handler = source
-            .split("pub fn handle_menu<R: Runtime>")
-            .nth(1)
-            .and_then(|rest| rest.split("\n}\n").next())
-            .expect("handle_menu");
-        assert!(handler.contains("menu_id::RESTART => confirm_restart(app),"));
-        assert!(handler.contains("menu_id::START => state.request(Action::Start),"));
         assert_eq!(
             RESTART_PROMPT,
             "Restart the server? The current page will reload."

@@ -62,7 +62,10 @@ pub fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 pub fn run() {
     let app = with_commands(tauri::Builder::default())
         // Used from Rust only (the restart confirmation); no capability
-        // grants its page-facing commands.
+        // grants its page-facing commands, which a test pins. Note that the
+        // plugin's init script replaces window.alert and window.confirm in
+        // every page with calls to those denied commands, so a page must not
+        // rely on them (confirm() would return a Promise, which is truthy).
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             shell::setup(app.handle())?;

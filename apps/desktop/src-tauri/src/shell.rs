@@ -14,7 +14,7 @@
 
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
@@ -705,6 +705,48 @@ pub fn server_item_label(action: Action) -> &'static str {
     }
 }
 
+/// Keeps a restart from being asked for twice. It is held from the moment
+/// the confirmation opens until the worker claims the confirmed restart (and
+/// disables the menu item), so a second press in between does nothing. A
+/// restart from elsewhere (Settings) does not release an open prompt.
+#[derive(Debug, Default)]
+pub struct RestartGuard(AtomicU8);
+
+const GUARD_IDLE: u8 = 0;
+const GUARD_ASKING: u8 = 1;
+const GUARD_CONFIRMED: u8 = 2;
+
+impl RestartGuard {
+    /// Takes the guard to open a confirmation; false if one is already open
+    /// or a confirmed restart is not yet claimed.
+    pub fn begin(&self) -> bool {
+        self.0
+            .compare_exchange(GUARD_IDLE, GUARD_ASKING, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    /// Records the answer and says whether to request the restart. A
+    /// confirmed restart keeps the guard until [`RestartGuard::claimed`];
+    /// anything else releases it now.
+    pub fn answered(&self, restart: bool, running: bool) -> bool {
+        let request = restart && running;
+        let next = if request { GUARD_CONFIRMED } else { GUARD_IDLE };
+        self.0.store(next, Ordering::SeqCst);
+        request
+    }
+
+    /// The worker has taken a restart. Releases only a confirmed one, so an
+    /// open prompt stays the only one.
+    pub fn claimed(&self) {
+        let _ = self.0.compare_exchange(
+            GUARD_CONFIRMED,
+            GUARD_IDLE,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        );
+    }
+}
+
 /// Handles to the menu items whose enablement follows state.
 struct StateItems<R: Runtime> {
     /// Start Server or Restart Server, with [`SERVER_SHORTCUT`].
@@ -741,9 +783,9 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
-    /// True while the restart confirmation is open, so a second press of the
-    /// shortcut does not stack another.
-    confirming: AtomicBool,
+    /// Held while the restart confirmation is open or a confirmed restart is
+    /// not yet claimed by the worker.
+    confirming: RestartGuard,
     /// The main window's loading cue, so View > Reload can mark its load.
     cue: Arc<LoadingCue>,
     /// Where the main window's frame is remembered, if there is a config dir.
@@ -1634,7 +1676,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         chrome_available,
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
-        confirming: AtomicBool::new(false),
+        confirming: RestartGuard::default(),
         cue,
         window_state,
         window_saver: Arc::default(),
@@ -1652,7 +1694,14 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     Err(RecvTimeoutError::Disconnected) => return,
                 };
                 if let Some(action) = action {
+                    // The confirmed restart is claimed (or dropped) here.
+                    let release_guard = || {
+                        if action == Action::Restart {
+                            worker_app.state::<ShellState>().confirming.claimed();
+                        }
+                    };
                     if supervisor.is_shut_down() {
+                        release_guard();
                         continue;
                     }
                     if action == Action::Start && supervisor.state() == State::Running {
@@ -1660,6 +1709,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                         continue;
                     }
                     items.apply(MenuEnablement::BUSY);
+                    release_guard();
                     let transient = match action {
                         Action::Stop => State::Stopping,
                         Action::Start | Action::Restart => State::Starting,
@@ -1776,7 +1826,7 @@ fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
     let state = app.state::<ShellState>();
-    if state.confirming.swap(true, Ordering::SeqCst) {
+    if !state.confirming.begin() {
         return;
     }
     let mut dialog = app
@@ -1794,8 +1844,8 @@ fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
     let handle = app.clone();
     dialog.show(move |restart| {
         let state = handle.state::<ShellState>();
-        state.confirming.store(false, Ordering::SeqCst);
-        if restart && state.supervisor.state() == State::Running {
+        let running = state.supervisor.state() == State::Running;
+        if state.confirming.answered(restart, running) {
             state.request(Action::Restart);
         }
     });
@@ -2793,6 +2843,30 @@ mod tests {
         let stopped = MenuEnablement::for_state(State::Stopped, true);
         assert!(stopped.start && !stopped.stop && !stopped.restart && !stopped.running_views);
         assert!(!MenuEnablement::for_state(State::Failed, false).start);
+    }
+
+    #[test]
+    fn a_confirmed_restart_holds_the_guard_until_the_worker_claims_it() {
+        let guard = RestartGuard::default();
+        assert!(guard.begin());
+        assert!(!guard.begin(), "a second press must not open another");
+
+        // Restart chosen while running: request it, and keep the guard.
+        assert!(guard.answered(true, true));
+        assert!(!guard.begin(), "still held until the worker claims it");
+        guard.claimed();
+        assert!(guard.begin());
+
+        // Cancel, or a server that stopped meanwhile: release at once.
+        assert!(!guard.answered(false, true));
+        assert!(guard.begin());
+        assert!(!guard.answered(true, false));
+        assert!(guard.begin());
+
+        // A restart from Settings while the prompt is open leaves it the
+        // only prompt.
+        guard.claimed();
+        assert!(!guard.begin());
     }
 
     #[test]

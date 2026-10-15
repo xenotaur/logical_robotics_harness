@@ -61,6 +61,9 @@ pub fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 /// Runs the desktop app.
 pub fn run() {
     let app = with_commands(tauri::Builder::default())
+        // Used from Rust only (the restart confirmation); no capability
+        // grants its page-facing commands.
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             shell::setup(app.handle())?;
             Ok(())

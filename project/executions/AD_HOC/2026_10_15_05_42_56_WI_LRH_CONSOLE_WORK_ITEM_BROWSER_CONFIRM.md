@@ -2,10 +2,10 @@
 execution_id: 2026_10_15_05_42_56_WI_LRH_CONSOLE_WORK_ITEM_BROWSER_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_WORK_ITEM_BROWSER_CONFIRM)[2026-10-15T05:42:35+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_12_23_03_12_WI_LRH_CONSOLE_WORK_ITEM_BROWSER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/836
-commit:
+commit: 1dcf5018a5e4daedc026693fc1c35ec946ecd3e8
 created_at: 2026-10-15T05:42:56+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/836

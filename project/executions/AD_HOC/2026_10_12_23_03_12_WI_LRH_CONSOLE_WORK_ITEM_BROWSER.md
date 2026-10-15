@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_23_03_12_WI_LRH_CONSOLE_WORK_ITEM_BROWSER
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_WORK_ITEM_BROWSER)[2026-10-12T22:58:03+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/836
-commit:
+commit: 1dcf5018a5e4daedc026693fc1c35ec946ecd3e8
 created_at: 2026-10-12T23:03:12+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-CONSOLE-WORK-ITEM-BROWSER.md
-session_transcript: pending
+session_transcript: claude-app:e29882f8-2da8-4e83-a1d9-2f5c9a5618ea
 ---
 
 # Summary

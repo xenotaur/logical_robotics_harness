@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-ZOOM"
 title: "Add Zoom In, Zoom Out, and Actual Size to the LRH Console window"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #846 (commit 8532e129). View > Actual Size (Cmd+0), Zoom In (Cmd+=) and Zoom Out (Cmd+-) set the main window''s page zoom in Chrome''s steps from 50% to 300%. The level is global, kept across navigation, server restarts and relaunches, saved in zoom.json beside the settings (apart from the window state, so Reset keeps it), and shown on the Actual Size item when it is not 100%. At the owner''s choice, Statusboard moved from Cmd+0 to Cmd+Shift+H and Zoom In is Cmd+= only. Page zoom needs macOS 11, so the app now requires macOS 11. The owner checked it on the branch app, including state-cycling steps.'
 owner: "anthony"
 contributors:
 - "anthony"

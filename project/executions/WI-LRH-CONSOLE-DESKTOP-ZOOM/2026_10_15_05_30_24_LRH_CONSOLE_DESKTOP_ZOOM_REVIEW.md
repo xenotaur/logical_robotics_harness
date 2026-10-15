@@ -2,10 +2,10 @@
 execution_id: 2026_10_15_05_30_24_LRH_CONSOLE_DESKTOP_ZOOM_REVIEW
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-ZOOM:LRH_CONSOLE_DESKTOP_ZOOM_REVIEW)[2026-10-15T05:30:24+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-ZOOM
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/846
-commit:
+commit: 8532e12959a12b16502798de3c1ae30751bbc178
 created_at: 2026-10-15T05:30:24+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/846

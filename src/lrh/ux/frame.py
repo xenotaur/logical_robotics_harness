@@ -26,7 +26,10 @@ OWN_DRAWER_MARKER = "data-lrh-own-drawer"
 SETTINGS_PATH = "/settings"
 # The Back and Forward buttons link here. LRH Console intercepts these paths
 # and moves through its own history; the buttons stay hidden unless the app
-# marks the page with HISTORY_APP_CLASS, so a browser never shows them.
+# marks the page with HISTORY_APP_CLASS, so a browser never shows them. They
+# start greyed out and the app enables them once the page has loaded, so a
+# stale button is never clickable. Links marked data-lrh-app-link are answered
+# by the app without a page load, so the interactive script never dims for them.
 HISTORY_BACK_PATH = "/desktop/back"
 HISTORY_FORWARD_PATH = "/desktop/forward"
 HISTORY_APP_CLASS = "lrh-in-app"
@@ -228,11 +231,11 @@ def _frame_open(
     </a>
     <label for="lrh-rail" class="lrh-iconbtn lrh-rail-button">{icon("panel-left")}
       <span class="lrh-tip">Collapse or expand the sidebar</span></label>
-    <a class="lrh-iconbtn lrh-history" href="{HISTORY_BACK_PATH}"
-       data-lrh-history="back">{icon("chevron-left")}
+    <a class="lrh-iconbtn lrh-history" href="{HISTORY_BACK_PATH}" data-lrh-app-link
+       data-lrh-history="back" aria-disabled="true" tabindex="-1">{icon("chevron-left")}
       <span class="lrh-tip">Back (⌘[)</span></a>
-    <a class="lrh-iconbtn lrh-history" href="{HISTORY_FORWARD_PATH}"
-       data-lrh-history="forward">{icon("chevron-right")}
+    <a class="lrh-iconbtn lrh-history" href="{HISTORY_FORWARD_PATH}" data-lrh-app-link
+       data-lrh-history="forward" aria-disabled="true" tabindex="-1">{icon("chevron-right")}
       <span class="lrh-tip">Forward (⌘])</span></a>
     <div class="lrh-pagename">
       <span class="lrh-pagetitle">{html.escape(title)}</span>
@@ -243,7 +246,7 @@ def _frame_open(
     <span class="lrh-fresh">Rendered {stamp}</span>
     <a class="lrh-iconbtn" href="{refresh}">{icon("refresh-cw")}
       <span class="lrh-tip">Refresh</span></a>
-    <a class="lrh-iconbtn lrh-tip-end" href="{SETTINGS_PATH}">{icon("settings")}
+    <a class="lrh-iconbtn lrh-tip-end" href="{SETTINGS_PATH}" data-lrh-app-link>{icon("settings")}
       <span class="lrh-tip">Settings</span></a>
   </header>
   <nav class="lrh-sidebar" aria-label="Scope and views">

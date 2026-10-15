@@ -249,7 +249,7 @@ def render_dependency_map_page(
     selector = _url_quote(project_selector)
     body = dependency_map_render.render_view(
         snapshot,
-        dependency_map_layout.DEFAULT_LAYOUT,
+        dependency_map_layout.layout_named(query.get("layout")),
         tab=query.get("tab", "map"),
         item=query.get("item"),
         since=query.get("since"),

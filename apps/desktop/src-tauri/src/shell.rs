@@ -27,8 +27,8 @@ use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
 use crate::settings::{
-    self, Appearance, BrowserChoice, Config, ConfigStore, Display, FieldError, SavedWindow,
-    WindowFrame, WindowStateStore,
+    self, zoom_percent, zoom_step, Appearance, BrowserChoice, Config, ConfigStore, Display,
+    FieldError, SavedWindow, WindowFrame, WindowStateStore, ZoomStore,
 };
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
@@ -60,6 +60,9 @@ pub mod menu_id {
     pub const STATUSBOARD: &str = "view-statusboard";
     pub const WORKSPACE: &str = "view-workspace";
     pub const RELOAD: &str = "view-reload";
+    pub const ACTUAL_SIZE: &str = "view-actual-size";
+    pub const ZOOM_IN: &str = "view-zoom-in";
+    pub const ZOOM_OUT: &str = "view-zoom-out";
     pub const BACK: &str = "view-back";
     pub const FORWARD: &str = "view-forward";
     pub const OPEN_CHROME: &str = "view-open-chrome";
@@ -681,6 +684,27 @@ pub enum ConfigSource {
 /// and the disabled one would swallow it.
 pub const SERVER_SHORTCUT: &str = "CmdOrCtrl+Shift+I";
 
+/// Page zoom shortcuts, as in Claude and Chrome. Statusboard moved from ⌘0
+/// to ⌘⇧H ("home") so Actual Size can have ⌘0. One shortcut per item: Zoom
+/// In is ⌘=, the key beside Zoom Out's ⌘−.
+pub const ZOOM_IN_SHORTCUT: &str = "CmdOrCtrl+=";
+pub const ZOOM_OUT_SHORTCUT: &str = "CmdOrCtrl+-";
+pub const ACTUAL_SIZE_SHORTCUT: &str = "CmdOrCtrl+0";
+pub const STATUSBOARD_SHORTCUT: &str = "CmdOrCtrl+Shift+H";
+
+/// The Actual Size item's label, which shows the level when it is not 100%.
+pub fn actual_size_label(level: f64) -> String {
+    match zoom_percent(level) {
+        100 => "Actual Size".to_string(),
+        percent => format!("Actual Size ({percent}%)"),
+    }
+}
+
+/// The zoom menu item whose label shows the level.
+struct ZoomItems<R: Runtime> {
+    actual_size: MenuItem<R>,
+}
+
 /// The confirmation shown before a restart, which reloads the page.
 pub const RESTART_PROMPT: &str = "Restart the server? The current page will reload.";
 
@@ -783,6 +807,9 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
+    /// The main window's page zoom level, and where it is remembered.
+    zoom: Mutex<f64>,
+    zoom_store: Option<ZoomStore>,
     /// Held while the restart confirmation is open or a confirmed restart is
     /// not yet claimed by the worker.
     confirming: RestartGuard,
@@ -1127,11 +1154,15 @@ pub fn show_settings<R: Runtime>(app: &AppHandle<R>, section: SettingsSection) {
     }
 }
 
+/// The app menu and the items whose state follows the app.
+type BuiltMenu<R> = (Menu<R>, StateItems<R>, HistoryItems<R>, ZoomItems<R>);
+
 /// Builds the app menu: the platform app menu, Edit, Server, View, Window.
 fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     chrome_available: bool,
-) -> tauri::Result<(Menu<R>, StateItems<R>, HistoryItems<R>)> {
+    zoom: f64,
+) -> tauri::Result<BuiltMenu<R>> {
     let item = |id: &str, text: &str, enabled: bool, accelerator: Option<&str>| {
         MenuItem::with_id(app, id, text, enabled, accelerator)
     };
@@ -1153,7 +1184,7 @@ fn build_menu<R: Runtime>(
                 menu_id::STATUSBOARD,
                 "Statusboard",
                 false,
-                Some("CmdOrCtrl+0"),
+                Some(STATUSBOARD_SHORTCUT),
             )?,
             item(
                 menu_id::WORKSPACE,
@@ -1178,6 +1209,14 @@ fn build_menu<R: Runtime>(
         Some("CmdOrCtrl+I"),
     )?;
     let reload = item(menu_id::RELOAD, "Reload", true, Some("CmdOrCtrl+R"))?;
+    let actual_size = item(
+        menu_id::ACTUAL_SIZE,
+        &actual_size_label(zoom),
+        true,
+        Some(ACTUAL_SIZE_SHORTCUT),
+    )?;
+    let zoom_in = item(menu_id::ZOOM_IN, "Zoom In", true, Some(ZOOM_IN_SHORTCUT))?;
+    let zoom_out = item(menu_id::ZOOM_OUT, "Zoom Out", true, Some(ZOOM_OUT_SHORTCUT))?;
     // Enabled by the main window's history as pages are visited.
     let back = item(menu_id::BACK, "Back", false, Some("CmdOrCtrl+["))?;
     let forward = item(menu_id::FORWARD, "Forward", false, Some("CmdOrCtrl+]"))?;
@@ -1255,6 +1294,10 @@ fn build_menu<R: Runtime>(
             meta,
             &reload,
             &PredefinedMenuItem::separator(app)?,
+            &actual_size,
+            &zoom_in,
+            &zoom_out,
+            &PredefinedMenuItem::separator(app)?,
             open_chrome,
             open_browser,
         ],
@@ -1271,7 +1314,7 @@ fn build_menu<R: Runtime>(
         ],
     )?;
     let menu = Menu::with_items(app, &[&app_menu, &edit, &server, &view, &window])?;
-    Ok((menu, items, [back, forward]))
+    Ok((menu, items, [back, forward], ZoomItems { actual_size }))
 }
 
 /// The configuration chosen at startup: the developer override if any
@@ -1633,8 +1676,11 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .is_none_or(|config| config.start_on_open);
 
     let chrome_available = browser::chrome_available();
-    let (menu, items, history_items) = build_menu(app, chrome_available)?;
+    let zoom_store = config_dir.as_deref().map(ZoomStore::in_dir);
+    let zoom = zoom_store.as_ref().map_or(1.0, ZoomStore::load);
+    let (menu, items, history_items, zoom_items) = build_menu(app, chrome_available, zoom)?;
     app.set_menu(menu)?;
+    app.manage(zoom_items);
 
     let links = Arc::new(LinkHandoff::default());
     if let Some(config) = &startup.config {
@@ -1653,7 +1699,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let pages = Arc::clone(&history.pages);
     let cue = Arc::new(LoadingCue::default());
     let frame = initial_main_frame(app, window_state.as_ref());
-    build_main_window(
+    let main = build_main_window(
         app,
         policy.clone(),
         Arc::clone(&links),
@@ -1662,6 +1708,10 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         Arc::clone(&cue),
         frame,
     )?;
+    // The remembered zoom; the webview keeps it across navigations.
+    if zoom != 1.0 {
+        let _ = main.set_zoom(zoom);
+    }
 
     let (sender, receiver) = mpsc::channel();
     app.manage(ShellState {
@@ -1680,6 +1730,8 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         cue,
         window_state,
         window_saver: Arc::default(),
+        zoom: Mutex::new(zoom),
+        zoom_store,
     });
 
     let worker_app = app.clone();
@@ -1851,6 +1903,26 @@ fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
     });
 }
 
+/// Changes the main window's page zoom, updates the Actual Size label, and
+/// remembers the level. A failed save only means it is not remembered.
+fn set_zoom<R: Runtime>(app: &AppHandle<R>, change: impl FnOnce(f64) -> f64) {
+    let state = app.state::<ShellState>();
+    let level = {
+        let mut zoom = lock(&state.zoom);
+        *zoom = change(*zoom);
+        *zoom
+    };
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.set_zoom(level);
+    }
+    if let Some(items) = app.try_state::<ZoomItems<R>>() {
+        let _ = items.actual_size.set_text(actual_size_label(level));
+    }
+    if let Some(store) = &state.zoom_store {
+        let _ = store.save(level);
+    }
+}
+
 /// Handles a menu event by ID.
 pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     let state = app.state::<ShellState>();
@@ -1890,6 +1962,9 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
                 navigate_main(app, &url);
             }
         }
+        menu_id::ACTUAL_SIZE => set_zoom(app, |_| 1.0),
+        menu_id::ZOOM_IN => set_zoom(app, |level| zoom_step(level, true)),
+        menu_id::ZOOM_OUT => set_zoom(app, |level| zoom_step(level, false)),
         menu_id::RELOAD => {
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
                 if let Ok(url) = window.url() {
@@ -2843,6 +2918,19 @@ mod tests {
         let stopped = MenuEnablement::for_state(State::Stopped, true);
         assert!(stopped.start && !stopped.stop && !stopped.restart && !stopped.running_views);
         assert!(!MenuEnablement::for_state(State::Failed, false).start);
+    }
+
+    #[test]
+    fn zoom_has_chrome_shortcuts_and_the_label_shows_the_level() {
+        assert_eq!(ZOOM_IN_SHORTCUT, "CmdOrCtrl+=");
+        assert_eq!(ZOOM_OUT_SHORTCUT, "CmdOrCtrl+-");
+        assert_eq!(ACTUAL_SIZE_SHORTCUT, "CmdOrCtrl+0");
+        // Statusboard gave up ⌘0 to Actual Size.
+        assert_eq!(STATUSBOARD_SHORTCUT, "CmdOrCtrl+Shift+H");
+        assert_ne!(STATUSBOARD_SHORTCUT, ACTUAL_SIZE_SHORTCUT);
+        assert_eq!(actual_size_label(1.0), "Actual Size");
+        assert_eq!(actual_size_label(1.25), "Actual Size (125%)");
+        assert_eq!(actual_size_label(0.67), "Actual Size (67%)");
     }
 
     #[test]

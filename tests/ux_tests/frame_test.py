@@ -158,9 +158,8 @@ class FrameTest(unittest.TestCase):
         self.assertIn('data-lrh-history="back"', topbar)
         self.assertIn('data-lrh-history="forward"', topbar)
         # Greyed out until the app enables them after the page loads, so a
-        # stale button is never clickable.
-        # The app answers these and the gear itself, so the interactive
-        # script must not dim the page for them.
+        # stale button is never clickable. The app answers these and the gear
+        # itself, so the interactive script must not dim the page for them.
         for name in ("back", "forward"):
             with self.subTest(name=name):
                 tag = re.search(rf'<a [^>]*data-lrh-history="{name}"[^>]*>', topbar)

@@ -2,10 +2,10 @@
 execution_id: 2026_10_16_01_53_15_LRH_CONSOLE_DESKTOP_BACK_NAV
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-BACK-NAV:LRH_CONSOLE_DESKTOP_BACK_NAV)[2026-10-15T06:03:57+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-BACK-NAV
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/847
-commit:
+commit: e8cfbd7b92ae54a5cc3beb3f77d52bc32e8ad157
 created_at: 2026-10-16T01:53:15+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/847

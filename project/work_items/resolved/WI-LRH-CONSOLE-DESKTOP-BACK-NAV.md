@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-BACK-NAV"
 title: "Add a visible Back control to the LRH Console window"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #847 (commit e8cfbd7b). Served pages show Back and Forward buttons right after the sidebar toggle, only inside LRH Console (never in a browser). They run the same history as View > Back and View > Forward and grey out to match after each page load. The interactive loading overlay no longer sticks after app-answered links (the gear, Back, Forward). The owner checked it on the branch app, including state-cycling steps.'
 owner: "anthony"
 contributors:
 - "anthony"

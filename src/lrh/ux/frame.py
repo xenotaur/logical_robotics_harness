@@ -232,10 +232,12 @@ def _frame_open(
     <label for="lrh-rail" class="lrh-iconbtn lrh-rail-button">{icon("panel-left")}
       <span class="lrh-tip">Collapse or expand the sidebar</span></label>
     <a class="lrh-iconbtn lrh-history" href="{HISTORY_BACK_PATH}" data-lrh-app-link
-       data-lrh-history="back" aria-disabled="true" tabindex="-1">{icon("chevron-left")}
+       data-lrh-history="back" aria-disabled="true"
+       tabindex="-1">{icon("chevron-left")}
       <span class="lrh-tip">Back (⌘[)</span></a>
     <a class="lrh-iconbtn lrh-history" href="{HISTORY_FORWARD_PATH}" data-lrh-app-link
-       data-lrh-history="forward" aria-disabled="true" tabindex="-1">{icon("chevron-right")}
+       data-lrh-history="forward" aria-disabled="true"
+       tabindex="-1">{icon("chevron-right")}
       <span class="lrh-tip">Forward (⌘])</span></a>
     <div class="lrh-pagename">
       <span class="lrh-pagetitle">{html.escape(title)}</span>
@@ -246,7 +248,8 @@ def _frame_open(
     <span class="lrh-fresh">Rendered {stamp}</span>
     <a class="lrh-iconbtn" href="{refresh}">{icon("refresh-cw")}
       <span class="lrh-tip">Refresh</span></a>
-    <a class="lrh-iconbtn lrh-tip-end" href="{SETTINGS_PATH}" data-lrh-app-link>{icon("settings")}
+    <a class="lrh-iconbtn lrh-tip-end" href="{SETTINGS_PATH}"
+       data-lrh-app-link>{icon("settings")}
       <span class="lrh-tip">Settings</span></a>
   </header>
   <nav class="lrh-sidebar" aria-label="Scope and views">

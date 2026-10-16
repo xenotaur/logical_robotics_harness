@@ -96,7 +96,8 @@ class InteractiveScriptTest(unittest.TestCase):
             "url.origin !== window.location.origin",
             'url.searchParams.has("download")',
             'link.getAttribute("aria-disabled") === "true"',
-            'link.hasAttribute("data-lrh-app-link") && root.classList.contains("lrh-in-app")',
+            'link.hasAttribute("data-lrh-app-link")',
+            'root.classList.contains("lrh-in-app")',
         ):
             with self.subTest(guard=guard):
                 self.assertIn(guard, body)

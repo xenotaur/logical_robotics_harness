@@ -159,16 +159,19 @@ class FrameTest(unittest.TestCase):
         self.assertIn('data-lrh-history="forward"', topbar)
         # Greyed out until the app enables them after the page loads, so a
         # stale button is never clickable.
-        for name in ("back", "forward"):
-            with self.subTest(name=name):
-                self.assertIn(
-                    f'data-lrh-history="{name}" aria-disabled="true" tabindex="-1"',
-                    topbar,
-                )
         # The app answers these and the gear itself, so the interactive
         # script must not dim the page for them.
+        for name in ("back", "forward"):
+            with self.subTest(name=name):
+                tag = re.search(rf'<a [^>]*data-lrh-history="{name}"[^>]*>', topbar)
+                self.assertIsNotNone(tag)
+                self.assertIn('aria-disabled="true"', tag.group(0))
+                self.assertIn('tabindex="-1"', tag.group(0))
+                self.assertIn("data-lrh-app-link", tag.group(0))
+        gear = re.search(rf'<a [^>]*href="{frame.SETTINGS_PATH}"[^>]*>', topbar)
+        self.assertIsNotNone(gear)
+        self.assertIn("data-lrh-app-link", gear.group(0))
         self.assertEqual(topbar.count("data-lrh-app-link"), 3)
-        self.assertIn(f'href="{frame.SETTINGS_PATH}" data-lrh-app-link', topbar)
         # Hidden unless LRH Console marks the page, so a browser never shows them.
         self.assertIn(".lrh-history { display: none; }", frame.FRAME_STYLES)
         self.assertIn(

@@ -26,8 +26,11 @@ import re
 import typing
 import zipfile
 
+import yaml
+
 from lrh import prompt_workflow_records
 from lrh.atomic_write import atomic_write, atomic_write_bytes
+from lrh.conversations import export_manifest
 
 MALFORMED_SESSION_TRANSCRIPT_PREFIX = "<malformed-session-transcript"
 
@@ -170,6 +173,9 @@ def build_session_report(
     index = load_session_index(root)
     archived_child_ids = _archived_claude_child_ids(resolved_archive_root)
     archived_codex_thread_ids = _archived_codex_thread_ids(resolved_archive_root)
+    archived_antigravity_conversation_ids = _archived_antigravity_conversation_ids(
+        resolved_archive_root
+    )
     since = _since_created_at_datetime(since_created_at)
     records = [
         record
@@ -298,6 +304,36 @@ def build_session_report(
                             reason=(
                                 "codex-app thread id has no successful "
                                 "durable archive attempt"
+                            ),
+                        )
+                    )
+                continue
+            if scheme == "antigravity-app":
+                if identifier in {"current-conversation", "current-session"}:
+                    dangling.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="dangling",
+                            reason=(
+                                "antigravity-app pointer is a placeholder, not a "
+                                "durable conversation id"
+                            ),
+                        )
+                    )
+                elif identifier in archived_antigravity_conversation_ids:
+                    archived += 1
+                else:
+                    unarchived.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="unarchived",
+                            reason=(
+                                "antigravity-app conversation id has no export in "
+                                "session archive"
                             ),
                         )
                     )
@@ -456,6 +492,44 @@ def _archived_codex_thread_ids(archive_root: pathlib.Path) -> set[str]:
         if isinstance(thread_id, str) and thread_id:
             thread_ids.add(thread_id)
     return thread_ids
+
+
+def _archived_antigravity_conversation_ids(
+    archive_root: pathlib.Path,
+) -> set[str]:
+    antigravity_root = archive_root / "antigravity"
+    if not antigravity_root.exists():
+        return set()
+    conversation_ids: set[str] = set()
+    for md_path in antigravity_root.glob("**/*.md"):
+        if not md_path.is_symlink() and md_path.is_file():
+            try:
+                raw_text = md_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            match = re.match(
+                r"\A---\r?\n(?P<frontmatter>.*?)\r?\n---", raw_text, re.DOTALL
+            )
+            if not match:
+                continue
+            try:
+                loaded = yaml.safe_load(match.group("frontmatter"))
+            except yaml.YAMLError:
+                continue
+            if not isinstance(loaded, typing.Mapping):
+                continue
+            try:
+                manifest = export_manifest.ConversationExportManifest.from_mapping(
+                    loaded
+                )
+            except export_manifest.ConversationExportManifestError:
+                continue
+            if (
+                manifest.source_tool == export_manifest.SOURCE_TOOL_ANTIGRAVITY
+                and manifest.source_id
+            ):
+                conversation_ids.add(manifest.source_id)
+    return conversation_ids
 
 
 def _merge(

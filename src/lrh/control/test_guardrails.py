@@ -40,6 +40,7 @@ further:
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import sys
 from typing import Sequence
@@ -254,6 +255,30 @@ def check_test_file(path: pathlib.Path) -> list[TestGuardrailViolation]:
     return check_test_ast(tree, path)
 
 
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
+
+
+def _walk_test_files(root: pathlib.Path) -> list[pathlib.Path]:
+    """Yield all `*_test.py` files under `root`, efficiently skipping ignored dirs."""
+    paths: list[pathlib.Path] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            if f.endswith("_test.py"):
+                paths.append(pathlib.Path(dirpath) / f)
+    return sorted(paths)
+
+
 def scan_test_files(
     target_dirs: Sequence[pathlib.Path],
 ) -> list[TestGuardrailViolation]:
@@ -264,7 +289,7 @@ def scan_test_files(
         if target.is_file() and target.name.endswith("_test.py"):
             all_violations.extend(check_test_file(target))
         elif target.is_dir():
-            for test_file in sorted(target.rglob("*_test.py")):
+            for test_file in _walk_test_files(target):
                 all_violations.extend(check_test_file(test_file))
 
     return all_violations

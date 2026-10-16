@@ -21,6 +21,25 @@ for arg in "$@"; do
     fi
 done
 
+# Warn when a conda/venv environment is active but $PYTHON does not come from
+# it (e.g. Homebrew python3 ahead of the conda env on PATH). That breaks the
+# lint/format script tests and runs the suite on the wrong interpreter.
+warn_if_wrong_environment() {
+    local env_prefix py_path
+    env_prefix="${VIRTUAL_ENV:-${CONDA_PREFIX:-}}"
+    [ -n "$env_prefix" ] || return 0
+    py_path="$(command -v "$PYTHON" 2>/dev/null || true)"
+    [ -n "$py_path" ] || return 0
+    case "$py_path" in
+        "$env_prefix"/*) ;;
+        *)
+            echo "scripts/test: warning: an environment is active ($env_prefix)" \
+                "but $PYTHON resolves to $py_path; check PATH order." >&2
+            ;;
+    esac
+}
+warn_if_wrong_environment
+
 # Default runs never invoke or probe the Rust toolchain; they only say so.
 report_desktop_skip() {
     if [ "$desktop" -eq 0 ]; then

@@ -342,12 +342,15 @@ class RenderTest(unittest.TestCase):
         self.assertIn("lrh-card--abandoned", cards["WI-A"])
         self.assertNotIn("lrh-card--abandoned", cards["WI-B"])
         self.assertNotIn("lrh-card--blocked", cards["WI-A"])
-        # Only blocked cards change the border style.
-        border_styles = re.findall(
-            r"border(?:-[a-z]+)*-style: ([a-z]+)", render.MAP_STYLES
+        # Dashed is the only border style, longhand or shorthand, so no card
+        # resembles a blocked card's dashed edge.
+        styles = "none|hidden|dotted|dashed|double|groove|ridge|inset|outset"
+        borders = re.findall(
+            rf"border(?:-[a-z]+)*:[^;]*\b({styles})\b", render.MAP_STYLES
         )
-        self.assertEqual(set(border_styles), {"dashed"})
-        self.assertNotIn("dotted", render.MAP_STYLES)
+        self.assertEqual(set(borders), {"dashed"})
+        # Outlined pills set no fill, so they never depend on rule order.
+        self.assertNotIn("status-unblocked-bg", render.MAP_STYLES)
         self.assertIn("abandoned cards are sunken with a struck-through title", page)
 
     def test_lines_differ_by_style_and_have_a_legend(self) -> None:

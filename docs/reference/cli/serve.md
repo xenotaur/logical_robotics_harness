@@ -190,7 +190,9 @@ name.
   explanation of how to declare one.
 - `/project/<project_id>/dependency-maps/<view>`: the view as a script-free map
   in the frame. Lanes are columns and phases are rows. Each card shows the
-  item's ID, title, structural state (icon, text, and color), a "Not
+  item's ID, title, structural state (icon, text, color, and shape: Unblocked
+  pills are outlined, and abandoned cards are sunken with a struck-through
+  title), a "Not
   prompt-ready" flag when relevant, and why it is waiting or blocked. Solid
   lines are "depends on" and dashed lines are "blocked by"; they run from the
   prerequisite to the item that needs it.

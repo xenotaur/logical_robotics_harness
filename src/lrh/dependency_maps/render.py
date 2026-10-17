@@ -1025,10 +1025,7 @@ MAP_STYLES = """
     background: var(--lrh-color-status-waiting-bg);
     color: var(--lrh-color-status-waiting-fg);
   }
-  .lrh-pill--unblocked {
-    background: var(--lrh-color-status-unblocked-bg);
-    color: var(--lrh-color-status-unblocked-fg);
-  }
+  .lrh-pill--unblocked { color: var(--lrh-color-status-unblocked-fg); }
   .lrh-pill--unknown {
     background: var(--lrh-color-status-unknown-bg);
     color: var(--lrh-color-status-unknown-fg);

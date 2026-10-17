@@ -760,6 +760,7 @@ colorblind.
   | Blocked | vermillion |
   | Awaiting review | reddish purple |
   | Unknown | neutral gray |
+  | Abandoned | neutral gray (told apart from Unknown by shape) |
 
 - **Never red against green alone.** Where hues fall on the red-green axis, such as Done (bluish
   green) and Blocked (vermillion), they also differ in lightness and redundant cues.

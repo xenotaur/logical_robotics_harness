@@ -765,6 +765,14 @@ colorblind.
   green) and Blocked (vermillion), they also differ in lightness and redundant cues.
 - **Redundant cues.** Every state also carries an icon, a text label, and a line or border style
   (WCAG 2.2 SC 1.4.1). Blocked cards add a dashed edge.
+- **Similar hues differ by shape.** The owner found In progress and Unblocked (both blue), and
+  Abandoned and Unknown (both gray), too alike. Each pair also differs in shape, in both themes:
+  - In progress pills are filled; Unblocked pills are outlined, showing the surface beneath
+    them. Status text already meets contrast on every surface.
+  - Abandoned cards are sunken, with the title struck through, and the Abandoned pill strikes
+    its label. Unknown keeps a plain card and a filled pill.
+  - No new border style is used, so nothing resembles a blocked card's dashed edge. Dotted
+    borders are avoided for that reason.
 - **Contrast in both themes:** text meets SC 1.4.3 (4.5:1). Lines, icons, and focus rings meet
   SC 1.4.11 (3:1).
 - **Checking:** views are checked with color-vision emulation, and the owner's review is the

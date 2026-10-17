@@ -300,6 +300,56 @@ class RenderTest(unittest.TestCase):
                 self.assertIn(label, pill)
                 self.assertIn(glyph, pill)
 
+    def test_states_sharing_a_hue_differ_by_shape(self) -> None:
+        # Q12: In progress and Unblocked are both blue; Abandoned and Unknown
+        # share the neutral. Each pair must differ without color.
+        for first, second in (("in_progress", "unblocked"), ("unknown", "abandoned")):
+            with self.subTest(pair=(first, second)):
+                self.assertNotEqual(
+                    render.PILL_SHAPES.get(first, "filled"),
+                    render.PILL_SHAPES.get(second, "filled"),
+                )
+        self.assertIn("lrh-pill--filled", render._pill("in_progress"))
+        self.assertIn("lrh-pill--outlined", render._pill("unblocked"))
+        self.assertIn("lrh-pill--filled", render._pill("unknown"))
+        self.assertIn(
+            '<span class="lrh-pill-struck">Abandoned</span>', render._pill("abandoned")
+        )
+        for rule in (
+            ".lrh-pill--outlined { background: transparent; }",
+            ".lrh-pill-struck { text-decoration: line-through; }",
+            ".lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }",
+            ".lrh-card--abandoned .lrh-card-title { text-decoration: line-through; }",
+        ):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, render.MAP_STYLES)
+
+    def test_abandoned_cards_are_sunken_and_struck_without_a_new_border(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one", "abandoned", lifecycle="abandoned"),
+                _node("WI-B", "WS-A", "one", "unknown", lifecycle="odd"),
+            )
+        )
+        page = _view(snapshot)
+
+        cards = {
+            card_id: tag
+            for tag, card_id in re.findall(
+                r'(<a class="lrh-card[^"]*"[^>]*data-id="([^"]+)")', page
+            )
+        }
+        self.assertIn("lrh-card--abandoned", cards["WI-A"])
+        self.assertNotIn("lrh-card--abandoned", cards["WI-B"])
+        self.assertNotIn("lrh-card--blocked", cards["WI-A"])
+        # Only blocked cards change the border style.
+        border_styles = re.findall(
+            r"border(?:-[a-z]+)*-style: ([a-z]+)", render.MAP_STYLES
+        )
+        self.assertEqual(set(border_styles), {"dashed"})
+        self.assertNotIn("dotted", render.MAP_STYLES)
+        self.assertIn("abandoned cards are sunken with a struck-through title", page)
+
     def test_lines_differ_by_style_and_have_a_legend(self) -> None:
         page = _view(_example())
 

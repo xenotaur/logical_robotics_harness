@@ -39,6 +39,10 @@ STATE_STYLES = {
     "abandoned": ("unknown", "⊘", "Abandoned"),
     "unknown": ("unknown", "?", "Unknown"),
 }
+# Similar hues also differ by shape, so color is never the only cue (Q12):
+# Unblocked pills are outlined beside filled In progress, and Abandoned pills
+# strike their label beside Unknown. Every other state is a filled pill.
+PILL_SHAPES = {"unblocked": "outlined", "abandoned": "struck"}
 LINE_LABELS = {"depends_on": "Depends on", "blocked_by": "Blocked by"}
 EMPTY_VIEW = "This view has no items yet. Add work items to its lanes or phases."
 ALL_HIDDEN = "The filters hide every item in this view."
@@ -385,9 +389,12 @@ def _related(
 
 def _pill(state: str) -> str:
     key, glyph, label = STATE_STYLES.get(state, STATE_STYLES["unknown"])
+    shape = PILL_SHAPES.get(state, "filled")
+    if shape == "struck":
+        label = f'<span class="lrh-pill-struck">{label}</span>'
     return (
-        f'<span class="lrh-pill lrh-pill--{key}"><span aria-hidden="true">'
-        f"{glyph}</span> {label}</span>"
+        f'<span class="lrh-pill lrh-pill--{key} lrh-pill--{shape}">'
+        f'<span aria-hidden="true">{glyph}</span> {label}</span>'
     )
 
 
@@ -617,7 +624,8 @@ def _legend() -> str:
     <svg width="48" height="12" aria-hidden="true"><line x1="2" y1="6" x2="46" y2="6"
       class="lrh-line lrh-line--blocked_by"/></svg> Blocked by
     <span class="lrh-muted">Lines run from the prerequisite to the item that needs
-    it. Phases are organizational rows, not gates.</span>
+    it. Phases are organizational rows, not gates. Blocked cards have a dashed
+    border; abandoned cards are sunken with a struck-through title.</span>
   </div>
 </section>"""
 
@@ -678,6 +686,8 @@ def _map(
             role = '<span class="lrh-role">Downstream</span>'
         if node.state == "blocked":
             classes += " lrh-card--blocked"
+        elif node.state == "abandoned":
+            classes += " lrh-card--abandoned"
         outside = _outside(node) + _hidden_upstream(snapshot, nodes, node, links)
         cards.append(
             f'<a class="{classes}" href="{_attr(links.href("map", card.id))}"'
@@ -1023,6 +1033,10 @@ MAP_STYLES = """
     background: var(--lrh-color-status-unknown-bg);
     color: var(--lrh-color-status-unknown-fg);
   }
+  /* Shapes, so similar hues never differ by color alone. An outlined pill
+     shows the surface beneath it; status text meets contrast on every surface. */
+  .lrh-pill--outlined { background: transparent; }
+  .lrh-pill-struck { text-decoration: line-through; }
   .lrh-flag {
     color: var(--lrh-color-text-muted);
     font-size: 0.75rem;
@@ -1084,6 +1098,10 @@ MAP_STYLES = """
   .lrh-card:hover { border-color: var(--lrh-color-action-accent); }
   .lrh-card:focus-visible { box-shadow: var(--lrh-focus-ring); outline: none; }
   .lrh-card--blocked { border-style: dashed; }
+  /* Closed and set aside: sunken, with the title struck through. No new border
+     style, so it never resembles a blocked card's dashed border. */
+  .lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }
+  .lrh-card--abandoned .lrh-card-title { text-decoration: line-through; }
   /* Width and color only, so a blocked card keeps its dashed border. */
   .lrh-card--related {
     border-color: var(--lrh-color-edge-strong);

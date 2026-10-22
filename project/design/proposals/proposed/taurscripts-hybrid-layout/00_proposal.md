@@ -3,8 +3,8 @@ id: PROP-TAURSCRIPTS-HYBRID-LAYOUT
 type: design_proposal
 title: "Taurscripts Hybrid Source and Installation Layout"
 status: proposed
-created_on: 2026-10-22
-updated_on: 2026-10-22
+created_on: 2026-10-21
+updated_on: 2026-10-21
 implementation_status: not_started
 implemented_by: []
 supersedes: []

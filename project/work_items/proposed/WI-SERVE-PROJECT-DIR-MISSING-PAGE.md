@@ -32,7 +32,7 @@ forbidden_actions:
 - "deploy_remote_service"
 acceptance:
 - "A registered project whose bound checkout exists but whose resolved project directory does not exist returns 409 with a framed 'No LRH project directory' page on the dependency-map, work-item detail, and work-item prompt HTML routes, and a JSON error whose error is no_project_directory on /api/project/<id>/dependency-maps/<view>, instead of 200 'No dependency-map views' or a bare JSON 404."
-- "The page and the JSON message name the missing project directory, and give both fixes: lrh project init --project-root <repo> to create it, and lrh meta set <name> --project-dir DIR to point the record at an existing one."
+- "The page and the JSON message name the missing project directory and give fixes that actually resolve the 409 for that record. When the resolved directory is the default <repo>/project, they give lrh project init --project-root <repo> and lrh meta set <name> --project-dir DIR. When the record's project_dir is custom, they give lrh meta set <name> --project-dir DIR, or lrh project init --project-root <repo> followed by lrh meta set <name> --project-dir project, because init always creates <repo>/project."
 - "HEAD on those routes returns the same status and content type as GET."
 - "A checkout whose project directory exists but declares no views still shows 'No dependency-map views' with 200. The main fallback, the missing-checkout 409, and the never-bound 409 are unchanged."
 - "docs/reference/cli/serve.md's Project selectors section documents the new case."
@@ -84,11 +84,20 @@ The `/meta` statusboard already classifies this state as `missing_project`
 with the diagnostic `PROJECT_CONTROL_DIR_NOT_FOUND`
 (`_diagnostics_for_source_state`). The project routes ignore it.
 
-There are two fixes, and both commands exist:
+Both of the relevant commands exist, but which one fixes the 409 depends on
+the record:
 
-- `lrh project init --project-root <repo>` creates the scaffolding.
-- `lrh meta set <name> --project-dir DIR` repoints a record whose control
-  plane lives elsewhere.
+- `lrh project init --project-root <repo>` creates the scaffolding. It always
+  writes the packaged templates under `<repo>/project`
+  (`src/lrh/project/bootstrap.py` `build_plan`), whatever the record's
+  `project_dir` says. So it fixes the 409 only when the resolved directory is
+  the default `<repo>/project`.
+- `lrh meta set <name> --project-dir DIR` repoints a record at a control plane
+  that already exists elsewhere in the repo.
+- For a record with a custom `project_dir` (for example `control`), init
+  alone leaves the registry pointing at the still-missing directory. The fix
+  is either to repoint the record at an existing directory, or to run init
+  and then `lrh meta set <name> --project-dir project`.
 
 ### Duplication search
 
@@ -126,12 +135,18 @@ There are two fixes, and both commands exist:
    directory in the message.
    - `ProjectSelectorError.next_action` currently always returns the
      `--local-repo-path` command. Generalize it so each error carries its own
-     next action or actions. For this case, give both
-     `lrh project init --project-root <repo>` and
-     `lrh meta set <name> --project-dir DIR`.
+     next action or actions. For this case, choose them by directory:
+     - **Default directory** (the resolved path is `<repo>/project`, whether
+       `project_dir` is unset or `project`): give
+       `lrh project init --project-root <repo>` and
+       `lrh meta set <name> --project-dir DIR`.
+     - **Custom `project_dir`**: give `lrh meta set <name> --project-dir DIR`,
+       and the combined repair `lrh project init --project-root <repo>`
+       followed by `lrh meta set <name> --project-dir project`. Do not offer
+       init alone, which would not resolve the 409.
    - Keep `no_local_checkout`'s payload and next action unchanged.
 2. Make `render_project_selector_error_page` render this case with the title
-   "No LRH project directory", the message, and both commands. The existing
+   "No LRH project directory", the message, and that record's commands. The existing
    "No local checkout" and "Project not found" pages must not change.
 3. HEAD on these routes must return the same status and content type as GET.
    The existing selector pre-checks should cover this automatically; verify it
@@ -139,8 +154,12 @@ There are two fixes, and both commands exist:
 4. Add tests in `tests/cli_tests/serve_test.py`:
    - A record bound to an existing repo with no `project/` directory returns
      409 on the HTML routes, HEAD, and the JSON API. Assert the page and the
-     message name the directory and both commands.
-   - Cover both an explicit `project_dir` and a record without `project_dir`.
+     message name the directory and the default-directory commands.
+   - Cover a record without `project_dir`, and one with an explicit
+     `project_dir = "project"`. Both get the default-directory commands.
+   - Cover a record with a non-default `project_dir` (for example `control`).
+     It gets the custom-directory commands, and the page does not offer
+     `lrh project init` on its own.
    - A repo whose `project/` exists but has no views still returns 200 "No
      dependency-map views".
 5. Update the "Project selectors" section of `docs/reference/cli/serve.md`.
@@ -162,7 +181,10 @@ There are two fixes, and both commands exist:
   - a framed 409 "No LRH project directory" page;
   - a `no_project_directory` JSON error from the API.
 
-  Both name the missing directory and both fix commands.
+  Both name the missing directory and give fix commands that resolve the
+  409 for that record. A default `<repo>/project` directory gets init and
+  repoint. A custom `project_dir` gets repoint, or init followed by
+  repointing to `project`.
 - HEAD matches GET's status and content type for those routes.
 - A project directory with no views still shows "No dependency-map views"
   with 200. The other selector outcomes are unchanged.
@@ -170,6 +192,7 @@ There are two fixes, and both commands exist:
 
 ## Validation
 
+- `scripts/version tools`
 - `scripts/format --check --diff`
 - `scripts/lint`
 - `scripts/test`
@@ -189,6 +212,9 @@ There are two fixes, and both commands exist:
   builds a config from a nonexistent directory.
 - Keep the generalized next-action field backward compatible for the
   `no_local_checkout` JSON payload, which tests and LRH Console may read.
+- Don't advertise a fix that leaves the 409 in place. `lrh project init`
+  always targets `<repo>/project`, so pair it with repointing for a custom
+  `project_dir`.
 
 ## Related Workstream and Designs
 

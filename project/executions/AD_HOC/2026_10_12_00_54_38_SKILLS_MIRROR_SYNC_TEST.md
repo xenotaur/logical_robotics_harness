@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_00_54_38_SKILLS_MIRROR_SYNC_TEST
 prompt_id: PROMPT(AD_HOC:SKILLS_MIRROR_SYNC_TEST)[2026-10-11T15:03:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/831
-commit:
+commit: ddeb3b78a9a4519cc604ada484041a5af2dc7dc9
 created_at: 2026-10-12T00:54:38+00:00
 agent: claude_app
 instruction_source: ad-hoc — pin .claude/.agents/.gemini skill install targets to src via a generalized mirror sync test, and update /lrh-create-skill and CONTRIBUTING to render new skills into all three targets
-session_transcript: pending
+session_transcript: claude-app:a5ff4b4b-5afd-495b-9eee-87ba975572ba
 ---
 
 # Summary

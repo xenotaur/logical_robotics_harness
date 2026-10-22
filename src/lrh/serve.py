@@ -21,11 +21,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lrh import core_state, desktop_protocol
+from lrh import core_state, desktop_protocol, work_item_browser
 from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
+from lrh.control import roadmap as control_roadmap
 from lrh.conversations import export_inspector
 from lrh.dependency_maps import layout as dependency_map_layout
 from lrh.dependency_maps import render as dependency_map_render
@@ -1285,6 +1286,7 @@ def render_project_operational_dashboard(
       {ready_leaf_count}; leaves not flagged:
       {readiness_deficient_leaf_count}; blocked leaves: unknown / not
       implemented.</p>
+      <p><a href=\"{work_items_url}\">Browse work items by workstream</a></p>
     </section>
     <section class=\"lrh-console-region\"><h2>Capability gaps</h2>{gaps}</section>
     <section class=\"lrh-console-region\"><h2>Diagnostics and details</h2>
@@ -1295,6 +1297,7 @@ def render_project_operational_dashboard(
 </div>
 </body></html>""".format(
             styles=_base_styles(),
+            work_items_url=f"/project/{_url_quote(project_selector)}/work-items",
             display_name=display_name,
             project_id=project_id,
             locator=locator,
@@ -2328,7 +2331,8 @@ def render_workbench_index(config: ServeConfig) -> str:
     <header class=\"lrh-page-header\">
       <p class=\"lrh-eyebrow\">LRH Console preview</p>
       <h1>LRH Prompt/Packet/Report Workbench</h1>
-      <p><a href=\"/\">Back to read-only viewer</a></p>
+      <p><a href=\"/\">Back to read-only viewer</a> ·
+      <a href=\"{work_items_url}\">Browse work items by workstream</a></p>
       <aside class=\"lrh-guardrail-callout\" aria-label=\"Workbench guardrails\">
         This local workbench previews package-rendered Markdown from existing
         LRH project-control files. Rendering happens only when you select a preview
@@ -2358,7 +2362,12 @@ def render_workbench_index(config: ServeConfig) -> str:
   </div>
 </body>
 </html>
-""".format(styles=_base_styles(), item_rows=item_rows, diagnostics=diagnostics)
+""".format(
+        styles=_base_styles(),
+        item_rows=item_rows,
+        diagnostics=diagnostics,
+        work_items_url=f"/project/{_url_quote(SERVED_PROJECT_SELECTOR)}/work-items",
+    )
 
 
 def render_workbench_artifact_page(
@@ -2548,6 +2557,49 @@ source markdown.</p>
 renderer.</p>
 </div></body></html>"""
     return 200, page
+
+
+def work_item_browser_payload(
+    config: ServeConfig, project_selector: str, query: dict[str, str]
+) -> tuple[int, dict[str, object]]:
+    """Answer ``/api/project/<project_id>/work-items`` read-only.
+
+    Returns the grouped, filtered list; the selector's 404 or 409 error; or
+    404 when the project's control files cannot be loaded.
+    """
+
+    try:
+        scoped_config = _config_for_project_selector(config, project_selector)
+    except ProjectSelectorError as error:
+        return error.status, error.to_payload()
+    try:
+        state = core_state.load_core_project_state(
+            scoped_config.resolved_project_root(), cache=_STATE_CACHE
+        )
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, {"error": "not_found", "message": str(error)}
+    roadmap = control_roadmap.load_roadmap(state.identity.project_dir)
+    return 200, work_item_browser.browser_payload(
+        state,
+        roadmap,
+        project_selector,
+        work_item_browser.parse_filters(query),
+    )
+
+
+def render_work_item_browser_page(
+    config: ServeConfig, project_selector: str, query: dict[str, str]
+) -> tuple[int, str]:
+    """Render ``/project/<project_id>/work-items``; JSON body on a load error."""
+
+    try:
+        _config_for_project_selector(config, project_selector)
+    except ProjectSelectorError as error:
+        return error.status, render_project_selector_error_page(error)
+    status_code, payload = work_item_browser_payload(config, project_selector, query)
+    if status_code != 200:
+        return status_code, json.dumps(payload)
+    return 200, work_item_browser.render_page(payload, _base_styles())
 
 
 def _prompt_readiness_text(path: Path) -> str:
@@ -3863,6 +3915,9 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     else:
                         self._write_text(status_code, "text/html; charset=utf-8", body)
                     return
+                if len(parts) == 2 and parts[1] == "work-items":
+                    self._write_work_item_browser(parts[0])
+                    return
                 if len(parts) == 3 and parts[1] == "designs":
                     status_code, body = render_design_detail_page(
                         config, parts[0], parts[2]
@@ -3915,6 +3970,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route == "/api/project":
                 self._write_json(200, project_viewer_payload(config))
                 return
+            if route.startswith("/api/project/"):
+                selector = self._work_item_browser_api_selector(route)
+                if selector is not None:
+                    status_code, payload = work_item_browser_payload(
+                        config, selector, self._query_values()
+                    )
+                    self._write_json(status_code, payload)
+                    return
             if route.startswith("/api/project/"):
                 status_code, payload = dependency_map_payload(
                     config, route.removeprefix("/api/project/")
@@ -3977,6 +4040,9 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                             else "text/html; charset=utf-8"
                         ),
                     )
+                    return
+                if len(parts) == 2 and parts[1] == "work-items":
+                    self._write_work_item_browser(parts[0], head=True)
                     return
                 if len(parts) == 3 and parts[1] == "work-items":
                     self._write_project_work_item(parts[0], parts[2], head=True)
@@ -4043,6 +4109,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 )
                 self._write_head(status_code, content_type)
                 return
+            if route.startswith("/api/project/"):
+                selector = self._work_item_browser_api_selector(route)
+                if selector is not None:
+                    status_code, _payload = work_item_browser_payload(
+                        config, selector, self._query_values()
+                    )
+                    self._write_head(status_code, "application/json; charset=utf-8")
+                    return
             if route.startswith("/api/project/"):
                 status_code = dependency_map_head_status(
                     config, route.removeprefix("/api/project/")
@@ -4123,6 +4197,32 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 self._write_head(status_code, "application/json; charset=utf-8")
             else:
                 self._write_json(status_code, json.loads(body))
+
+        def _write_work_item_browser(
+            self, project_selector: str, *, head: bool = False
+        ) -> None:
+            status_code, body = render_work_item_browser_page(
+                config, project_selector, self._query_values()
+            )
+            if body.startswith("<!doctype html>"):
+                if head:
+                    self._write_head(status_code, "text/html; charset=utf-8")
+                else:
+                    self._write_text(status_code, "text/html; charset=utf-8", body)
+            elif head:
+                self._write_head(status_code, "application/json; charset=utf-8")
+            else:
+                self._write_json(status_code, json.loads(body))
+
+        def _work_item_browser_api_selector(self, route: str) -> str | None:
+            parts = [
+                urllib.parse.unquote(part)
+                for part in route.removeprefix("/api/project/").split("/")
+                if part
+            ]
+            if len(parts) == 2 and parts[1] == "work-items":
+                return parts[0]
+            return None
 
         def _write_project_prompt(
             self, project_selector: str, work_item_id: str, *, head: bool = False

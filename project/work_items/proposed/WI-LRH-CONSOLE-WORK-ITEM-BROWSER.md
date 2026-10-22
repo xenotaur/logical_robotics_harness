@@ -34,7 +34,7 @@ forbidden_actions:
 - "deploy_remote_service"
 acceptance:
 - "GET /project/<id>/work-items renders every work item of the selected project grouped under its parent workstream (planning tree order), with an Unparented group, and each row links to the existing work-item detail and prompt pages."
-- "GET query filters status, type, workstream, roadmap, ready, and active narrow the list, combine with AND, are echoed in the form and the JSON (HTML-escaped, so a hostile value cannot inject markup), and an unknown filter value yields an empty result with a diagnostic rather than an error page."
+- "GET query filters status, type, workstream, roadmap, ready, and active narrow the list, combine with AND, are echoed in the page's filter summary and the JSON (HTML-escaped, so a hostile value cannot inject markup), and an unknown filter value yields an empty result with a diagnostic rather than an error page."
 - "A typed roadmap loader in src/lrh/control returns the phases in project/roadmap/*.md (id, title, status, parent, numeric order including 1.5), treats a parentless root document such as roadmap.md (ROADMAP-CORE) as the roadmap root rather than a phase or a malformed file, and the page shows a phase strip; a work item matches a phase if it or its parent workstream lists the phase in related_roadmap, and the row says which."
 - "GET /api/project/<id>/work-items returns the same data as JSON; HEAD matches GET on both routes, and a registered project with a missing bound checkout returns the framed 409 no-local-checkout response, as the other project-scoped routes do."
 - "_safe_capabilities, the 405 handlers, and the CSP are unchanged; the page needs no JavaScript; every status shows text plus the console's icon/shape cue, never color alone; /workbench and the project dashboard link to the new page."
@@ -85,9 +85,9 @@ This fits the console proposal's L2 "daily workspace console" increment. It deli
 1. Add `src/lrh/control/roadmap.py` with a frozen `RoadmapPhase` dataclass (`id`, `title`, `status`, `parent`, `order: float`, `path`) and `load_roadmap(project_dir)`. It reads `project/roadmap/*.md` frontmatter. A document without a `parent` (today `roadmap.md`, `ROADMAP-CORE`) is the roadmap root: return it separately (or skip it), never as a phase and never as a malformed-file diagnostic. Phases (documents with a `parent`) sort by `order` then `id`. Return diagnostics instead of raising when a phase file is malformed (unparseable frontmatter, missing `id`, or missing or non-numeric `order`) or the directory is absent.
 2. In `src/lrh/serve.py`, add a `work_item_browser_payload(config, project_selector, filters)` built on the loaded project state and `build_planning_tree`. Groups follow the workstream order, with an `Unparented` group last. Each row has id, title, status, type, active and ready flags, roadmap phases (own or via its workstream), and detail and prompt URLs under `/project/<id>/`.
 3. Add routes `GET`/`HEAD /project/<id>/work-items` (HTML) and `/api/project/<id>/work-items` (JSON), with the same selector errors (404, 409 no-local-checkout) as the existing project-scoped routes.
-4. Render the filters as a plain GET `<form>` (status, type, workstream, roadmap, ready, active). The page needs no script, and no CSP change. Show the console's existing text-plus-shape status pills.
+4. Render the filters (status, type, workstream, roadmap, ready, active) as plain links that set URL query values, as the dependency map's filters do. Serve's CSP sets `form-action 'none'`, so a GET `<form>` would be blocked. The page needs no script, and no CSP change. Show the console's existing text-plus-shape status pills.
 5. Link to the page from `/workbench` and the project dashboard.
-6. Add tests: loader (ordering incl. `1.5`, a root `roadmap.md` coexisting with phase files without producing a diagnostic, malformed phase file, missing dir), payload grouping and filters, routes (GET, HEAD, JSON, 404, 409), a hostile filter value (for example `<script>` or a quote-breaking string) that the HTML form and diagnostic must escape, matching the existing escaping tests in `tests/cli_tests/serve_test.py`, and an assertion that `_safe_capabilities()` and the 405 handlers are unchanged.
+6. Add tests: loader (ordering incl. `1.5`, a root `roadmap.md` coexisting with phase files without producing a diagnostic, malformed phase file, missing dir), payload grouping and filters, routes (GET, HEAD, JSON, 404, 409), a hostile filter value (for example `<script>` or a quote-breaking string) that the page's filter summary and diagnostic must escape, matching the existing escaping tests in `tests/cli_tests/serve_test.py`, and an assertion that `_safe_capabilities()` and the 405 handlers are unchanged.
 7. Document the routes in `docs/reference/cli/serve.md`.
 
 ## Non-Goals
@@ -102,7 +102,7 @@ This fits the console proposal's L2 "daily workspace console" increment. It deli
 ## Acceptance Criteria
 
 - `GET /project/<id>/work-items` renders every work item of the selected project grouped under its parent workstream (planning-tree order), with an Unparented group. Each row links to the existing work-item detail and prompt pages.
-- The filters `status`, `type`, `workstream`, `roadmap`, `ready`, and `active` narrow the list and combine with AND. They are echoed in the form and the JSON, HTML-escaped in the page so a hostile value cannot inject markup. An unknown value yields an empty result with a diagnostic, not an error page.
+- The filters `status`, `type`, `workstream`, `roadmap`, `ready`, and `active` narrow the list and combine with AND. They are echoed in the page's filter summary and the JSON, HTML-escaped in the page so a hostile value cannot inject markup. An unknown value yields an empty result with a diagnostic, not an error page.
 - `load_roadmap` returns the phases from `project/roadmap/*.md` with numeric order (including `1.5`), treats the parentless root `roadmap.md` as the roadmap root rather than a phase or a malformed file, and the page shows a phase strip. A work item matches a phase if it or its parent workstream lists that phase, and the row says which.
 - `GET /api/project/<id>/work-items` returns the same data as JSON. HEAD matches GET on both routes. A missing bound checkout returns the framed 409, as the other project-scoped routes do.
 - `_safe_capabilities`, the 405 handlers, and the CSP are unchanged, and the page needs no JavaScript. Every status shows text plus an icon or shape cue, never color alone. `/workbench` and the dashboard link to the new page.
@@ -118,7 +118,7 @@ This fits the console proposal's L2 "daily workspace console" increment. It deli
 
 ## Risk Notes
 
-- `serve.py` is already about 4,100 lines. Keep the new payload and renderer in focused helpers (or a small module) rather than growing the request handler.
+- `serve.py` is already about 4,500 lines. Keep the new payload and renderer in focused helpers (or a small module) rather than growing the request handler.
 - Loading the full project state per request could be slow on large projects. Reuse the existing cache and warmup path rather than adding a new loader.
 - Sparse `related_roadmap` data will make most items "no phase". The page must say so plainly, not suggest the roadmap is empty.
 

@@ -1229,6 +1229,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         for route in (
             "/project/gone/dependency-maps",
             "/project/gone/dependency-maps/main",
+            "/project/gone/work-items",
             "/project/gone/work-items/WI-A",
             "/project/gone/work-items/WI-A/prompt",
         ):
@@ -1257,6 +1258,121 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(
             payload["next_action"], "lrh meta set gone --local-repo-path PATH"
         )
+        status, _content_type, body = self._read_error(
+            base_url + "/api/project/gone/work-items"
+        )
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(body)["error"], "no_local_checkout")
+
+    def test_work_item_browser_routes_answer_head_like_get(self) -> None:
+        _root, base_url = self._alpha_selector_server()
+
+        for route, expected_status, expected_type in (
+            ("/project/alpha/work-items", 200, "text/html"),
+            ("/project/alpha/work-items?status=active", 200, "text/html"),
+            ("/api/project/alpha/work-items", 200, "application/json"),
+            ("/api/project/alpha/work-items/", 200, "application/json"),
+            ("/project/nope/work-items", 404, "text/html"),
+            ("/api/project/nope/work-items", 404, "application/json"),
+            ("/project/remote-only/work-items", 409, "text/html"),
+            ("/api/project/remote-only/work-items", 409, "application/json"),
+        ):
+            with self.subTest(route=route):
+                if expected_status == 200:
+                    get_status, get_type, _ = self._read(base_url + route)
+                    head_status, head_type = self._head(base_url + route)
+                else:
+                    get_status, get_type, _ = self._read_error(base_url + route)
+                    head_status, head_type, _ = self._read_error(
+                        base_url + route, head=True
+                    )
+                self.assertEqual(get_status, expected_status)
+                self.assertEqual(head_status, expected_status)
+                self.assertIn(expected_type, get_type)
+                self.assertEqual(head_type, get_type)
+
+        _status, _type, body = self._read(
+            base_url + "/api/project/alpha/work-items?status=active&type=deliverable"
+        )
+        payload = json.loads(body)
+        self.assertEqual(payload["project"], "alpha")
+        self.assertEqual(
+            payload["filters"], {"status": "active", "type": "deliverable"}
+        )
+        self.assertEqual(
+            [item["id"] for group in payload["groups"] for item in group["work_items"]],
+            ["WI-A", "WI-B"],
+        )
+        self.assertEqual(
+            payload["groups"][0]["work_items"][0]["detail_url"],
+            "/project/alpha/work-items/WI-A",
+        )
+
+    def test_work_item_browser_escapes_hostile_query_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            hostile = urllib.parse.quote('"><script>alert(1)</script>')
+
+            status, _content_type, body = self._read(
+                base_url + f"/project/main/work-items?status={hostile}&type={hostile}"
+            )
+            _api_status, _api_type, api_body = self._read(
+                base_url + f"/api/project/main/work-items?type={hostile}"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertNotIn("<script>alert", body)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", body)
+        self.assertIn("No work item matches", body)
+        self.assertEqual(json.loads(api_body)["groups"], [])
+
+    def test_work_item_browser_adds_no_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+            with urllib.request.urlopen(
+                base_url + "/project/main/work-items", timeout=5
+            ) as response:
+                csp = response.headers["Content-Security-Policy"]
+                body = response.read().decode("utf-8")
+            for route in ("/project/main/work-items", "/api/project/main/work-items"):
+                with self.subTest(route=route):
+                    request = urllib.request.Request(
+                        base_url + route, data=b"", method="POST"
+                    )
+                    with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                        urllib.request.urlopen(request, timeout=5)
+                    self.assertEqual(err_ctx.exception.code, 405)
+                    err_ctx.exception.close()
+            _status, _type, workbench = self._read(base_url + "/workbench")
+
+        self.assertEqual(csp, serve.content_security_policy(serve.ServeConfig()))
+        self.assertIn("form-action 'none'", csp)
+        self.assertNotIn("<form", body)
+        self.assertNotIn("<script", body)
+        self.assertEqual(
+            serve._safe_capabilities(),
+            {
+                "write_routes": False,
+                "agent_dispatch": False,
+                "branch_mutation": False,
+                "pull_request_mutation": False,
+                "arbitrary_file_serving": False,
+                "external_network_calls": False,
+                "packet_generation": False,
+                "report_generation": False,
+                "meta_dashboard": True,
+                "prompt_workbench": True,
+                "in_memory_downloads": True,
+                "packet_preview": True,
+                "report_preview": True,
+                "codex_archive_viewer": True,
+            },
+        )
+        self.assertIn('href="/project/main/work-items"', workbench)
 
     def test_project_work_item_routes_answer_head_like_get(self) -> None:
         _root, base_url = self._alpha_selector_server()
@@ -1297,6 +1413,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 (f"/project/{selector}/dependency-maps/main", "<title>Main</title>"),
                 (f"/project/{selector}/work-items/WI-A", f"Project: {selector}"),
                 (f"/project/{selector}/work-items/WI-A/prompt", "prompt: WI-A"),
+                (f"/project/{selector}/work-items", "/work-items/WI-A"),
                 (
                     f"/api/project/{selector}/dependency-maps/main",
                     '"view_id": "main"',
@@ -2774,6 +2891,7 @@ Body.
         self.assertIn("Back to meta triage dashboard", body)
         self.assertIn('<a href="/project/alpha/designs/DP-1">', body)
         self.assertIn('<a href="/project/alpha/workstreams/WS-A">', body)
+        self.assertIn('<a href="/project/alpha/work-items">', body)
         self.assertLess(
             body.index("Primary operational summary"),
             body.index("Diagnostics and details"),

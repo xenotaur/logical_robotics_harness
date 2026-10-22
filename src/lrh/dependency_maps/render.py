@@ -950,7 +950,43 @@ def _reason_text(reason) -> str:
     return f"{verb} {reason.target} ({reason.target_lifecycle})"
 
 
-MAP_STYLES = """
+PILL_STYLES = """
+  .lrh-pill {
+    border: 1px solid currentColor;
+    border-radius: var(--lrh-radius-pill);
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.05rem 0.5rem;
+    white-space: nowrap;
+  }
+  .lrh-pill--done {
+    background: var(--lrh-color-status-done-bg);
+    color: var(--lrh-color-status-done-fg);
+  }
+  .lrh-pill--blocked {
+    background: var(--lrh-color-status-blocked-bg);
+    color: var(--lrh-color-status-blocked-fg);
+  }
+  .lrh-pill--progress {
+    background: var(--lrh-color-status-progress-bg);
+    color: var(--lrh-color-status-progress-fg);
+  }
+  .lrh-pill--waiting {
+    background: var(--lrh-color-status-waiting-bg);
+    color: var(--lrh-color-status-waiting-fg);
+  }
+  .lrh-pill--unblocked {
+    background: var(--lrh-color-status-unblocked-bg);
+    color: var(--lrh-color-status-unblocked-fg);
+  }
+  .lrh-pill--unknown {
+    background: var(--lrh-color-status-unknown-bg);
+    color: var(--lrh-color-status-unknown-fg);
+  }
+"""
+
+MAP_STYLES = PILL_STYLES + """
   .lrh-map-shell { max-width: none; }
   .lrh-tabs { display: flex; gap: var(--lrh-space-2); margin-top: var(--lrh-space-3); }
   .lrh-tabs a {
@@ -989,39 +1025,6 @@ MAP_STYLES = """
     display: flex;
     flex-wrap: wrap;
     gap: var(--lrh-space-2);
-  }
-  .lrh-pill {
-    border: 1px solid currentColor;
-    border-radius: var(--lrh-radius-pill);
-    display: inline-block;
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 0.05rem 0.5rem;
-    white-space: nowrap;
-  }
-  .lrh-pill--done {
-    background: var(--lrh-color-status-done-bg);
-    color: var(--lrh-color-status-done-fg);
-  }
-  .lrh-pill--blocked {
-    background: var(--lrh-color-status-blocked-bg);
-    color: var(--lrh-color-status-blocked-fg);
-  }
-  .lrh-pill--progress {
-    background: var(--lrh-color-status-progress-bg);
-    color: var(--lrh-color-status-progress-fg);
-  }
-  .lrh-pill--waiting {
-    background: var(--lrh-color-status-waiting-bg);
-    color: var(--lrh-color-status-waiting-fg);
-  }
-  .lrh-pill--unblocked {
-    background: var(--lrh-color-status-unblocked-bg);
-    color: var(--lrh-color-status-unblocked-fg);
-  }
-  .lrh-pill--unknown {
-    background: var(--lrh-color-status-unknown-bg);
-    color: var(--lrh-color-status-unknown-fg);
   }
   .lrh-flag {
     color: var(--lrh-color-text-muted);

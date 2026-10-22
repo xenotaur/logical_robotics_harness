@@ -184,6 +184,7 @@ def _views(selector: str | None) -> list[tuple[str, str, str]]:
         ]
     return [
         ("Overview", f"/project/{_quote(selector)}", "house"),
+        ("Work items", f"/project/{_quote(selector)}/work-items", "table"),
         ("Dependency maps", f"/project/{_quote(selector)}/dependency-maps", "network"),
         ("Statusboard", HOME_PATH, "layout-dashboard"),
     ]

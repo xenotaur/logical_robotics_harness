@@ -2,10 +2,10 @@
 execution_id: 2026_10_22_01_07_29_WI_LRH_GH_ERROR_CLASSIFICATION_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_GH_ERROR_CLASSIFICATION_SELFREVIEW)[2026-10-22T01:07:28+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_06_02_17_34_WI_LRH_GH_ERROR_CLASSIFICATION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/773
-commit: 07d50e6b64c44f000d2394b84a658f049d36113a
+commit: 8f5845f0ede39c8165d2b4731e494e844ce271cb
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/773
 session_transcript: pending

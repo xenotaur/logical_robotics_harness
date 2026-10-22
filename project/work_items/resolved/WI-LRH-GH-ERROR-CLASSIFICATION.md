@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #773 (commit 8f5845f0ede39c8165d2b4731e494e844ce271cb): distinct project-root, executable, GitHub command, network/API, and malformed-output diagnostics with hermetic tests and canonical validation.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-GH-ERROR-CLASSIFICATION
 title: Distinguish LRH GitHub wrapper failure classes
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

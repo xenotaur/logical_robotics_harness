@@ -1,4 +1,7 @@
 import json
+import pathlib
+import subprocess
+import tempfile
 import unittest
 from unittest import mock
 
@@ -302,18 +305,81 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertEqual(len(parsed["threads"]), 1)
         self.assertNotIn("pull_request", parsed)
 
-    def test_run_gh_json_raises_clean_errors(self) -> None:
-        with mock.patch("subprocess.run", side_effect=FileNotFoundError()):
-            with self.assertRaisesRegex(RuntimeError, "gh CLI not found"):
+    def test_run_gh_json_rejects_invalid_project_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_root = pathlib.Path(temp_dir) / "missing"
+            with self.assertRaisesRegex(RuntimeError, "invalid project root"):
+                gh_client.run_gh_json(["api"], cwd=missing_root)
+            with self.assertRaisesRegex(RuntimeError, "invalid project root"):
+                gh_client.run_gh_json(["api"], cwd="")
+
+    def test_run_gh_json_distinguishes_missing_gh(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch("subprocess.run", side_effect=FileNotFoundError()):
+                with self.assertRaisesRegex(RuntimeError, "gh CLI not found"):
+                    gh_client.run_gh_json(["api"], cwd=temp_dir)
+
+    def test_run_gh_json_classifies_command_failures(self) -> None:
+        for stderr, category in (
+            ("dial tcp: lookup api.github.com: no such host", "network"),
+            ("authentication required", "authentication"),
+            ("GraphQL: API error", "api"),
+            ("HTTP 500: Internal Server Error", "api"),
+            ("API rate limit exceeded", "api"),
+            ("warning " * 100 + "HTTP 500: Internal Server Error", "api"),
+            ("unexpected option", "command"),
+        ):
+            with self.subTest(stderr=stderr):
+                completed = subprocess.CompletedProcess(
+                    ["gh", "api"], 1, stdout="", stderr=stderr
+                )
+                with mock.patch("subprocess.run", return_value=completed):
+                    with self.assertRaisesRegex(
+                        RuntimeError, rf"gh command failed \({category}\)"
+                    ):
+                        gh_client.run_gh_json(["api"])
+
+    def test_run_gh_json_sanitizes_command_diagnostics(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["gh", "api"],
+            1,
+            stdout="",
+            stderr="Authorization: Bearer github_pat_secretvalue",
+        )
+        with mock.patch("subprocess.run", return_value=completed):
+            with self.assertRaisesRegex(
+                RuntimeError, r"Authorization: Bearer \[redacted\]"
+            ):
+                gh_client.run_gh_json(["api"])
+
+        for stderr in (
+            "Authorization: Basic secretvalue",
+            "https://user:secret@example.com/api",
+        ):
+            completed = subprocess.CompletedProcess(
+                ["gh", "api"], 1, stdout="", stderr=stderr
+            )
+            with mock.patch("subprocess.run", return_value=completed):
+                with self.assertRaises(RuntimeError) as context:
+                    gh_client.run_gh_json(["api"])
+            self.assertNotIn("secretvalue", str(context.exception))
+
+    def test_run_gh_json_distinguishes_invalid_json(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["gh", "api"], 0, stdout="not-json", stderr=""
+        )
+        with mock.patch("subprocess.run", return_value=completed):
+            with self.assertRaisesRegex(RuntimeError, "gh returned invalid JSON"):
                 gh_client.run_gh_json(["api"])
 
     def test_run_gh_returns_stdout_and_binds_cwd(self) -> None:
         completed = mock.Mock(returncode=0, stdout="done\n", stderr="")
-        with mock.patch("subprocess.run", return_value=completed) as run:
-            output = gh_client.run_gh(["pr", "merge"], cwd="/repo")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch("subprocess.run", return_value=completed) as run:
+                output = gh_client.run_gh(["pr", "merge"], cwd=temp_dir)
         self.assertEqual("done\n", output)
         self.assertEqual(["gh", "pr", "merge"], run.call_args.args[0])
-        self.assertEqual("/repo", run.call_args.kwargs["cwd"])
+        self.assertEqual(temp_dir, run.call_args.kwargs["cwd"])
 
     def test_run_gh_turns_other_launch_failures_into_clean_errors(self) -> None:
         with mock.patch("subprocess.run", side_effect=PermissionError("denied")):
@@ -323,7 +389,9 @@ class GithubIntegrationTest(unittest.TestCase):
     def test_run_gh_raises_stderr_on_nonzero_exit(self) -> None:
         completed = mock.Mock(returncode=1, stdout="", stderr="head was modified\n")
         with mock.patch("subprocess.run", return_value=completed):
-            with self.assertRaisesRegex(RuntimeError, "^head was modified$"):
+            with self.assertRaisesRegex(
+                RuntimeError, r"^gh command failed \(command\): head was modified$"
+            ):
                 gh_client.run_gh(["pr", "merge"])
 
 

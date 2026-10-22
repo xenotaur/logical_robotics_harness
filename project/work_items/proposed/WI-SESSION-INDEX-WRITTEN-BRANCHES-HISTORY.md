@@ -14,7 +14,7 @@ related_focus: []
 related_roadmap: []
 related_workstreams: []
 related_design:
-  - PROP-LRH-SESSION-ARCHIVE-SYNC
+  - project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -26,11 +26,11 @@ forbidden_actions:
   - merge_pr
 acceptance:
   - "record_session_observation keeps a session's previous branch in written_branches whenever a later observation for the same host_id sets a different non-empty branch; branch itself stays latest-wins"
-  - "An observation with the same branch, or with no branch, leaves written_branches unchanged"
+  - "An observation with the same branch, with no branch, or with an empty-string branch leaves both branch and written_branches unchanged"
   - "Explicit --written-branch values still union in as before, and the stored list stays sorted and duplicate-free"
   - "The index is still byte-stable across repeated identical observations"
-  - "Docs that describe written_branches as reserved/unused are updated to describe the new behavior, in src/ and every tracked install copy"
-  - "scripts/test passes with new unit tests covering branch change, same branch, omitted branch, and the explicit --written-branch union; lrh validate reports 0 errors"
+  - "Docs that describe written_branches as reserved/unused (the prompt_workflow_sessions.py module docstring, the --written-branch help, and execution-session-reference.md in src/ and every tracked install copy) are updated to describe the new behavior"
+  - "scripts/test passes with new unit tests covering branch change, same branch, omitted branch, empty-string branch, and the explicit --written-branch union; lrh validate reports 0 errors"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -112,6 +112,8 @@ Three call paths set `branch`. All of them go through
   before replacing it.
 - Unit tests in `tests/assist_tests/prompt_workflow_sessions_test.py`.
 - Wording updates where `written_branches` is described as reserved/unused:
+  - the module docstring of `src/lrh/prompt_workflow_sessions.py`
+    ("branch/written_branches fields reserved for later fork stitching");
   - the `--written-branch` help text in `src/lrh/prompt_workflow.py`;
   - `execution-session-reference.md` in `src/`, plus re-rendered
     `.claude`, `.agents` and `.gemini` copies, each regenerated one skill at
@@ -120,14 +122,22 @@ Three call paths set `branch`. All of them go through
 ## Required Changes
 
 1. `src/lrh/prompt_workflow_sessions.py` `_merge`: if `existing` has a
-   non-empty `branch`, `branch` is not `None`, and `branch !=
-   existing.branch`, add `existing.branch` to the `written` set. Keep
-   `branch` latest-wins and `written_branches` sorted. Update the
-   `record_session_observation` docstring to describe this.
+   non-empty `branch`, the incoming `branch` is non-empty (truthy, not
+   merely `is not None`), and `branch != existing.branch`, add
+   `existing.branch` to the `written` set. An empty-string incoming
+   `branch` must be treated like an omitted one: it must not replace the
+   existing `branch` or add anything to history. `--branch ""` and export
+   metadata with `"branch": ""` both reach `_merge` as `""`; see
+   `sync_export`. Keep `branch` latest-wins for non-empty values and keep
+   `written_branches` sorted. Update the `record_session_observation`
+   docstring, and the module docstring at the top of the file ("reserved
+   for later fork stitching"), to describe the new behavior.
 2. `tests/assist_tests/prompt_workflow_sessions_test.py`: add tests for:
    - a branch change that preserves the old branch;
    - a repeated identical branch with no history entry;
    - an omitted branch that keeps both the branch and the history;
+   - an empty-string branch that leaves both `branch` and
+     `written_branches` unchanged;
    - the history plus an explicit `written_branches` union, sorted and
      deduplicated.
 
@@ -157,25 +167,27 @@ Three call paths set `branch`. All of them go through
 
 - A later observation that sets a different non-empty `branch` keeps the
   previous branch in `written_branches`; `branch` stays latest-wins.
-- The same branch, or an omitted branch, leaves `written_branches`
-  unchanged.
+- The same branch, an omitted branch, or an empty-string branch leaves
+  both `branch` and `written_branches` unchanged.
 - Explicit `--written-branch` values still union in; the list stays sorted
   and duplicate-free.
 - The index stays byte-stable across repeated identical observations.
-- The `src/` docs and all install copies of `execution-session-reference.md`
-  and the CLI help describe the new behavior.
+- The `prompt_workflow_sessions.py` module docstring, the CLI help, and the
+  `src/` and all install copies of `execution-session-reference.md`
+  describe the new behavior.
 - `scripts/test` passes with the new tests, and `lrh validate` reports 0
   errors.
 
 ## Validation
 
+- scripts/version tools
 - scripts/format --check --diff
 - scripts/lint
+- scripts/test tests/assist_tests/prompt_workflow_sessions_test.py
 - scripts/test
 - lrh validate
-- python -m unittest tests.assist_tests.prompt_workflow_sessions_test
-- diff src/lrh/skills/lrh-implement/references/execution-session-reference.md .claude/skills/lrh-implement/references/execution-session-reference.md
-- grep -rn "unused until then" src/lrh .claude/skills .agents/skills .gemini/plugins/lrh/skills (must return nothing)
+- lrh skills check --local --target all --source current-repo
+- git grep -n "unused until then\|reserved for later fork stitching" -- src/lrh .claude/skills .agents/skills .gemini/plugins/lrh/skills (must return nothing)
 
 ## Risk Notes
 

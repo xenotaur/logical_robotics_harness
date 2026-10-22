@@ -136,8 +136,10 @@ the record:
    - `ProjectSelectorError.next_action` currently always returns the
      `--local-repo-path` command. Generalize it so each error carries its own
      next action or actions. For this case, choose them by directory:
-     - **Default directory** (the resolved path is `<repo>/project`, whether
-       `project_dir` is unset or `project`): give
+     - **Default directory** (the resolved project path equals
+       `<repo>/project` after normalization, so an unset `project_dir`,
+       `project`, `./project`, a trailing slash, or the equivalent absolute
+       path all count; compare resolved paths, not raw strings): give
        `lrh project init --project-root <repo>` and
        `lrh meta set <name> --project-dir DIR`.
      - **Custom `project_dir`**: give `lrh meta set <name> --project-dir DIR`,
@@ -168,8 +170,8 @@ the record:
 
 - No change to the `/meta` statusboard or the `/project/<id>` dashboard, which
   already report `missing_project` their own way.
-- No automatic scaffolding. Serve stays read-only and only suggests
-  `lrh project init`.
+- No automatic scaffolding. Serve stays read-only: it only suggests
+  commands and never runs them.
 - No change to the `main` fallback, the missing-checkout 409, or the
   never-bound 409.
 - No change to how the Meta registry resolves paths.

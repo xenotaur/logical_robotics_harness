@@ -46,6 +46,7 @@ that displays or records links.
 - A Rust handoff in `apps/desktop/src-tauri` that opens only allowlisted
   session links through the same fixed per-platform opener the browser handoff uses.
 - Documenting which routes are verified and which are unknown.
+- Showing session links on the project work-item page (WI-LRH-CONSOLE-SESSION-LINK-RENDER), so the real click check in the exit criteria can actually be performed.
 
 ## Prior Art Check
 
@@ -80,7 +81,7 @@ that displays or records links.
 
 - Does not add a thread abstraction or any registry of sessions.
 - Does not change `/lrh-implement` or other skills to register or record links early.
-- Does not render links on work-item, workstream or design pages in the Console.
+- Does not render session links on workstream or design pages in the Console; rendering on the project work-item page is in scope only through WI-LRH-CONSOLE-SESSION-LINK-RENDER.
 - Does not make a link route stable: `claude://claude.ai/epitaxy/...` is undocumented and may change.
 - Does not support Claude CLI sessions, which have no URL scheme, or cloud sessions, whose route is unverified.
 

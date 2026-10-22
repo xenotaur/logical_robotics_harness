@@ -26,11 +26,12 @@ forbidden_actions:
   - merge_pr
 acceptance:
   - "record_session_observation keeps a session's previous branch in written_branches whenever a later observation for the same host_id sets a different non-empty branch; branch itself stays latest-wins"
-  - "An observation with the same branch, with no branch, or with an empty-string branch leaves both branch and written_branches unchanged"
+  - "An observation with the same branch, with no branch, or with an empty-string branch leaves both branch and written_branches unchanged; an empty-string branch on a first observation is stored as no branch (null), not an empty string"
   - "Explicit --written-branch values still union in as before, and the stored list stays sorted and duplicate-free"
   - "The index is still byte-stable across repeated identical observations"
   - "Docs that describe written_branches as reserved/unused (the prompt_workflow_sessions.py module docstring, the --written-branch help, and execution-session-reference.md in src/ and every tracked install copy) are updated to describe the new behavior"
-  - "scripts/test passes with new unit tests covering branch change, same branch, omitted branch, empty-string branch, and the explicit --written-branch union; lrh validate reports 0 errors"
+  - "scripts/test passes with new unit tests covering branch change, same branch, omitted branch, empty-string branch (existing row and first observation), and the explicit --written-branch union; lrh validate reports 0 errors"
+  - "git grep -n -i 'fork stitching' over src/lrh and the three install-copy trees returns nothing after the change"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -125,19 +126,26 @@ Three call paths set `branch`. All of them go through
    non-empty `branch`, the incoming `branch` is non-empty (truthy, not
    merely `is not None`), and `branch != existing.branch`, add
    `existing.branch` to the `written` set. An empty-string incoming
-   `branch` must be treated like an omitted one: it must not replace the
-   existing `branch` or add anything to history. `--branch ""` and export
-   metadata with `"branch": ""` both reach `_merge` as `""`; see
-   `sync_export`. Keep `branch` latest-wins for non-empty values and keep
-   `written_branches` sorted. Update the `record_session_observation`
-   docstring, and the module docstring at the top of the file ("reserved
-   for later fork stitching"), to describe the new behavior.
+   `branch` is always treated exactly like an omitted one (`None`):
+   - with an existing row, it must not replace the existing `branch` or add
+     anything to history;
+   - on a first observation (no existing row), it must be stored as no
+     branch (`null` in the index), never as `""`.
+
+   `--branch ""` and export metadata with `"branch": ""` both reach
+   `_merge` as `""`; see `sync_export`. Keep `branch` latest-wins for
+   non-empty values and keep `written_branches` sorted. Update the
+   `record_session_observation` docstring, and the module docstring at the
+   top of the file (which currently says the fields are "reserved for later
+   fork stitching"), to describe the new behavior.
 2. `tests/assist_tests/prompt_workflow_sessions_test.py`: add tests for:
    - a branch change that preserves the old branch;
    - a repeated identical branch with no history entry;
    - an omitted branch that keeps both the branch and the history;
    - an empty-string branch that leaves both `branch` and
      `written_branches` unchanged;
+   - an empty-string branch on a first observation, stored as `branch`
+     `None`/`null`, not `""`;
    - the history plus an explicit `written_branches` union, sorted and
      deduplicated.
 
@@ -152,13 +160,20 @@ Three call paths set `branch`. All of them go through
    the "reserved for later fork stitching" phrasing) with the new behavior.
    Regenerate the `lrh-implement` install copies under `.claude/skills/`,
    `.agents/skills/` and `.gemini/plugins/lrh/skills/`.
+5. New wording in all of the above must not reuse the phrase "fork
+   stitching". The Validation section's completion check greps for that
+   phrase case-insensitively, so it can tell whether every stale
+   description was replaced.
 
 ## Non-Goals
 
 - Does not backfill the existing 48 rows (that would need a per-PR
   head-branch lookup). That is a possible separate one-off.
-- Does not change the `branch` latest-wins semantics, the
-  `session_transcript` grammar, or the index file format and keys.
+- Does not change `branch` latest-wins for non-empty values. One
+  deliberate change: an empty-string branch, which today overwrites the
+  stored branch, is now ignored (see Required Change 1).
+- Does not change the `session_transcript` grammar or the index file
+  format and keys.
 - Does not implement broader fork stitching (cross-host linking by shared
   branch/PR) or change `lrh sessions discover`/`link`/`report`.
 - Does not change any skill's call to `record-session-alias`.
@@ -168,7 +183,8 @@ Three call paths set `branch`. All of them go through
 - A later observation that sets a different non-empty `branch` keeps the
   previous branch in `written_branches`; `branch` stays latest-wins.
 - The same branch, an omitted branch, or an empty-string branch leaves
-  both `branch` and `written_branches` unchanged.
+  both `branch` and `written_branches` unchanged. An empty-string branch on
+  a first observation is stored as no branch (`null`), not `""`.
 - Explicit `--written-branch` values still union in; the list stays sorted
   and duplicate-free.
 - The index stays byte-stable across repeated identical observations.
@@ -187,7 +203,7 @@ Three call paths set `branch`. All of them go through
 - scripts/test
 - lrh validate
 - lrh skills check --local --target all --source current-repo
-- git grep -n "unused until then\|reserved for later fork stitching" -- src/lrh .claude/skills .agents/skills .gemini/plugins/lrh/skills (must return nothing)
+- git grep -n -i "fork stitching" -- src/lrh .claude/skills .agents/skills .gemini/plugins/lrh/skills (must return nothing; today it matches all 10 stale descriptions, including the line-wrapped module docstring and the CLI help)
 
 ## Risk Notes
 

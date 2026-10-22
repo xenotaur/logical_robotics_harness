@@ -27,11 +27,13 @@ class OperationalStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
+# Statusboard band labels, in sentence case like the rest of LRH Console
+# (owner decision of 2026-10-09, in PROP-LRH-CONSOLE-VISUAL-LANGUAGE, Vocabulary).
 _OPERATIONAL_STATUS_LABELS = {
-    OperationalStatus.NEEDS_ATTENTION: "Needs Attention",
-    OperationalStatus.ACTIVE_WORK: "Active Work",
-    OperationalStatus.AWAITING_REVIEW: "Awaiting Review",
-    OperationalStatus.STABLE: "Stable / No Action Needed",
+    OperationalStatus.NEEDS_ATTENTION: "Needs attention",
+    OperationalStatus.ACTIVE_WORK: "Active work",
+    OperationalStatus.AWAITING_REVIEW: "Awaiting review",
+    OperationalStatus.STABLE: "Stable",
     OperationalStatus.BLOCKED: "Blocked",
     OperationalStatus.UNKNOWN: "Unknown",
 }
@@ -46,9 +48,7 @@ _OPERATIONAL_STATUS_DESCRIPTIONS = {
     OperationalStatus.AWAITING_REVIEW: (
         "Work is ready for human, CI, pull-request, or policy review."
     ),
-    OperationalStatus.STABLE: (
-        "Current state is validated or otherwise supported by known evidence."
-    ),
+    OperationalStatus.STABLE: ("Validated and quiet: no action is needed now."),
     OperationalStatus.BLOCKED: (
         "Forward progress is stopped by a declared blocker or missing authority."
     ),
@@ -57,12 +57,15 @@ _OPERATIONAL_STATUS_DESCRIPTIONS = {
     ),
 }
 
+# Statusboard band order, Blocked first, as the owner chose (2026-10-09). It is
+# a display order, not derive_operational_status precedence, which checks
+# Awaiting review before Active work.
 OPERATIONAL_LANE_ORDER = (
+    OperationalStatus.BLOCKED,
     OperationalStatus.NEEDS_ATTENTION,
     OperationalStatus.ACTIVE_WORK,
     OperationalStatus.AWAITING_REVIEW,
     OperationalStatus.STABLE,
-    OperationalStatus.BLOCKED,
     OperationalStatus.UNKNOWN,
 )
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -566,6 +567,84 @@ class SkillsInstallCliTest(unittest.TestCase):
             self.assertIn("--- diff:", diff_result.stdout)
             self.assertIn("+# codex local change", diff_result.stdout)
             self.assertIn("codex local change", skill_md.read_text())
+
+    def _run_install_in(self, cwd: str, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "-m", "lrh.cli.main", "skills", "install", *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=self._cli_env(),
+            cwd=cwd,
+        )
+
+    def _snapshot_tree(self, root: pathlib.Path) -> dict[str, bytes | None]:
+        """Map every path under root to its bytes (None for directories)."""
+        return {
+            str(path.relative_to(root)): (None if path.is_dir() else path.read_bytes())
+            for path in sorted(root.rglob("*"))
+        }
+
+    def test_skills_install_diff_never_creates_missing_target(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            result = self._run_install_in(
+                fake_cwd, "--local", "--target", "antigravity", "--diff"
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("would install:", result.stdout)
+            self.assertNotIn("  installed:", result.stdout)
+            self.assertNotIn("was newly created", result.stdout)
+            self.assertEqual(list(pathlib.Path(fake_cwd).iterdir()), [])
+
+    def test_skills_install_diff_leaves_target_missing_a_skill_unchanged(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            root = pathlib.Path(fake_cwd)
+            install_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "antigravity"
+            )
+            self.assertEqual(install_result.returncode, 0, msg=install_result.stderr)
+            skills_dir = root / ".gemini" / "plugins" / "lrh" / "skills"
+            missing_skill = next(
+                path for path in sorted(skills_dir.iterdir()) if path.is_dir()
+            )
+            shutil.rmtree(missing_skill)
+            before = self._snapshot_tree(root)
+
+            diff_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "antigravity", "--diff"
+            )
+
+            self.assertEqual(diff_result.returncode, 0, msg=diff_result.stderr)
+            self.assertIn(f"would install: {missing_skill.name}", diff_result.stdout)
+            self.assertNotIn("  installed:", diff_result.stdout)
+            self.assertFalse(missing_skill.exists())
+            self.assertEqual(self._snapshot_tree(root), before)
+
+    def test_skills_install_diff_with_force_previews_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            root = pathlib.Path(fake_cwd)
+            install_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "codex"
+            )
+            self.assertEqual(install_result.returncode, 0, msg=install_result.stderr)
+            skill_md = next((root / ".agents" / "skills").glob("*/SKILL.md"))
+            skill_md.write_text(skill_md.read_text() + "\n# codex local change\n")
+            before = self._snapshot_tree(root)
+
+            diff_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "codex", "--diff", "--force"
+            )
+
+            self.assertEqual(diff_result.returncode, 0, msg=diff_result.stderr)
+            self.assertIn(
+                f"would overwrite: {skill_md.parent.name}", diff_result.stdout
+            )
+            self.assertIn("--- diff:", diff_result.stdout)
+            self.assertIn("+# codex local change", diff_result.stdout)
+            self.assertEqual(self._snapshot_tree(root), before)
 
     def test_skills_install_invalid_target_rejected(self) -> None:
         result = self._run("skills", "install", "--target", "chatgpt", "--dry-run")

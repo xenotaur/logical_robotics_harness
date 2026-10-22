@@ -304,7 +304,12 @@ item into a one-entry mapping, an unquoted ` #` truncates everything after
 it as a comment, a leading reserved character (backtick, `@`, `%`, ...)
 is a hard syntax error, and text that reads as a bool/null/number/date
 silently loses its string type. Wrap the value in quotes instead, e.g.
-`exit_criteria: - 'CLAUDE.md ## Skills index updated with /lrh-closeout entry'`,
+
+```yaml
+exit_criteria:
+  - 'CLAUDE.md ## Skills index updated with /lrh-closeout entry'
+```
+
 not the bare unquoted form. `lrh validate`'s `FRONTMATTER_LINT_UNSAFE_SCALAR`
 warning catches this after the fact (`WI-FRONTMATTER-MIGRATION-LINT-GUARD`),
 but writing it quoted the first time avoids the warning entirely.

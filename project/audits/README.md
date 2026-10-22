@@ -6,6 +6,10 @@
 - [`planning_tree_implementation_audit.md`](planning_tree_implementation_audit.md)
 - [`coverage_survey_audit.md`](coverage_survey_audit.md):
   audit report of unit test coverage across the `src/lrh/` directory.
+- [`2026-09-28-vcs-mutation-operations-audit.md`](2026-09-28-vcs-mutation-operations-audit.md):
+  audit of the git/`gh` operations that create, push, modify, and merge
+  branches and pull requests, with denial evidence and which are wired behind
+  `lrh vcs`. Named for the WI's filing date; written 2026-10-05.
 - [`2026-09-22-session-sync-export-ecosystem-audit.md`](2026-09-22-session-sync-export-ecosystem-audit.md):
   end-to-end audit of `lrh sessions` sync/mirror, the per-backend conversation
   exporters, and session-identity capture, with recommendations.

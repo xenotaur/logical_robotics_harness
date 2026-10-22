@@ -331,6 +331,30 @@ class DesktopProtocolSessionTest(unittest.TestCase):
         self.assertEqual(ready["type"], "ready", ready)
         return session, ready
 
+    def test_on_ready_runs_once_after_ready_is_sent(self) -> None:
+        called = threading.Event()
+        roots: list[object] = []
+
+        def on_ready(project_root: object) -> None:
+            roots.append(project_root)
+            called.set()
+
+        _session, ready = self._ready_session(on_ready=on_ready)
+
+        self.assertTrue(called.wait(_WAIT_SECONDS))
+        self.assertEqual(roots, [pathlib.Path(ready["workspace"]["project_root"])])
+
+    def test_on_ready_errors_are_logged_and_the_session_keeps_serving(self) -> None:
+        def on_ready(project_root: object) -> None:
+            raise RuntimeError("warm-up broke")
+
+        session, ready = self._ready_session(on_ready=on_ready)
+
+        self.assertEqual(_get_status(ready["endpoint"]["port"]), 200)
+        self.assertIn(
+            "on_ready failed: RuntimeError: warm-up broke", session.stderr.getvalue()
+        )
+
     def test_ready_handshake_reports_endpoint_versions_and_identity(self) -> None:
         session, ready = self._ready_session()
 
@@ -543,6 +567,15 @@ class DesktopProtocolStartupFailureTest(unittest.TestCase):
         session.assert_no_more_messages(self)
         self.assertEqual(session.wait().exit_code, exit_code)
         return failed
+
+    def test_on_ready_never_runs_when_startup_fails(self) -> None:
+        roots: list[object] = []
+        session = _Session(self, on_ready=roots.append)
+
+        session.send_raw(b"hello\n")
+
+        self._assert_failed(session, "malformed_request")
+        self.assertEqual(roots, [])
 
     def test_malformed_start_request_fails_without_ready(self) -> None:
         session = _Session(self)

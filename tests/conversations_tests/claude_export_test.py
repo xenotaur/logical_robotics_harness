@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 import unittest.mock
@@ -1165,6 +1166,99 @@ class TestClaudeExportCli(unittest.TestCase):
                 Path("~this-user-definitely-does-not-exist-xyz123/x"),
                 description="test path",
             )
+
+
+class TestClaudeExportDescriptorLevelCollision(unittest.TestCase):
+    def test_link_created_after_path_check_is_rejected_and_source_untouched(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+            source_file.chmod(0o644)
+            original = source_file.read_bytes()
+            out_file = tmp_path / "export.md"
+
+            # Simulate the race: the path check passes (output absent), then a
+            # hardlink to the source appears before the write opens it.
+            def racing_check(source: Path, destination: Path) -> None:
+                os.link(source, destination)
+
+            with unittest.mock.patch.object(
+                claude_export,
+                "_reject_source_output_collision",
+                side_effect=racing_check,
+            ):
+                with self.assertRaisesRegex(
+                    claude_export.ClaudeExportError, "must refer to different files"
+                ):
+                    claude_export.convert_claude_session(
+                        source_file, output_path=out_file, force=True
+                    )
+
+            self.assertEqual(source_file.read_bytes(), original)
+            # The identity check precedes fchmod, so the source keeps its mode.
+            self.assertEqual(source_file.stat().st_mode & 0o777, 0o644)
+
+    def test_force_overwrite_of_existing_output_still_truncates_and_is_private(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+            out_file = tmp_path / "export.md"
+            out_file.write_text("x" * 100_000, encoding="utf-8")
+            out_file.chmod(0o644)
+
+            result = claude_export.convert_claude_session(
+                source_file, output_path=out_file, force=True
+            )
+
+            self.assertEqual(out_file.read_text(encoding="utf-8"), result.markdown)
+            self.assertEqual(out_file.stat().st_mode & 0o777, 0o600)
+
+    def _assert_source_survives_path_change(self, *, replace: bool) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            moved = tmp_path / "moved.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+            source_file.chmod(0o644)
+            original = source_file.read_bytes()
+            out_file = tmp_path / "export.md"
+
+            # Simulate the race after the source was read: the output is
+            # hardlinked to the original file, then the original leaves the
+            # source pathname (renamed away, optionally replaced by a new file).
+            def racing_check(source: Path, destination: Path) -> None:
+                os.link(source, destination)
+                os.rename(source, moved)
+                if replace:
+                    source.write_text("replacement\n", encoding="utf-8")
+
+            with unittest.mock.patch.object(
+                claude_export,
+                "_reject_source_output_collision",
+                side_effect=racing_check,
+            ):
+                with self.assertRaisesRegex(
+                    claude_export.ClaudeExportError, "must refer to different files"
+                ):
+                    claude_export.convert_claude_session(
+                        source_file, output_path=out_file, force=True
+                    )
+
+            self.assertEqual(moved.read_bytes(), original)
+            self.assertEqual(out_file.read_bytes(), original)
+            self.assertEqual(moved.stat().st_mode & 0o777, 0o644)
+
+    def test_source_renamed_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=False)
+
+    def test_source_replaced_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=True)
 
 
 if __name__ == "__main__":

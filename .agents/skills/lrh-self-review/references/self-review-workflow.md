@@ -141,12 +141,16 @@ lrh prompt record-execution \
   suffixed files, search `project/executions/`.
 - **Diff-mode** runs from `/lrh-implement` Step 7.5, which precedes Step
   8's `gh pr create` and Step 9's primary-record creation — there is no
-  primary record yet at diff-mode dispatch time. Leave `rerun_of` empty;
-  this is the designed sequencing, not a gap to work around (see this
-  skill's own creation record,
+  primary record yet at diff-mode dispatch time. Create the record with
+  `rerun_of` (and `pr:`) empty; that is the designed sequencing at
+  creation time (see this skill's own creation record,
   `project/executions/AD_HOC/2026_08_02_02_16_47_LRH_SELF_REVIEW.md`, for
   the identical pattern — an empty `rerun_of` because no primary existed
-  yet when it was authored).
+  yet when it was authored). The empty fields are not permanent: once the
+  PR and the primary record exist, `/lrh-implement` Step 9 backfills this
+  record's `pr:` with the PR URL and its `rerun_of:` with the primary
+  record's `execution_id`, so `/lrh-land` and `/lrh-closeout` can find it
+  by `pr:` and classify it as a side record.
 
 **CHAIN-NOTE fields (PR-mode substitutions, recorded at `/lrh-land`
 closeout, not by this skill directly):** `self_review_rounds=<N>` counts

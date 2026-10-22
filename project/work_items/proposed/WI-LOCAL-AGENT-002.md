@@ -92,10 +92,19 @@ experimental one.
 3. Resolve reads by source ID or confined canonical path within tracked files at
    the recorded commit.
    - Reject absolute paths, traversal, symlinks and escapes,
-     private/untracked/binary content, credential-like paths, sources the
-     sensitivity scanner flags (proposal Decision 3), and oversized requests.
-   - Search is bounded literal text search with capped results and clear
-     truncation markers.
+     private/untracked/binary content, credential-like paths, sources with a
+     high-severity sensitivity-scanner finding (proposal Decision 3), and
+     oversized requests.
+   - Admit medium-only sources (email, IP address, phone), and attach a
+     warning that names the categories but never the matched values, as T0
+     and T1 do.
+   - Search is bounded literal text search over admissible sources only:
+     high-severity sources never appear in results, and medium-only results
+     carry category-only warnings. Results are capped, with clear truncation
+     markers. Model-initiated reads and searches can never use the owner's
+     `--allow-flagged` override, even for a file the owner allowed into the
+     initial context of the same run; such a file stays readable only
+     through that initial context.
    - Treat retrieved instructions as data.
 4. Bound total calls, steps, input/output size, model tokens, and wall time.
    Preserve explicit errors, denials, timeout, cancellation, and budget
@@ -110,7 +119,12 @@ experimental one.
    - path and symlink escape attempts;
    - input and output bounds;
    - repeated denials and exhausted budgets;
-   - backend timeout, cancellation, truncated logs, and interrupted attempts.
+   - backend timeout, cancellation, truncated logs, and interrupted attempts;
+   - both sides of the severity boundary for reads and search results:
+     high-severity sources are rejected, and medium-only sources are returned
+     with category-only warnings;
+   - model requests cannot invoke or widen the owner's `--allow-flagged`
+     override.
 
    Include malicious source text that asks for shell, network, or write tools,
    and verify that no handler outside the three-tool surface is reachable.

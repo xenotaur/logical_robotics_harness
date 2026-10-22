@@ -60,7 +60,8 @@ directories such as `.claude/skills/`, `.agents/skills/`, and
 `.gemini/plugins/lrh/skills/` remain generated install destinations. Existing
 safety behavior still applies for every source: locally modified target copies
 are skipped unless `--force` is passed, and `--diff` compares the installed copy
-against the selected source.
+against the selected source. `--diff` never writes files: like `--dry-run`, it
+reports missing skills as `would install` instead of installing them.
 
 Repositories may also define optional defaults in `project/agent_skills.yaml`.
 When that file is present, `lrh skills install` uses its configured source,
@@ -195,6 +196,43 @@ Claude-only frontmatter such as `disable-model-invocation` and `argument-hint`.
   `~/.gemini/config/plugins/lrh/`) and per-repository (`./.claude/skills/`,
   `./.agents/skills/`, or `./.gemini/plugins/lrh/` via `--local`) installs are
   independent. Updating one does not update the other.
+
+## Legacy distribution metadata (`logical-robotics-harness`)
+
+The package is distributed as `lrh`. Older editable installs used the name
+`logical-robotics-harness`, and the leftovers can still be discovered:
+`importlib.metadata.version("logical-robotics-harness")` may then report a
+version that disagrees with `lrh --version`, even though the CLI is current.
+`lrh chain-defaults status` lists these under `cli.legacy_distributions` (and
+prints a warning) when it finds any. The usual sources are:
+
+- a `logical_robotics_harness-*.dist-info` in `site-packages`, and
+- a stale, git-ignored `src/logical_robotics_harness.egg-info` in the source
+  checkout, discoverable because the editable install puts `src/` on
+  `sys.path`.
+
+Neither affects which code runs. Before removing anything, check ownership:
+the legacy dist-info's `RECORD` can list the same `bin/lrh` console script as
+the current `lrh` distribution, so `pip uninstall logical-robotics-harness`
+can delete the active command. Inspect it first:
+
+```bash
+python - <<'PY'
+import importlib.metadata as m
+for d in m.distributions():
+    if (d.metadata["Name"] or "").lower().replace("_", "-") == "logical-robotics-harness":
+        print(d._path, d.version)
+        print([f for f in d.files if "dist-info" not in str(f)])
+PY
+```
+
+If the only non-metadata file listed is `../../../bin/lrh` (and the legacy
+`__editable__.*.pth` is already gone), remove just the legacy
+`*.dist-info` directory and the stale `egg-info` directory; do not run
+`pip uninstall`. If it does list files you cannot account for, uninstall and
+then re-run `pip install -e .` from the checkout to restore the `lrh`
+script. Afterwards confirm `lrh --version`, `python -c "import lrh"`, and
+`importlib.metadata.version("lrh")` agree.
 
 ## Related reference
 

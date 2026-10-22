@@ -52,6 +52,117 @@ class SourcesTest(unittest.TestCase):
         with self.assertRaisesRegex(sources.SourceError, "excluded"):
             self._make("project/executions/AD_HOC/private.md")
 
+    def test_private_paths_rejected_at_any_depth_and_case(self) -> None:
+        for path in (
+            "sub/project/executions/AD_HOC/x.md",
+            "Project/Executions/x.md",
+            "lcats/PROJECT/memory/m.md",
+        ):
+            with self.subTest(path):
+                with self.assertRaisesRegex(sources.SourceError, "private path"):
+                    sources.check_path_allowed(path)
+
+    def test_control_characters_in_paths_rejected_without_echo(self) -> None:
+        for path in (
+            "safe\ntoken: abcdef123.py",
+            "a\tb.py",
+            "x\x7f.py",
+            "c\x9bd.py",
+            "line\u2028sep.py",
+            "para\u2029sep.py",
+            "evil\u202egpj.py",
+            "zero\u200bwidth.py",
+            "\ufeffbom.py",
+        ):
+            with self.subTest(repr(path)):
+                with self.assertRaises(sources.SourceError) as caught:
+                    sources.check_path_allowed(path)
+                self.assertNotIn("abcdef123", str(caught.exception))
+
+    def test_shown_path_quotes_unicode_separators_and_bidi(self) -> None:
+        self.assertEqual(sources.shown_path("ok/path.py"), "ok/path.py")
+        self.assertEqual(sources.shown_path("caf\u00e9.md"), "caf\u00e9.md")
+        for path in ("a\u2028b", "a\u202eb"):
+            with self.subTest(repr(path)):
+                shown = sources.shown_path(path)
+                self.assertTrue(shown.isascii())
+                self.assertNotEqual(shown, path)
+
+    def test_credential_like_paths_rejected(self) -> None:
+        for path in (
+            ".env",
+            "config/.env.local",
+            ".envrc",
+            "deploy/.env_prod",
+            "config/secrets/prod.yaml",
+            "Credentials/gcp.json",
+            "keys/server.PEM",
+            "home/id_rsa",
+            "ops/aws_credentials.json",
+            "notes/my-secret.md",
+            ".npmrc",
+        ):
+            with self.subTest(path):
+                with self.assertRaisesRegex(sources.SourceError, "credential-like"):
+                    sources.check_path_allowed(path)
+        sources.check_path_allowed("project/design/demo.md")
+
+    def test_sensitivity_flagged_text_rejected_without_echoing_it(self) -> None:
+        with self.assertRaises(sources.SourceError) as caught:
+            sources.check_text_allowed(
+                "x.md", "api_key = sk-live-abcdef0123456789abcdef\n"
+            )
+        self.assertIn("sensitivity scan", str(caught.exception))
+        self.assertNotIn("sk-live", str(caught.exception))
+        self.assertEqual(sources.check_text_allowed("ok.md", "plain text\n"), ())
+
+    def test_medium_only_text_allowed_with_category_warnings(self) -> None:
+        warnings = sources.check_text_allowed(
+            "notes.md", "Mail ops@example.org; serve on 127.0.0.1.\n"
+        )
+        self.assertEqual(warnings, ("email", "ip_address"))
+
+    def test_high_finding_excludes_even_with_medium_findings(self) -> None:
+        text = "ops@example.org\napi_key = sk-live-abcdef0123456789abcdef\n"
+        with self.assertRaises(sources.SourceError) as caught:
+            sources.check_text_allowed("mixed.md", text)
+        message = str(caught.exception)
+        self.assertIn("secret", message)
+        self.assertNotIn("email", message)
+        self.assertNotIn("ops@example.org", message)
+
+    def test_high_findings_are_structured_and_value_free(self) -> None:
+        records = sources.high_findings(
+            "x = 1\ntoken: Callable[[], str] = make_token\n"
+            "if secret:\n    keep(secret)\n"
+        )
+        self.assertEqual(
+            records,
+            [
+                {
+                    "category": "secret",
+                    "rule_id": "secret.keyword_assignment",
+                    "start_line": 2,
+                    "end_line": 2,
+                },
+                {
+                    "category": "secret",
+                    "rule_id": "secret.keyword_assignment",
+                    "start_line": 3,
+                    "end_line": 4,
+                },
+            ],
+        )
+
+    def test_allow_lifts_only_the_named_categories(self) -> None:
+        mixed = 'api_key = "sk-live-abcdef0123456789abcdef"\n'
+        with self.assertRaisesRegex(sources.SourceError, r"\(token\)"):
+            sources.check_text_allowed("m.py", mixed, frozenset({"secret"}))
+        self.assertEqual(
+            sources.check_text_allowed("m.py", mixed, frozenset({"secret", "token"})),
+            ("secret", "token"),
+        )
+
     def test_binary_rejected(self) -> None:
         with self.assertRaisesRegex(sources.SourceError, "binary"):
             self._make("project/data.bin")

@@ -8,8 +8,8 @@ import re
 import subprocess
 
 
-def run_gh_json(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> object:
-    """Run gh and decode JSON, raising clean errors.
+def run_gh(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> str:
+    """Run gh and return stdout, raising clean errors.
 
     ``cwd`` binds the invocation to a specific working directory -- gh
     infers the target repository from the current directory, so a caller
@@ -32,13 +32,21 @@ def run_gh_json(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> ob
         if cwd is not None and (not str(cwd) or not pathlib.Path(cwd).is_dir()):
             raise RuntimeError(f"invalid project root: {cwd}") from exc
         raise RuntimeError("gh CLI not found") from exc
+    except OSError as exc:
+        raise RuntimeError(f"gh CLI could not be run: {exc}") from exc
     if result.returncode != 0:
         category = _classify_failure(result.stderr)
         stderr = _sanitize_stderr(result.stderr)
         detail = stderr or "no diagnostic output"
         raise RuntimeError(f"gh command failed ({category}): {detail}")
+    return result.stdout
+
+
+def run_gh_json(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> object:
+    """Run gh and decode JSON, raising clean errors (see ``run_gh``)."""
+    stdout = run_gh(argv, cwd=cwd)
     try:
-        payload = json.loads(result.stdout)
+        payload = json.loads(stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError("gh returned invalid JSON") from exc
     if isinstance(payload, dict) and payload.get("errors"):

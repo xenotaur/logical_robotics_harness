@@ -18,6 +18,7 @@ patterns as of this WI, not an exhaustive YAML-landmine catalog.
 
 from __future__ import annotations
 
+import functools
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -318,16 +319,33 @@ def _check_value(
 
 
 def _resolves_to_nonstring_type(value_text: str, *, check_null: bool) -> bool:
-    try:
-        resolved: Any = yaml.safe_load(value_text)
-    except yaml.YAMLError:
+    kind = _resolved_kind(value_text)
+    if kind == "error":
         # A genuine syntax error is caught by the other categories, or by
         # yaml.safe_load itself downstream -- not this check's job.
         return False
-    if resolved is None:
+    if kind == "null":
         # Most KNOWN_STRING_FIELDS members legitimately use null (owner,
         # commit, pr, rerun_of, blocked_reason, resolution, ...), so only
         # flag a literal null resolution for fields opted into
         # STRICT_NON_NULL_STRING_FIELDS above.
         return check_null
-    return not isinstance(resolved, str)
+    return kind != "str"
+
+
+@functools.lru_cache(maxsize=4096)
+def _resolved_kind(value_text: str) -> str:
+    """What one scalar's text resolves to: "str", "null", "other", or "error".
+
+    Validation checks every string field of every control file, and the same
+    values (statuses, owners, dates) recur thousands of times, so this pure
+    function of the text is memoized.
+    """
+
+    try:
+        resolved: Any = yaml.safe_load(value_text)
+    except yaml.YAMLError:
+        return "error"
+    if resolved is None:
+        return "null"
+    return "str" if isinstance(resolved, str) else "other"

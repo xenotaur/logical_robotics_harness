@@ -809,17 +809,21 @@ while leaving the target work item silently stuck `proposed` and its
 real execution record silently stuck `in_progress` — the opposite of
 what an "implement and land it end-to-end" skill advertises.
 
-**Status:** Worked around locally, not fixed at the root. `/lrh-execute`'s
-own Step 3 (`src/lrh/skills/lrh-execute/SKILL.md`) now explicitly
-instructs populating `pr:` via `--pr` before proceeding to Step 4 — a
-defensive fix scoped to `/lrh-execute`'s own correctness, since
-`WI-SKILLS-LRH-EXECUTE`'s Non-Goals don't cover modifying
-`/lrh-implement` itself. The root gap remains open for every *other*
-`/lrh-implement` caller (a human running `/lrh-implement` directly, then
-`/lrh-land` manually) — same failure mode, just with more time for a
-human to notice between the two steps rather than none. Fix: add `--pr
-<pr-url-from-step-8>` to Step 9's own `record-execution` call in
-`/lrh-implement/SKILL.md` (and its `.claude/` mirror) directly.
+**Status:** Closed 2026-10-10 (UTC). Fixed at the root by PR #808
+(`WI-IMPLEMENT-SELFREVIEW-PR-BACKFILL`):
+
+- `/lrh-implement` Step 9 now passes `--pr <pr-url-from-step-8>` to its own
+  `record-execution` call.
+- It also backfills `pr:` and `rerun_of:` on the Step 7.5 diff-mode
+  `_SELFREVIEW` record.
+- All tracked install copies were updated.
+
+`/lrh-execute`'s Step 3 workaround was reduced to a verification check in
+PR #816, the follow-up PR that closed this entry.
+
+Historical background: before PR #808, `/lrh-execute`'s Step 3 populated
+`pr:` itself as a defensive fix scoped to its own correctness, and every
+other `/lrh-implement` caller left `pr:` blank.
 
 **Related:** `src/lrh/skills/lrh-implement/SKILL.md` Step 8–9;
 `src/lrh/skills/lrh-land/SKILL.md` Step 1 (primary-record selection) and
@@ -2079,13 +2083,26 @@ permission-rule addition the user adds once in their own settings, or
 accepting that this is a harness/classifier-level concern outside LRH's
 control (and therefore not worth building LRH-side tooling around at all).
 
-**Status:** Not yet scoped. Noted from a single occurrence; revisit if
-this recurs on a future `/lrh-land` run, or file a work item if the user
-wants to pursue the tooling angle now.
+**Status:** Closed 2026-10-06. Filed as `WI-VCS-SAFE-OPERATIONS-BACKEND`
+(PR #755) and implemented in PR #769: `lrh vcs merge`, a backend-neutral
+SHA-locked merge (`src/lrh/vcs/`), now presented by `/lrh-land` Step 6 and
+`/lrh-confirm-fixes` Step 8, with an audit
+(`project/audits/2026-09-28-vcs-mutation-operations-audit.md`) and reference
+docs (`docs/reference/vcs-backend.md`, `docs/reference/cli/vcs.md`). This
+makes the command a single validated surface; it does not show the
+classifier denial is avoided. The same command shape was denied once
+(PR #742) and allowed later (PR #755), and the first real use of
+`lrh vcs merge` (merging PR #769 itself) was allowed, which is one data
+point, not evidence of a fix. What remains open and is not tracked elsewhere:
+the other stereotyped actions (`create_branch`, `push_branch`,
+`open_pull_request`, `resolve_review_thread`) exist only as documented
+vocabulary, and the tracked `.gemini` Antigravity skills mirror is stale and
+still presents the raw command.
 
 **Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (Green
 verdict's merge one-liner); `src/lrh/skills/lrh-land/SKILL.md` Step 6
-(merge gate); PR #742 (the occurrence and its closeout); agent memory
+(merge gate); PR #742 (the occurrence and its closeout); PR #755 and PR #769
+(the work item and its implementation); agent memory
 `gh_pr_merge_classifier_denial_handoff.md`.
 
 ---
@@ -2125,3 +2142,266 @@ dogfood sessions are planned, or fold the Chrome fallback unit test into
 **Related:** `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` (Owner
 decisions); `docs/how-to/lrh-console-local-dogfood.md` (Manual macOS
 checklist); `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`.
+
+---
+
+## Programmatic planning-state transitions (workstreams, work items, proposals)
+
+**Noted:** 2026-10-04, while dogfooding the LRH Console. The owner noticed
+that `WS-LRH-CONSOLE-LOCAL-DOGFOOD` was missing from Serve's "Active
+workstreams" list. Serve was right: it lists only `status == "active"`
+workstreams (`src/lrh/serve.py`). The workstream had stayed
+`proposed`/`planned` while five of its six work items executed and resolved
+(PRs #750 to #763). It was fixed by hand in PR #765.
+
+The root cause is that no step in the chain moves a workstream from
+`proposed` to `active`:
+
+- `/lrh-execute` and `/lrh-implement` only read the workstream.
+- `/lrh-closeout` accepts a workstream in either bucket when it closes one.
+- Earlier activations were manual planning commits.
+
+Closeouts in the same session also moved work items between status
+buckets by hand, with `git mv` and hand-written path-reference rewrites.
+Execution records are never moved between buckets; closeout updates only
+their `status` and `commit` fields. In that session those fields were also
+edited by hand with `sed`, even though `lrh prompt update-execution` already
+does it. Each hand edit is a chance for a stale path or status. See
+`project/design/workstream_schema_mvp.md` § Status semantics.
+
+**Idea:** a programmatic LRH state-transition command that agents and skills
+call, so a correct state update takes one call instead of a series of file
+edits.
+
+- **Command:** for example, `lrh workstreams transition <WS-ID> --to active`.
+  It would:
+  - move the file between status buckets;
+  - set `status` and `stage`;
+  - rewrite path references in other planning artifacts, leaving historical
+    execution records alone;
+  - validate the result;
+  - report a diff, with a dry-run mode.
+- **Execution records:** reuse `lrh prompt update-execution` for their
+  `status` and `commit` updates rather than duplicate it.
+- **Callers:** `/lrh-execute` when the first leaf starts under a `proposed`
+  workstream, and `/lrh-closeout` when it resolves a work item or closes a
+  workstream.
+- **Later:** the same pattern for work items (`proposed` to `resolved`) and
+  proposals (`proposed` to `adopted`).
+- **Cheaper complement:** an `lrh validate` warning for a `proposed`
+  workstream with resolved or in-progress leaves. This is the reverse of the
+  existing `PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` warning.
+
+**Status:** Not yet a work item. It was deferred so it would not interrupt
+the L0 dogfood sessions. File it as a work item, or as a small workstream
+starting with the validate warning, when planning tooling is next in focus.
+
+**Related:** PR #765 and
+`project/executions/AD_HOC/2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD.md`;
+this entry's own record,
+`project/executions/AD_HOC/2026_10_06_04_37_49_BACKLOG_PLANNING_STATE_TRANSITIONS.md`;
+`lrh prompt update-execution` and
+`src/lrh/skills/lrh-closeout/references/closeout-workflow.md` (execution-record
+updates);
+`project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`;
+`src/lrh/control/planning_tree.py` (existing planning warnings);
+`src/lrh/skills/lrh-closeout/SKILL.md` (decision matrix).
+
+---
+
+## Effort estimates for work items (dependency-map duration and critical path)
+
+**Noted:** 2026-10-07, while revising `PROP-LRH-CONSOLE-VISUAL-LANGUAGE` (Revision 2, Q4). The
+ChatGPT Workstream Analyzer that inspired the LRH Console L1 dependency map shows an effort size
+(S, M, or L) on each card and a "critical path" count.
+
+LRH work items have no effort or duration field (`src/lrh/control/validator.py`). The L1 rules in
+`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:250` rule out invented
+duration or critical-path claims. The owner decided to drop both from L1, keep a visible "not
+modeled yet" slot in the views, and track estimates here.
+
+**Idea:** an optional, explicitly sourced estimate on work items, with a computed critical path
+labelled with its method. Design questions:
+
+- **What is estimated:** effort, elapsed time, or both, kept separate as the dogfood proposal
+  asks.
+- **How:** a size scale or hours, plus uncertainty and capacity assumptions.
+- **Who sets it, and how it is validated:** estimates need provenance, and should flag when
+  stale.
+- **How critical path is computed and labelled:** without estimates, only a "longest dependency
+  chain" can be shown honestly.
+
+**Status:** Not yet a work item. Revisit after the L1 dependency map ships and real planning
+questions show whether estimates would change decisions.
+
+**Related:** `project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md`
+(Revision 2, Q4); `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
+(§5, the Duration row); `WS-LRH-CONSOLE-LOCAL-DOGFOOD`.
+
+---
+
+## Document the "Deny & chat" pattern for tool-confirmation dialogs in user-facing docs
+
+**Noted:** 2026-10-05, during an interactive session where an agent prompted
+a tool permission dialog (for installing lint tools). Rather than clicking an
+option or denying the tool call to chat normally, the user typed a clarifying
+question ("are those lint tools in a conda environment?") directly into the
+dialog's feedback / alternative instruction text field. Because agent harness
+run loops (such as Antigravity and Claude Code) route dialog feedback into the
+model context as a tool-execution error or exception response within an active
+execution step, the agent did not answer the conversational question in chat
+and instead continued executing or attempting workarounds. Stopping the agent
+and asking the question in the normal conversation channel immediately restored
+conversational communication.
+
+**Idea:** Explore adding a user-facing agent usage guide / documentation topic
+(e.g., under `docs/explanation/` or `docs/how-to/`) explaining the anatomy of
+tool permission dialogs and best practices for human-agent interaction:
+
+1. Explain how permission dialog inputs work under the hood: text entered in
+   a permission rejection or feedback field is delivered to the agent model as
+   a tool execution result / exception payload within an ongoing task step,
+   rather than as a conversational prompt turn in the main chat.
+2. Document the "Deny & chat" pattern: when a user has a question, wants
+   clarification, or wants to redirect strategy, the recommended idiom is to
+   deny or stop the tool execution and type the question into the primary
+   chat conversation, rather than typing conversational inquiries into tool
+   permission feedback inputs.
+3. Provide examples of when inline tool feedback *is* appropriate (e.g.,
+   specific command flag substitutions or parameter corrections that the
+   executing subagent or loop is expected to consume immediately) versus when
+   to drop back to normal conversation.
+
+**Status:** Tracked as a design suggestion; not yet scoped into a doc work
+item.
+
+**Related:** `docs/`; `project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md`;
+`project/assistants/`; Antigravity / Claude Code agent permission dialog
+semantics.
+
+---
+
+## Mandatory yield instruction for agent rules when tool denial contains user questions or redirect instructions
+
+**Noted:** 2026-10-05, following the tool-confirmation confusion where an
+agent received a user question via a tool rejection / alternative instruction
+payload and attempted to continue the task workflow rather than pausing to
+answer the user. In autonomous agent loops, prompt templates and tool
+execution protocols typically treat tool failures as errors to be diagnosed
+and recovered from autonomously unless an explicit rule mandates an
+immediate stop or yield.
+
+**Idea:** Explore adding a mandatory yield instruction to agent policy rules
+(e.g., in `AGENTS.md`, `CLAUDE.md`, or role-specific assistant policies in
+`project/assistants/`):
+
+When a tool execution rejection or error payload contains a direct user
+question, instruction to halt, or strategic conversational redirect (as
+distinguished from actionable command-flag substitutions or parameter
+corrections intended for the executing step to consume directly):
+
+1. The agent must immediately cease automated execution steps, background
+   tasks, or subagent dispatch.
+2. The agent must not attempt alternative tool calls or error-recovery
+   routines.
+3. The agent must immediately yield back to the user, answering the question
+   or acknowledging the redirection in the primary conversational turn.
+
+Investigate how this instruction interacts with subagents (e.g., subagent task
+runners receiving tool denials) and whether agent harness platform hooks or
+prompts can detect user-question payloads reliably.
+
+**Status:** Tracked as a design suggestion; not yet designed or implemented.
+
+**Related:** `AGENTS.md`; `CLAUDE.md`; `project/assistants/`;
+`project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
+`project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`.
+
+
+## LRH Console UX feedback from the first interactive dogfood (layout redesign input)
+
+**Noted:** 2026-10-08, from the owner's first substantive use of LRH Console with
+`lrh serve --interactive` (PR for `WI-LRH-CONSOLE-INTERACTIVE`). Tracing, selection,
+Escape, filters, and the table all worked as intended. The feedback below is about
+navigation steps and use of screen space. Take it as one input to the layout
+redesign (`WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT` and any frame work that follows),
+not as separate patches: several items interact, and fixing them one at a time
+would lock in choices the redesign should make together.
+
+**Behaviors that are as specified today but should be revisited in the redesign:**
+
+- **Filtered cards leave gaps.** `WI-LRH-CONSOLE-INTERACTIVE` deliberately hides
+  filtered cards with `visibility: hidden` so the grid does not jump. In practice,
+  hiding Done leaves a tall, mostly empty map. The redesign should decide whether
+  filtering re-lays out (collapsing space, perhaps server-side via a query
+  parameter so the no-script path agrees) and how to keep the user oriented when
+  it does.
+- **Filters scroll out of view, and the sidebar scrolls with the content.** The
+  filters live in the map header, and the frame scrolls as one page. Consider
+  separate scroll regions for the sidebar and the main area, and a non-scrolling
+  controls bar in the view (preferred over the top bar or the OS menu bar).
+- **The in-page theme switch and Settings > Appearance are independent.** The
+  switch is per page and per server address; Appearance is the lasting app
+  setting, and the Settings window follows only Appearance. Decide whether the
+  switch should drive Appearance, be hideable from Settings, or become an
+  optional top-bar widget.
+
+**Suggestions:**
+
+- **Content first.** Show the cards before the explanatory text. Move build and
+  debugging details (fingerprint, diagnostics, method notes) below the view,
+  behind a UI toggle or a Settings option.
+- **Sidebar.** Put Statusboard (and other frequent views) above the collapsed
+  All projects group, open it by default, and remember its open or closed state
+  across navigation and between app runs. Let Settings choose which views the
+  sidebar shows.
+- **Pinned views and project groups,** in the style of Claude or Codex, to cut
+  the steps from launch to a map (today: home, All projects, project,
+  Dependency maps, view).
+- **Less vertical height.** The single-lane L1 view is very tall. Brainstorm
+  alternatives, including a variant of the outline idea in which each
+  category's cards flow to the right as a tree rather than an indented list.
+
+**Constraints to keep:** every view must still work without scripts; colors must
+stay CVD-safe (never red versus green alone); filters must never hide an
+unfinished item that a shown item needs.
+
+**Added from the L1 dogfood (2026-10-12, `project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md`):**
+
+- **Filtered cards leave gaps** is now its own item, `WI-LRH-CONSOLE-MAP-FILTER-COLLAPSE`:
+  the owner hit it in three of four runs.
+- **Map width and scrollbar.** The LCATS worldcon-2026 map is wider than a
+  default window, and the horizontal scrollbar sits at the bottom of the page,
+  so the owner had to scroll down to reach it. Keep the map's own scrollbar in
+  view, or fit the map to the window. In the Chrome comparison the owner added:
+  "the bottom scrollbar only appears if the page is not super-wide, and when it
+  does appear you have to scroll all the way to the bottom to see it", so this
+  happens in Chrome as well as the app.
+- **Tangled lines.** "The square icons all seem to go through each other, and if
+  there is a partial order it isn't clear." This is the target of
+  `WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`.
+- **Statusboard card height.** Statusboard cards "are rather tall and have some
+  information that might go in details". Move secondary fields behind a
+  disclosure so more projects fit on a screen.
+- **"Work remains" per lane (L2 idea).** A button that asks an agent to report
+  remaining work for a lane, as `/lrh-work-remains` does in a session. Agent
+  dispatch is switched off in Serve today (`agent_dispatch: false`), so this
+  waits for the L2 plan.
+
+---
+
+## LRH profiles: support `hybrid` and `local` profile modes
+
+**Noted:** 2026-10-09, while deciding PROP-LRH-PROFILES. Profiles are `global`
+mode only in v1: `meta init --profile X` writes `mode = "global"` explicitly,
+and a profile config without a `[workspace] mode` key already falls back to
+`global` (`src/lrh/meta/workspace.py:1064-1069`).
+
+**Deferred because:** v1 only needs isolated global Meta workspaces. A hybrid
+profile would need a local catalog root outside the profile directory, which
+conflicts with the self-contained, relocatable layout. A local profile is
+largely meaningless, since local mode is chosen by `.lrh/config.toml` discovery
+rather than a profile. Revisit if a real need appears.
+
+**Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
+(Decision 3); owner decision recorded in this session.

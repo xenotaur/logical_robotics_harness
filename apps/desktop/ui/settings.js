@@ -11,8 +11,10 @@ const SOURCES = {
   file: "Using the saved configuration.",
   environment:
     "Using the developer LRH_CONSOLE_* environment settings for this session. " +
-    "Saving here only writes the configuration file; it takes effect in a " +
-    "later session started without those variables.",
+    "Saving here writes the configuration file and applies the browser choice " +
+    "and appearance now; the saved program and workspace take effect in a " +
+    "later session " +
+    "started without those variables.",
   none: "No configuration yet. Choose a program and workspace, then Save.",
 };
 
@@ -42,6 +44,9 @@ function fill(config) {
   $("workspace").value = config.workspace;
   $("browser").value = config.browser;
   $("start_on_open").checked = config.start_on_open;
+  form.querySelector(
+    `input[name="appearance"][value="${config.appearance || "system"}"]`,
+  ).checked = true;
   showKind();
 }
 
@@ -59,6 +64,7 @@ function collect() {
     workspace: $("workspace").value.trim(),
     browser: $("browser").value,
     start_on_open: $("start_on_open").checked,
+    appearance: form.querySelector('input[name="appearance"]:checked').value,
   };
 }
 
@@ -68,7 +74,11 @@ async function loadSettings() {
     (SOURCES[view.source] || "") +
     (view.config_path ? ` Configuration file: ${view.config_path}` : "");
   $("problem").hidden = !view.problem;
-  $("problem").textContent = view.problem || "";
+  $("problem").textContent =
+    view.problem && view.source === "environment"
+      ? `${view.problem}. Saving here cannot fix this: correct or unset the ` +
+        "LRH_CONSOLE_* variables, then reopen LRH Console."
+      : view.problem || "";
   fill(view.config);
 }
 
@@ -88,9 +98,16 @@ async function loadDetails() {
   addDetail(list, "Owned process", details.owned_pid ? `pid ${details.owned_pid} (started by this app)` : null);
   addDetail(list, "Endpoint", details.endpoint);
   addDetail(list, "Configured workspace", details.configured_workspace);
-  addDetail(list, "Served workspace", details.served_workspace && details.served_workspace.project_root);
+  const served = details.served_workspace && details.served_workspace.project_root;
+  addDetail(
+    list,
+    "Served workspace",
+    served && details.same_workspace && served !== details.configured_workspace
+      ? `${served} (the same directory as the configured workspace)`
+      : served,
+  );
   addDetail(list, "Protocol version", details.protocol_version);
-  addDetail(list, "Backend", details.backend && `${details.backend.name || "lrh"} ${details.backend.version || ""} (Python ${details.backend.python || "?"})`);
+  addDetail(list, "Server", details.backend && `${details.backend.name || "lrh"} ${details.backend.version || ""} (Python ${details.backend.python || "?"})`);
   addDetail(list, "Last error", details.last_error_code && `${details.last_error_code}: ${details.last_error_message || ""}`);
   addDetail(list, "Last exit code", details.last_exit_code);
   addDetail(list, "Chrome", details.chrome_available ? "installed" : "not found: links open in the default browser");
@@ -117,9 +134,12 @@ form.addEventListener("submit", async (event) => {
     const outcome = await invoke("save_settings", { config: collect() });
     $("restart").hidden = !outcome.restart_required;
     $("saved").textContent = outcome.env_override_active
-      ? "Saved to the configuration file. This session keeps using the LRH_CONSOLE_* settings."
+      ? "Saved to the configuration file. The browser choice and appearance apply " +
+        "now; the program and workspace stay on the LRH_CONSOLE_* settings for " +
+        "this session."
       : outcome.restart_required
-        ? "Saved. Restart the server to use the new program or workspace."
+        ? "Saved. Restart the server to use the new program or workspace, or so " +
+          "other browsers match the appearance."
         : outcome.started
           ? "Saved. Starting the server…"
           : "Saved.";
@@ -145,7 +165,44 @@ $("restart").addEventListener("click", async () => {
   }
 });
 
+$("reset-window").addEventListener("click", async () => {
+  const button = $("reset-window");
+  button.disabled = true;
+  $("window-status").textContent = "Resetting the window…";
+  try {
+    await invoke("reset_window_state");
+    $("window-status").textContent =
+      "The main window is back at its default size and position.";
+  } catch (error) {
+    $("window-status").textContent = `Could not reset the window: ${error}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $("refresh").addEventListener("click", loadDetails);
 
-loadSettings().then(loadDetails);
+// Brings a section into view. The app calls this when Settings… or
+// Server > Server Details… is chosen while the window is already open, and
+// sets `lrhInitialSection` before the page loads when it opens the window;
+// that first section is shown once the settings and details have loaded, so
+// the scroll and highlight land on the populated page.
+window.lrhShowSection = (name) => {
+  const target = name === "details" ? $("server-details") : document.body;
+  // In the two-column layout each column scrolls on its own; in the narrow
+  // one-column layout the page scrolls.
+  (name === "details" ? $("server-details") : $("settings-form")).scrollTop = 0;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+  if (name === "details") {
+    target.classList.remove("flash");
+    void target.offsetWidth; // restart the animation
+    target.classList.add("flash");
+  }
+};
+loadSettings()
+  .then(loadDetails)
+  .finally(() => {
+    if (window.lrhInitialSection === "details") window.lrhShowSection("details");
+  });
 setInterval(loadDetails, 3000);

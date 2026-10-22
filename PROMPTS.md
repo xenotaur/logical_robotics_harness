@@ -133,6 +133,21 @@ values and grammar; summarized here for the Claude.app case:
   every case, and the record can still be left `pending` for a human to
   resolve later.
 
+Set them at creation time instead of editing the file afterward:
+
+```bash
+lrh prompt record-execution --prompt-id "$PROMPT_ID" --slug my-slug \
+  --status in_progress --agent claude_app \
+  --instruction-source project/work_items/proposed/WI-EXAMPLE.md \
+  --session-transcript pending --project-root .
+```
+
+`--agent`, `--instruction-source`, and `--session-transcript` are optional and
+independent; a flag that is not passed leaves its field out of the record,
+and no default is assumed. `lrh prompt update-execution` accepts `--agent` and
+`--instruction-source` (plus the existing `--session-transcript`) to add them
+to a record that is still `in_progress`.
+
 ## Rerun, revert, and supersession handling
 
 Use status values from `project/executions/README.md`: `planned`, `in_progress`, `landed`, `failed`, `reverted`, `superseded`.

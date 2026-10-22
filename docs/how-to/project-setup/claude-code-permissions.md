@@ -106,6 +106,16 @@ this repository's normal behavior. Leaving it out of both `allow` and
 `deny` gives the correct behavior instead: every invocation prompts,
 and an approved prompt still executes.
 
+`/lrh-land` and `/lrh-confirm-fixes` now present the merge as
+`lrh vcs merge <pr-url> --match-head-commit <sha>` (see
+[`lrh vcs`](../../reference/cli/vcs.md)), which calls `gh pr merge` itself
+after checking the PR is open and its head matches. The permission posture is
+the same: `lrh vcs merge` is in neither `allow` nor `deny`, so it prompts like
+any other merge. Whether to pre-approve it is a settings decision this
+repository has not made, and no setting here changes. A refusal by the harness
+before the command launches is reported by the calling session; `lrh` cannot
+see it.
+
 Merge authority specifically is documented in `AGENTS.md`'s "Pull
 requests and merge authority" section. The broader shape here — pre-approve
 broad, low-risk commands; keep anything that can lose work, rewrite

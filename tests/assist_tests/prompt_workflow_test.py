@@ -53,6 +53,95 @@ class PromptWorkflowTest(unittest.TestCase):
         self.assertIn("status: in_progress", content)
         self.assertIn("# Validation", content)
 
+    def _render(self, **optional: str) -> str:
+        return prompt_workflow.render_execution_content(
+            execution_id="2026_04_29_22_05_00_EXAMPLE",
+            prompt_id="PROMPT(WI-TEST:EXAMPLE)[2026-04-29T22:05:00-04:00]",
+            work_item="WI-TEST",
+            status="in_progress",
+            rerun_of="",
+            pr="",
+            commit="",
+            created_at="2026-04-29T22:05:00-04:00",
+            **optional,
+        )
+
+    def test_render_execution_content_omits_optional_fields_by_default(self) -> None:
+        content = self._render()
+        for field in ("agent", "instruction_source", "session_transcript"):
+            self.assertNotIn(f"{field}:", content)
+
+    def test_render_execution_content_emits_only_the_fields_given(self) -> None:
+        content = self._render(agent="claude_app", session_transcript="pending")
+        self.assertIn(
+            "created_at: 2026-04-29T22:05:00-04:00\nagent: claude_app\n", content
+        )
+        self.assertIn("session_transcript: pending\n---\n", content)
+        self.assertNotIn("instruction_source:", content)
+
+    def test_render_execution_content_orders_optional_fields_after_created_at(
+        self,
+    ) -> None:
+        content = self._render(
+            agent="claude_app",
+            instruction_source="project/work_items/proposed/WI-TEST.md",
+            session_transcript="claude-app:abc",
+        )
+        front_matter = content.split("---\n")[1]
+        self.assertEqual(
+            [line.split(":")[0] for line in front_matter.splitlines()][-4:],
+            ["created_at", "agent", "instruction_source", "session_transcript"],
+        )
+
+    def test_render_execution_content_encodes_yaml_unsafe_optional_values(
+        self,
+    ) -> None:
+        content = self._render(
+            agent="true",
+            instruction_source="review: PR #531",
+            session_transcript="[foo]",
+        )
+        self.assertIn("agent: 'true'\n", content)
+        self.assertIn("instruction_source: 'review: PR #531'\n", content)
+        self.assertIn("session_transcript: '[foo]'\n", content)
+
+    def test_set_frontmatter_field_replaces_existing_without_touching_body(
+        self,
+    ) -> None:
+        text = "---\nstatus: landed\nagent: old\n---\n\nagent: old\n"
+        result = prompt_workflow._set_frontmatter_field(
+            text, "agent", "claude_app", anchors=("status",)
+        )
+        self.assertEqual(
+            result, "---\nstatus: landed\nagent: claude_app\n---\n\nagent: old\n"
+        )
+
+    def test_set_frontmatter_field_treats_backslashes_literally(self) -> None:
+        text = "---\nstatus: landed\n---\n"
+        result = prompt_workflow._set_frontmatter_field(
+            text, "instruction_source", r"a\1b\g<0>", anchors=("status",)
+        )
+        self.assertIn(r"instruction_source: a\1b\g<0>", result)
+
+    def test_set_frontmatter_field_falls_through_to_later_anchor(self) -> None:
+        text = "---\nstatus: landed\ncommit: abc\n---\n"
+        result = prompt_workflow._set_frontmatter_field(
+            text, "agent", "claude_app", anchors=("created_at", "commit")
+        )
+        self.assertEqual(
+            result, "---\nstatus: landed\ncommit: abc\nagent: claude_app\n---\n"
+        )
+
+    def test_set_frontmatter_field_raises_instead_of_silently_no_opping(self) -> None:
+        with self.assertRaises(ValueError):
+            prompt_workflow._set_frontmatter_field(
+                "---\nexecution_id: A\n---\n", "agent", "x", anchors=("created_at",)
+            )
+        with self.assertRaises(ValueError):
+            prompt_workflow._set_frontmatter_field(
+                "no frontmatter\nagent: x\n", "agent", "x", anchors=("status",)
+            )
+
     def test_find_matching_execution_records_finds_flat_and_grouped(self) -> None:
         prompt_id = "PROMPT(AD_HOC:CHECK_EXEC)[2026-05-01T17:40:00-04:00]"
         with tempfile.TemporaryDirectory() as temp_dir:

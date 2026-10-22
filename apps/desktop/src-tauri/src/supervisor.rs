@@ -194,6 +194,8 @@ pub struct LaunchConfig {
     /// Arguments before `serve --desktop-protocol`, such as
     /// `["-m", "lrh.cli.main"]` for an interpreter.
     pub program_args: Vec<OsString>,
+    /// Arguments after `serve --desktop-protocol`, such as `["--theme", "dark"]`.
+    pub serve_args: Vec<OsString>,
     /// The workspace to serve, sent as `workspace.project_root`.
     pub project_root: PathBuf,
     /// Extra environment for the child, on top of the inherited environment.
@@ -209,6 +211,7 @@ impl LaunchConfig {
         LaunchConfig {
             program: program.into(),
             program_args: Vec::new(),
+            serve_args: Vec::new(),
             project_root: project_root.into(),
             env: Vec::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
@@ -304,7 +307,7 @@ pub fn verify_ready(
     {
         return Err(SupervisorError::new(
             ErrorKind::WorkspaceMismatch,
-            format!("backend did not echo the requested workspace {sent}"),
+            format!("the server did not echo the requested workspace {sent}"),
         ));
     }
     let expected = std::fs::canonicalize(sent_project_root)
@@ -313,7 +316,7 @@ pub fn verify_ready(
         return Err(SupervisorError::new(
             ErrorKind::WorkspaceMismatch,
             format!(
-                "backend reports a different effective workspace than {}",
+                "the server reports a different effective workspace than {}",
                 expected.display()
             ),
         ));
@@ -629,6 +632,7 @@ impl OwnedServer {
         command
             .args(&self.config.program_args)
             .args(["serve", "--desktop-protocol"])
+            .args(&self.config.serve_args)
             .envs(self.config.env.iter().map(|(key, value)| (key, value)))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -695,7 +699,7 @@ impl OwnedServer {
     fn exited_before_ready(&mut self) -> SupervisorError {
         let mut error = SupervisorError::new(
             ErrorKind::ExitedBeforeReady,
-            "backend exited or closed its channel without a handshake",
+            "the server exited or closed its channel without a handshake",
         );
         self.wait_for_exit(self.config.terminate_timeout);
         error.exit_code = self.exit_code;
@@ -738,7 +742,7 @@ impl OwnedServer {
                     };
                 let mut error = SupervisorError::new(
                     kind,
-                    format!("backend reported a startup failure: {code}"),
+                    format!("the server reported a startup failure: {code}"),
                 );
                 error.backend_error = backend_error;
                 self.wait_for_exit(self.config.terminate_timeout);
@@ -976,7 +980,7 @@ fn read_stdout(stdout: impl Read, mut push: impl FnMut(Item)) {
         }
         let item = match serde_json::from_slice::<Value>(frame) {
             Ok(value) if value.is_object() => Item::Message(value),
-            _ => Item::Malformed("backend wrote a non-protocol line".into()),
+            _ => Item::Malformed("the server wrote a non-protocol line".into()),
         };
         push(item);
     }
@@ -1208,13 +1212,13 @@ impl Supervisor {
                 } else {
                     Err(SupervisorError::new(
                         ErrorKind::ChannelFailed,
-                        "no running backend",
+                        "no running server",
                     ))
                 }
             }
             None => Err(SupervisorError::new(
                 ErrorKind::ChannelFailed,
-                "no running backend",
+                "no running server",
             )),
         }
     }
@@ -1303,7 +1307,7 @@ impl Supervisor {
         if exited_while_running || noticed_earlier {
             let mut error = SupervisorError::new(
                 ErrorKind::ExitedUnexpectedly,
-                "backend exited unexpectedly while running",
+                "the server exited unexpectedly while running",
             );
             error.exit_code = server.exit_code();
             error.stderr_tail = server.stderr_tail();

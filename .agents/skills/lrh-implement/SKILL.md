@@ -327,8 +327,13 @@ lrh prompt record-execution \
   --work-item <WI-ID or AD_HOC> \
   --slug <slug> \
   --status in_progress \
+  --pr <pr-url-from-step-8> \
   --project-root .
 ```
+
+Pass `--pr` here: the PR already exists (Step 8), and `/lrh-land` Step 1 and
+`/lrh-closeout` Step 2 find a PR's execution records by matching
+`pr: <pr-url>`. A primary record without it is invisible to both.
 
 Immediately edit the generated file to populate the three optional fields
 (see `references/execution-session-reference.md` for field descriptions):
@@ -339,8 +344,28 @@ instruction_source: <work-item path or ad-hoc description>
 session_transcript: pending
 ```
 
-Commit the execution record and push it as an additional commit to the
-already-open PR.
+**Backfill the Step 7.5 diff-mode `_SELFREVIEW` record.** `/lrh-self-review`
+created it before the PR existed, so its `pr:` and `rerun_of:` fields are
+still empty. Both values are known now. Open the record at the exact path
+`/lrh-self-review` reported in its Step 7 report (do not glob for it, which
+could match an unrelated record) and set:
+
+```yaml
+rerun_of: <execution_id of the primary record created above>
+pr: <pr-url-from-step-8>
+```
+
+Without `pr:`, `/lrh-land` and `/lrh-closeout` never find this record, and it
+stays `in_progress` after the PR merges. Backfilling `pr:` here and on the
+primary record together lets `/lrh-land` Step 1's provenance check pick the
+primary unambiguously; this record is classified as its side record when its
+slug is the primary's slug plus `-selfreview` (use the same `<slug>` for
+both). If Step 7.5
+produced no record (for example, an empty diff), skip this backfill and say
+so.
+
+Commit the execution record, together with the backfilled `_SELFREVIEW`
+record, and push it as an additional commit to the already-open PR.
 
 **For Claude.app sessions, capture the child session-id alias when available.**
 This step runs live in the current window, so — unlike `/lrh-closeout`, which
@@ -414,9 +439,12 @@ Before reporting completion, verify:
 - [ ] Branch created from a fresh `git pull` of `main`
 - [ ] Step 7.5 (`/lrh-self-review` diff-mode) ran before Step 8's `gh pr create` — not skipped, not deferred to after the push
 - [ ] All validation commands passed before PR was opened
-- [ ] Execution record exists with `agent`, `instruction_source`,
+- [ ] Execution record exists with `pr`, `agent`, `instruction_source`,
       `session_transcript` fields populated
-- [ ] Execution record committed as additional commit to open PR
+- [ ] The Step 7.5 diff-mode `_SELFREVIEW` record (if any) has `pr:` and
+      `rerun_of:` backfilled
+- [ ] Execution record (and backfilled `_SELFREVIEW` record) committed as
+      an additional commit to open PR
 - [ ] `lrh validate` reports 0 errors
 
 ---

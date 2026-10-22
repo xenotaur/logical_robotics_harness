@@ -19,8 +19,8 @@ summary_result: pass_with_limits
 artifacts:
   - docs/how-to/lrh-console-local-dogfood.md
   - project/work_items/resolved/WI-SERVE-QUIET-CLIENT-DISCONNECT.md
-  - project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH.md
-  - project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH.md
+  - project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH.md
+  - project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH.md
   - project/design/backlog.md
 metrics:
   sessions_recorded: 9

@@ -28,7 +28,7 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
     │  Fresh-eyes verification against the current HEAD diff
     │  Resolves threads the diff plainly satisfies (single batch gate)
     │  Surfaces exceptions: unaddressed / partial / ambiguous / problematic
-    │  Ends at a merge-readiness verdict + gh pr merge one-liner
+    │  Ends at a merge-readiness verdict + lrh vcs merge one-liner
     │  Creates AD_HOC _CONFIRM execution record with rerun_of link
     │
     ▼
@@ -361,12 +361,44 @@ documents. `check_ci_predicate` below is a real, runnable implementation
 of that logic — not illustrative shorthand — using a three-way return
 code (`0` success, `1` terminal failure, `2` still pending) so the outer
 loop can distinguish all three states explicitly, rather than inferring
-"pending" from the absence of the other two:
+"pending" from the absence of the other two.
+
+**An empty check list is pending, never green.** Immediately after a
+push — exactly when Step 8 runs — no check may have posted yet. Real
+`gh pr checks` then errors with empty output ("no checks reported")
+rather than printing `[]`, and on a base branch with no
+`required_status_checks` rule the unfiltered fallback below hits that
+same empty result. With zero entries, both `fail_count` and
+`nonpass_count` come out `0` (or empty), so a predicate that only counts
+failing and non-passing entries would report a false "CI green" for a
+commit nothing has run against yet. The predicate therefore returns `2`
+(pending) whenever the check list is empty, `[]`, or unparseable, before
+counting anything. One consequence: a repository with no CI at all never
+reads as green — the outer loop below times out with "CI still pending"
+instead, which is the intended "no evidence, no green" outcome rather
+than a hang.
+
+**The checks must belong to the pushed commit.** `gh pr checks` reads the
+status rollup of the PR's *latest commit as GitHub currently records it*
+(`commits(last: 1)`), and the PR's head ref updates asynchronously after
+`git push`. In that window, the rollup still describes the previous head
+— whose checks may all have passed — so a non-empty, all-pass list is not
+by itself proof about the commit just pushed. `gh pr checks --json`
+exposes no commit SHA to compare against, so the predicate takes the
+expected head SHA as an optional second argument and returns `2` until
+the PR's `headRefOid` matches it. Always pass it at Step 8:
 
 ```bash
 check_ci_predicate() {
-  local pr_url="$1"
-  local ci_json owner_repo base_branch required_count fail_count nonpass_count
+  local pr_url="$1" expected_sha="${2:-}"
+  local head_sha ci_json owner_repo base_branch required_count total fail_count nonpass_count
+
+  if [ -n "$expected_sha" ]; then
+    head_sha=$(gh pr view "$pr_url" --json headRefOid --jq '.headRefOid' 2>/dev/null)
+    if [ "$head_sha" != "$expected_sha" ]; then
+      return 2   # PR not yet at the pushed commit -- checks would describe the old head
+    fi
+  fi
 
   ci_json=$(gh pr checks "$pr_url" --required --json name,state,bucket 2>/dev/null)
   if [ -z "$ci_json" ]; then
@@ -384,6 +416,11 @@ check_ci_predicate() {
     fi
   fi
 
+  total=$(echo "$ci_json" | jq 'length' 2>/dev/null)
+  if [ -z "$total" ] || [ "$total" -eq 0 ]; then
+    return 2   # no checks posted yet (or unparseable output) -- pending, never green
+  fi
+
   fail_count=$(echo "$ci_json" | jq '[.[] | select(.bucket=="fail" or .bucket=="cancel")] | length')
   nonpass_count=$(echo "$ci_json" | jq '[.[] | select(.bucket!="pass")] | length')
 
@@ -398,9 +435,10 @@ check_ci_predicate() {
 
 STALE_AGE_SECONDS=900
 POLL_INTERVAL_SECONDS=30
+EXPECTED_SHA=$(git rev-parse HEAD)   # the commit Step 7 just pushed
 START=$(date +%s)
 while true; do
-  check_ci_predicate "<pr-url>"
+  check_ci_predicate "<pr-url>" "$EXPECTED_SHA"
   STATUS=$?
   if [ "$STATUS" -eq 0 ]; then
     echo "CI green"

@@ -21,7 +21,7 @@ TARGET_ROOTS = (
 )
 AFFECTED_SKILLS = (
     "lrh-codex-export",
-    "lrh-codex-session",
+    "lrh-session-id-codex",
     "lrh-config-skills",
     "lrh-doc-audit",
     "lrh-export-claude",

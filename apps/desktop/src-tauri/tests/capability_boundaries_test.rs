@@ -13,10 +13,21 @@ use tauri::webview::NewWindowResponse;
 use tauri::Url;
 
 fn build_app() -> tauri::App<tauri::test::MockRuntime> {
+    // With the dialog plugin, as the app registers it, so its page-facing
+    // commands are checked too.
     lrh_console_lib::with_commands(tauri::test::mock_builder())
+        .plugin(tauri_plugin_dialog::init())
         .build(lrh_console_lib::context())
         .expect("failed to build mock app")
 }
+
+/// The dialog plugin's page-facing commands. The app shows its dialogs from
+/// Rust; no window may invoke these.
+const DIALOG_COMMANDS: [&str; 3] = [
+    "plugin:dialog|message",
+    "plugin:dialog|open",
+    "plugin:dialog|save",
+];
 
 fn invoke_request(cmd: &str, origin: &Url) -> tauri::webview::InvokeRequest {
     tauri::webview::InvokeRequest {
@@ -31,16 +42,17 @@ fn invoke_request(cmd: &str, origin: &Url) -> tauri::webview::InvokeRequest {
 }
 
 /// Every app command, as registered.
-const APP_COMMANDS: [&str; 5] = [
+const APP_COMMANDS: [&str; 6] = [
     "get_app_info",
     "get_settings",
     "save_settings",
     "get_server_details",
     "restart_server",
+    "reset_window_state",
 ];
 
 fn assert_denied(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, origin: &Url) {
-    for command in APP_COMMANDS {
+    for command in APP_COMMANDS.iter().chain(DIALOG_COMMANDS.iter()) {
         let error = tauri::test::get_ipc_response(window, invoke_request(command, origin))
             .expect_err("this content must not reach app commands");
         assert!(
@@ -62,7 +74,15 @@ fn bundled_status_page_in_the_main_window_gets_no_app_commands() {
         &app,
         NavigationPolicy::default(),
         Arc::new(LinkHandoff::default()),
+        shell::MainWindowHistory::default(),
         &initial,
+        Arc::new(shell::LoadingCue::default()),
+        lrh_console_lib::settings::WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1100.0,
+            height: 760.0,
+        },
     )
     .expect("main window");
 
@@ -76,7 +96,15 @@ fn owned_serve_origin_in_the_main_window_gets_no_app_commands() {
         &app,
         NavigationPolicy::default(),
         Arc::new(LinkHandoff::default()),
+        shell::MainWindowHistory::default(),
         &shell::status_url("stopped", None),
+        Arc::new(shell::LoadingCue::default()),
+        lrh_console_lib::settings::WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1100.0,
+            height: 760.0,
+        },
     )
     .expect("main window");
 
@@ -96,7 +124,8 @@ fn an_unlisted_window_gets_no_app_commands() {
 #[test]
 fn the_settings_window_may_call_its_commands_from_bundled_pages() {
     let app = build_app();
-    let window = shell::build_settings_window(&app).expect("settings window");
+    let window = shell::build_settings_window(&app, shell::SettingsSection::Settings)
+        .expect("settings window");
 
     let response = tauri::test::get_ipc_response(
         &window,
@@ -105,6 +134,17 @@ fn the_settings_window_may_call_its_commands_from_bundled_pages() {
     .expect("the Settings window may call get_app_info");
     let value: serde_json::Value = response.deserialize().expect("json response");
     assert_eq!(value["name"], "LRH Console");
+
+    // Dialogs are shown from Rust, so even the Settings window gets none.
+    for command in DIALOG_COMMANDS {
+        let error =
+            tauri::test::get_ipc_response(&window, invoke_request(command, &shell::bundled_base()))
+                .expect_err("the Settings window must not reach dialog commands");
+        assert!(
+            format!("{error:?}").contains("not allowed"),
+            "expected an ACL denial for {command}, got {error:?}"
+        );
+    }
 
     // The other commands pass the ACL; they fail later only because this mock
     // app has no managed shell state.
@@ -123,7 +163,8 @@ fn the_settings_window_may_call_its_commands_from_bundled_pages() {
 #[test]
 fn remote_content_in_the_settings_window_gets_no_app_commands() {
     let app = build_app();
-    let window = shell::build_settings_window(&app).expect("settings window");
+    let window = shell::build_settings_window(&app, shell::SettingsSection::Settings)
+        .expect("settings window");
 
     assert_denied(&window, &url("http://127.0.0.1:50543/"));
     assert_denied(&window, &url("https://example.com/"));
@@ -190,4 +231,87 @@ fn popups_and_new_windows_are_refused() {
             "{target} must not open a window"
         );
     }
+}
+
+const SESSION_LINKS: [&str; 2] = [
+    "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+    "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513",
+];
+
+/// Agent-session deep links are handed to their app from Rust. They must not
+/// need, or be given, any capability in the window, any widening of the web
+/// handoff, or any change to what the window itself may load.
+#[test]
+fn session_deep_links_widen_no_window_boundary() {
+    let policy = NavigationPolicy::default();
+    policy.set_backend(Some(&url("http://127.0.0.1:50543/")));
+
+    for link in SESSION_LINKS {
+        let link = url(link);
+        // Never loaded in the window, never an external web link, and still
+        // refused by the web-link validator that the browser handoff uses.
+        assert!(!policy.allows(&link), "{link} must not load in the window");
+        assert!(!shell::is_external_link(&link), "{link} is not a web link");
+        assert!(lrh_console_lib::browser::validate_url(&link).is_err());
+        // Only the dedicated allowlist accepts it.
+        assert_eq!(
+            lrh_console_lib::browser::validate_session_link(&link),
+            Ok(())
+        );
+        // And a popup for it is still denied: the handoff opens the app, not a window.
+        assert!(matches!(
+            shell::new_window_response::<tauri::test::MockRuntime>(&link),
+            NewWindowResponse::Deny
+        ));
+    }
+}
+
+#[test]
+fn main_window_capability_still_grants_no_permissions() {
+    let capability: serde_json::Value =
+        serde_json::from_str(include_str!("../capabilities/main-window.json")).unwrap();
+
+    assert_eq!(capability["windows"], serde_json::json!(["main"]));
+    assert_eq!(capability["permissions"], serde_json::json!([]));
+}
+
+#[test]
+fn settings_window_capability_grants_exactly_its_commands() {
+    let capability: serde_json::Value =
+        serde_json::from_str(include_str!("../capabilities/settings-window.json")).unwrap();
+
+    assert_eq!(capability["windows"], serde_json::json!(["settings"]));
+    assert_eq!(
+        capability["permissions"],
+        serde_json::json!([
+            "allow-get-app-info",
+            "allow-get-settings",
+            "allow-save-settings",
+            "allow-get-server-details",
+            "allow-restart-server",
+            "allow-reset-window-state"
+        ])
+    );
+}
+
+#[test]
+fn the_app_requires_macos_11_for_page_zoom() {
+    // View > Zoom uses WKWebView pageZoom, which exists only on macOS 11+;
+    // wry calls it unconditionally, so older systems must not run the app.
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+
+    assert_eq!(config["bundle"]["macOS"]["minimumSystemVersion"], "11.0");
+}
+
+#[test]
+fn content_security_policy_is_unchanged() {
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+
+    assert_eq!(
+        config["app"]["security"]["csp"],
+        "default-src 'self'; style-src 'self'; img-src 'self'; script-src 'self'; \
+         connect-src 'self'; frame-ancestors 'none'; form-action 'none'"
+    );
 }

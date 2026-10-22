@@ -36,6 +36,26 @@ EXCLUDED_PROJECT_PREFIXES = (
     "project/memory/",
 )
 
+# Credential-like file names (matched case-insensitively against the basename),
+# per PROP-LOCAL-AGENT-DOGFOOD Decision 3. A best-effort guard, not a guarantee.
+CREDENTIAL_NAME_PATTERNS = (
+    ".env*",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "id_rsa*",
+    "id_ed25519*",
+    "*credential*",
+    "*secret*",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+)
+
+# Directory names that mark everything beneath them as credential-like.
+CREDENTIAL_DIR_PATTERNS = ("*secret*", "*credential*")
+
 
 @dataclasses.dataclass(frozen=True)
 class Budgets:

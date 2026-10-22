@@ -17,7 +17,8 @@ resolver, `lrh conversation current-claude-session-id`, plus the Claude
 desktop app's session-management tools (`get_session`, `list_sessions`). It
 does not export, inspect, print, or archive transcript content. It is the
 Claude variant of the session-ID skill family; the Codex counterpart is
-`/lrh-codex-session` (to be renamed `/lrh-session-id-codex`).
+`/lrh-session-id-codex` (formerly `/lrh-codex-session`, now a deprecated
+stub).
 
 `/lrh-closeout` Step 3, `/lrh-land` Step 3, and `/lrh-implement`'s alias
 capture call this skill instead of restating the resolution order. It is
@@ -82,6 +83,31 @@ The relevant CLI guarantees are:
 ---
 
 ## Safety Rules
+### Restricted network recovery
+
+For local-only work—file reads and edits, local Git inspection, parsing,
+formatting, linting, tests, and `lrh validate`—use normal execution. For
+commands contacting GitHub or a remote Git server, use this bounded procedure:
+
+1. Confirm the absolute project root with `git rev-parse --show-toplevel` and
+   `pwd`, and preserve the short, redacted error category.
+2. For a read-only or otherwise idempotent remote command that failed because
+   of DNS, HTTPS, or sandbox networking, request approved network execution
+   and retry that exact command once.
+3. For a mutating remote command, do not blindly retry: first reconcile remote
+   state to determine whether the request was accepted (for example, check
+   whether the PR or ref already exists). Retry only when the evidence shows
+   that no mutation was accepted; otherwise report the resulting state.
+4. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker rather than looping, broadening the command,
+   or silently substituting `--no-remote`.
+
+Do not refresh, replace, expose, or reauthorize credentials for DNS,
+connection, or sandbox-policy failures. Diagnose authentication separately
+only after the execution path can reach GitHub. The canonical maintainer
+procedure is `src/lrh/skills/_shared/github-network-execution.md`; this
+section is self-contained for installed client skills.
+
 
 Follow these rules for every run:
 

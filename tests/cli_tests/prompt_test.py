@@ -5,6 +5,8 @@ import sys
 import tempfile
 import unittest
 
+from lrh import prompt_workflow_records
+
 
 class PromptCliTest(unittest.TestCase):
     def _repo_root(self) -> pathlib.Path:
@@ -291,6 +293,367 @@ class PromptCliTest(unittest.TestCase):
                     cwd=outside_cwd,
                 )
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+
+    def _run_prompt(
+        self, *args: str, project_root: str
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "lrh.cli.main",
+                "prompt",
+                *args,
+                "--project-root",
+                project_root,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            cwd=self._repo_root(),
+        )
+
+    def test_lrh_prompt_record_execution_writes_optional_fields_when_given(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = self._run_prompt(
+                "record-execution",
+                "--prompt-id",
+                "PROMPT(AD_HOC:EXAMPLE)[2026-04-29T22:05:00-04:00]",
+                "--slug",
+                "example",
+                "--status",
+                "in_progress",
+                "--agent",
+                "claude_app",
+                "--instruction-source",
+                "project/work_items/proposed/WI-EXAMPLE.md",
+                "--session-transcript",
+                "pending",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            written = next(
+                pathlib.Path(temp_dir, "project/executions/AD_HOC").glob("*.md")
+            ).read_text(encoding="utf-8")
+        self.assertIn("agent: claude_app\n", written)
+        self.assertIn(
+            "instruction_source: project/work_items/proposed/WI-EXAMPLE.md\n", written
+        )
+        self.assertIn("session_transcript: pending\n", written)
+
+    def test_lrh_prompt_record_execution_omits_optional_fields_when_absent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = self._run_prompt(
+                "record-execution",
+                "--prompt-id",
+                "PROMPT(AD_HOC:EXAMPLE)[2026-04-29T22:05:00-04:00]",
+                "--slug",
+                "example",
+                "--dry-run",
+                project_root=temp_dir,
+            )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        for field in ("agent:", "instruction_source:", "session_transcript:"):
+            self.assertNotIn(field, completed.stdout)
+
+    def test_lrh_prompt_record_execution_rejects_multiline_optional_value(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = self._run_prompt(
+                "record-execution",
+                "--prompt-id",
+                "PROMPT(AD_HOC:EXAMPLE)[2026-04-29T22:05:00-04:00]",
+                "--slug",
+                "example",
+                "--agent",
+                "claude_app\nstatus: landed",
+                "--dry-run",
+                project_root=temp_dir,
+            )
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("--agent must be a non-empty single-line value", completed.stderr)
+
+    def test_lrh_prompt_record_execution_rejects_blank_optional_value(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = self._run_prompt(
+                "record-execution",
+                "--prompt-id",
+                "PROMPT(AD_HOC:EXAMPLE)[2026-04-29T22:05:00-04:00]",
+                "--slug",
+                "example",
+                "--session-transcript",
+                "  ",
+                "--dry-run",
+                project_root=temp_dir,
+            )
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("--session-transcript must be", completed.stderr)
+
+    def test_lrh_prompt_update_execution_sets_agent_and_instruction_source(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "pr:\n"
+                "commit:\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "---\n\n"
+                "agent: body text must stay\n",
+                encoding="utf-8",
+            )
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                "--agent",
+                "claude_app",
+                "--instruction-source",
+                r"project\path 1",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+        self.assertIn(
+            "created_at: 2026-01-01T00:00:00+00:00\n"
+            "agent: claude_app\n"
+            "instruction_source: project\\path 1\n"
+            "---\n",
+            updated,
+        )
+        self.assertIn("\nagent: body text must stay\n", updated)
+
+    def test_lrh_prompt_update_execution_replaces_existing_agent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "commit:\n"
+                "agent: manual\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                "--agent",
+                "claude_app",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("agent:"), 1)
+        self.assertIn("agent: claude_app\n", updated)
+
+    def test_lrh_prompt_update_execution_rejects_multiline_agent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                "--agent",
+                "a\nb",
+                project_root=temp_dir,
+            )
+        self.assertEqual(completed.returncode, 2)
+
+    def test_lrh_prompt_record_execution_round_trips_yaml_unsafe_values(self) -> None:
+        unsafe = {
+            "--agent": "true",
+            "--instruction-source": "review: PR #531",
+            "--session-transcript": "[foo]",
+        }
+        prompt_id = "PROMPT(AD_HOC:EXAMPLE)[2026-04-29T22:05:00-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = ["record-execution", "--prompt-id", prompt_id, "--slug", "example"]
+            for flag, value in unsafe.items():
+                args += [flag, value]
+            completed = self._run_prompt(*args, project_root=temp_dir)
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            checked = self._run_prompt(
+                "check-execution", "--prompt-id", prompt_id, project_root=temp_dir
+            )
+            self.assertEqual(checked.returncode, 0, msg=checked.stderr)
+            record = next(
+                pathlib.Path(temp_dir, "project/executions/AD_HOC").glob("*.md")
+            )
+            fields = prompt_workflow_records.parse_front_matter_fields(record)
+        self.assertEqual(fields["agent"], "true")
+        self.assertEqual(fields["instruction_source"], "review: PR #531")
+        self.assertEqual(fields["session_transcript"], "[foo]")
+
+    def test_lrh_prompt_update_execution_round_trips_yaml_unsafe_values(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "commit:\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                "--agent",
+                "123",
+                "--instruction-source",
+                "fixed the bug #402",
+                "--session-transcript",
+                "note: pending",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            fields = prompt_workflow_records.parse_front_matter_fields(record)
+        self.assertEqual(fields["status"], "landed")
+        self.assertEqual(fields["agent"], "123")
+        self.assertEqual(fields["instruction_source"], "fixed the bug #402")
+        self.assertEqual(fields["session_transcript"], "note: pending")
+
+    def test_lrh_prompt_update_execution_inserts_every_missing_field(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--pr",
+                "https://github.com/example/repo/pull/1",
+                "--commit",
+                "abc1234",
+                "--session-transcript",
+                "pending",
+                "--agent",
+                "claude_app",
+                "--instruction-source",
+                "WI-EXAMPLE",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            fields = prompt_workflow_records.parse_front_matter_fields(record)
+        self.assertEqual(
+            fields,
+            {
+                "execution_id": "2026_01_01_00_00_00_EXAMPLE",
+                "status": "landed",
+                "pr": "https://github.com/example/repo/pull/1",
+                "commit": "abc1234",
+                "session_transcript": "pending",
+                "instruction_source": "WI-EXAMPLE",
+                "agent": "claude_app",
+            },
+        )
+
+    def test_lrh_prompt_update_execution_rejects_multiline_session_transcript(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            original = (
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "commit:\n"
+                "---\n"
+            )
+            record.write_text(original, encoding="utf-8")
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                "--session-transcript",
+                "claude-app:x\ninjected: y",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("--session-transcript must be", completed.stderr)
+            self.assertEqual(record.read_text(encoding="utf-8"), original)
+
+    def test_lrh_prompt_update_execution_without_new_flags_is_unchanged(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/AD_HOC"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_EXAMPLE\n"
+                "status: in_progress\n"
+                "commit:\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = self._run_prompt(
+                "update-execution",
+                "--execution-id",
+                "2026_01_01_00_00_00_EXAMPLE",
+                "--status",
+                "landed",
+                "--commit",
+                "abc1234",
+                project_root=temp_dir,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+        self.assertNotIn("agent:", updated)
+        self.assertNotIn("instruction_source:", updated)
 
     def test_lrh_prompt_update_execution_lands_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

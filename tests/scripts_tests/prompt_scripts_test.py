@@ -165,6 +165,10 @@ class PromptScriptTests(unittest.TestCase):
             self.assertIn("work_item: WI-META-CLI-MVP", content)
             self.assertIn(f"prompt_id: {prompt_id}", content)
             self.assertIn("status: planned", content)
+            self.assertIn("rerun_of:\n", content)
+            self.assertIn("pr:\n", content)
+            self.assertIn("commit:\n", content)
+            self.assertNotRegex(content, r"(?m)[ \t]+$")
 
     def test_record_execution_defaults_to_ad_hoc_when_work_item_not_provided(
         self,
@@ -196,6 +200,41 @@ class PromptScriptTests(unittest.TestCase):
             self.assertEqual(len(files), 1)
             content = files[0].read_text(encoding="utf-8")
             self.assertIn("work_item: AD_HOC", content)
+
+    def test_record_execution_preserves_non_empty_optional_front_matter(self) -> None:
+        prompt_id = "PROMPT(AD_HOC:REGISTER_AUDIT)[2026-04-24T16:24:13-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(self._record_script()),
+                    "--prompt-id",
+                    prompt_id,
+                    "--slug",
+                    "register-audit",
+                    "--rerun-of",
+                    "2026_04_24_16_00_00_REGISTER_AUDIT",
+                    "--pr",
+                    "https://github.com/example/repo/pull/42",
+                    "--commit",
+                    "abc1234",
+                    "--output-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            match = re.search(r"wrote: (.+\.md)", completed.stdout)
+            self.assertIsNotNone(match)
+            content = pathlib.Path(match.group(1)).read_text(encoding="utf-8")
+
+        self.assertIn("rerun_of: 2026_04_24_16_00_00_REGISTER_AUDIT\n", content)
+        self.assertIn("pr: https://github.com/example/repo/pull/42\n", content)
+        self.assertIn("commit: abc1234\n", content)
 
     def test_record_execution_rejects_unsafe_work_item(self) -> None:
         prompt_id = "PROMPT(AD_HOC:REGISTER_AUDIT)[2026-04-24T16:24:13-04:00]"

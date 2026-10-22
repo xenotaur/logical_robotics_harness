@@ -11,6 +11,7 @@ lrh serve
 lrh serve --host 127.0.0.1 --port 8765
 lrh serve --project-root /path/to/repo
 lrh serve --codex-archive-root private/codex-conversations
+lrh serve --theme dark
 lrh serve --show-config
 python -m lrh.cli.main serve --show-config
 lrh serve --desktop-protocol
@@ -25,11 +26,39 @@ lrh serve --desktop-protocol
   conversation Markdown exports for read-only archive viewing. May be supplied
   more than once. Relative paths are resolved under `--project-root`.
 - `--allow-nonlocal-host`: explicitly allow binding beyond localhost.
+- `--theme {light,dark,system}`: page theme. `system` (the default) follows the
+  operating system's light or dark appearance; `light` and `dark` pin every
+  page to that theme. Also accepted with `--desktop-protocol`, where LRH Console
+  passes its **Appearance** setting.
+- `--interactive`: add packaged, same-origin scripts. The Content-Security-Policy
+  then adds `script-src 'self'`, and nothing else; there is no inline script
+  and no `eval`. Every page still works without the scripts. They add:
+  - **Tracing:** while nothing is selected, hovering over or focusing a
+    dependency-map card previews its upstream and downstream. Clicking selects
+    it without a reload, opens its drawer, and updates `?item=` and the page's
+    tab links. Escape closes it.
+  - **Selection after a reload:** when the page opens with `?item=`, for
+    example after a filter change, the selected card is scrolled into view.
+  - **Loading:** when a same-origin page takes longer than about 300 ms to
+    load, the page dims and a "Loading…" status appears. Links that open
+    elsewhere, downloads, and in-page selections never trigger it.
+  - **Theme switch:** Light, Dark, and System in the top bar, remembered by the
+    browser for that server address and applied before the page first paints.
+    LRH Console's server gets a new port each time it starts, so the choice
+    resets when the app or its server restarts; Settings > Appearance is the
+    lasting setting. The switch is hidden when `--theme light` or `--theme dark`
+    pins the theme.
+
+  Without the flag, the script URLs (`lrh-interactive.js` and
+  `lrh-theme-early.js`) return 404. `--show-config` reports
+  `interactive`. Also accepted with `--desktop-protocol`, which LRH Console
+  always passes.
 - `--show-config`: validate and print deterministic JSON configuration without serving.
 - `--desktop-protocol`: run under a desktop supervisor. Reads a versioned JSON
   start request on stdin, binds `127.0.0.1` on an OS-assigned port, and reports
   ready/failed and lifecycle events as JSON lines on stdout; human logs go to
-  stderr. Cannot be combined with the options above. See the
+  stderr. Cannot be combined with the options above, except `--theme` and
+  `--interactive`. See the
   [desktop server protocol](../desktop-server-protocol.md).
 - `--desktop-start-timeout SECONDS`: with `--desktop-protocol`, how long to wait
   for the start request (default 10, range 0.1–120).
@@ -38,8 +67,48 @@ lrh serve --desktop-protocol
 ## Current behavior and limitations
 
 - This command is intentionally safe-default and read-only.
+- The server caches each project's loaded state, validation results, and
+  dependency-map snapshots, and reuses them only while that project's
+  `project/` files are unchanged (same paths, sizes, modification times, and
+  inodes). Any edit, addition, deletion, or rename is picked up on the next
+  request, including inside symlinked directories. An edit that keeps a file's
+  size and lands within the same filesystem timestamp tick is not detected
+  until another change. A cached dependency-map snapshot is
+  served with the current time and git HEAD, exactly as a fresh build would
+  be.
+- The server warms that cache on one background thread: `/meta`'s projects
+  first, then the served project, then every project's loaded control files
+  and dependency-map views. It starts after the `listening on` line, or with
+  `--desktop-protocol` only after `ready` is sent, so neither waits for it
+  and a failed startup never starts it. A request for a value the warm-up is
+  still building waits for that build rather than repeating it (up to 60
+  seconds, then builds it itself).
+  It logs each item it could not warm (for example an invalid view) and then
+  one summary line to stderr (`lrh serve: cache warmed for N project(s) in
+  Xs`, with how many items failed, if any), or the error if it fails
+  entirely; responses are unaffected either way. Before warming, it grows the
+  cache to fit everything it warms, so warmed entries are not evicted.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
-- `--show-config` is a non-serving diagnostics mode.
+- `--show-config` is a non-serving diagnostics mode. Its JSON includes the
+  `theme`.
+- Every HTML page is shown inside the LRH Console frame:
+  - a top bar with the LRH icon (always a link home to `/meta`), the page
+    name and scope, the render time, refresh, and a gear that links to
+    `/settings`;
+  - a sidebar with a scope switcher (All projects, or a project from the Meta
+    registry) and that scope's views. It collapses to an icon rail without
+    scripts, and is a rail by default on narrow screens;
+  - a detail drawer, opened by adding `?item=<id>` to a page's URL.
+- `/settings` is a read-only display and about page: the theme, how to
+  change it, the `lrh` version, and the font and icon licenses. LRH Console
+  opens its own Settings window instead.
+- `/static/<asset>` serves only the frame's packaged files: the LRH icon, the
+  Montserrat subset and its SIL OFL license, and the Lucide icons' ISC license.
+  Any other path is 404.
+- The Content-Security-Policy allows inline styles and same-origin images and
+  fonts only, and no scripts.
+- Pages take their colors from the shared LRH Console token file. The
+  read-only `/style` page shows every token in the current theme.
 - Without `--desktop-protocol`, the command runs in the foreground, prints one
   human-readable `listening on` line to stdout, and stops on Ctrl+C. Desktop
   mode does not change that behavior or any HTTP route or header.
@@ -49,6 +118,122 @@ lrh serve --desktop-protocol
 - Archive index and API list routes expose manifest/status metadata only. The
   HTML detail route renders transcript bodies as escaped inert text after an
   explicit export selection.
+
+## Statusboard route
+
+- `/meta`: the statusboard, LRH Console's home view. It shows every project in the
+  Meta registry in exactly one band, by operational state: **Blocked**, **Needs
+  attention**, **Active work**, **Awaiting review**, **Stable**, and **Unknown**
+  (when LRH cannot establish a state). Each band has a symbol, label, count, and
+  description, so no band is told apart by color alone. Bands are `<details>`
+  elements: they collapse and expand without scripts, bands with projects start
+  open, and empty bands stay visible but closed.
+- Each project card shows its focus, next action, a validation chip, and a
+  freshness chip ("Read live" with the time, or why it was not read). The full
+  registry facts and diagnostics are under **Details**.
+- `/api/meta` returns the same bands as JSON, in the same order, with a
+  `read_at` timestamp. Each project's `triage_lane` is its band's `status`.
+
+## Project selectors
+
+The dependency-map routes and the
+`/project/<project_id>/work-items/<work_item_id>` and
+`.../work-items/<work_item_id>/prompt` pages read the project that
+`<project_id>` names:
+
+- A registry name, short name, or project ID that the Meta registry resolves
+  to a local checkout reads that checkout. The served project's own registry
+  entry works this way too. A record without a `project_dir` reads the
+  checkout's `project/` directory.
+- `main` reads the served project when there is no Meta workspace, or when
+  the registry reads cleanly and no registered project matches `main`. It is
+  the served project's own selector, for a checkout served outside a Meta
+  workspace.
+- A registered project with no local checkout returns 409 Conflict. That
+  covers a project registered with only a `repo_locator`, and a project whose
+  bound checkout path no longer exists, for example because the checkout was
+  moved or deleted. Only the bound repository path is checked, so a checkout
+  that exists without its `project/` directory is not reported this way. The
+  HTML routes render a "No local checkout" page in the frame. It gives the
+  reason, including the missing path when there is one, and the command
+  that binds a checkout: `lrh meta set <name> --local-repo-path PATH`. The
+  JSON route returns an object whose `error` is `no_local_checkout`, with
+  `project`, `message`, and `next_action` fields. HEAD returns the same
+  status as GET.
+- Any other `project_id` returns 404, including an ambiguous selector or a
+  registry that cannot be read: a "Project not found" page from the HTML
+  routes, or an object whose `error` is `project_not_found` from the JSON
+  route. The `message` gives the registry's reason.
+
+These routes never show the served project's data under another project's
+name.
+
+## Work-item routes
+
+- `/project/<project_id>/work-items/<work_item_id>`: the work item's
+  readiness detail page in the named project.
+- `/project/<project_id>/work-items/<work_item_id>/prompt`: a preview of the
+  work item's generated prompt. Its Back links lead to the work item's
+  detail page and to `/project/<project_id>`.
+- `/project/<project_id>/work-items/<work_item_id>/prompt?download=1`: the
+  same prompt as a Markdown attachment. Both pages' download links use this
+  route, so the download always comes from the named project.
+- Both routes return 404 for an unknown work item, and the
+  [Project selectors](#project-selectors) statuses for a selector that names
+  no readable project. HEAD returns the same status and content type as GET.
+- The served project's `/workbench/prompt?work_item=<id>` routes are
+  unchanged.
+
+## Dependency-map routes
+
+- `/project/<project_id>/dependency-maps`: the project's declared views, or an
+  explanation of how to declare one.
+- `/project/<project_id>/dependency-maps/<view>`: the view as a script-free map
+  in the frame. Lanes are columns and phases are rows. Each card shows the
+  item's ID, title, structural state (icon, text, and color), a "Not
+  prompt-ready" flag when relevant, and why it is waiting or blocked. Solid
+  lines are "depends on" and dashed lines are "blocked by"; they run from the
+  prerequisite to the item that needs it.
+  - `?item=<id>` selects a card: its upstream and downstream cards and lines
+    are highlighted, and the detail drawer shows the three state layers,
+    placement, reasons, needs, needed-by, the source path, and effort (not
+    modeled yet).
+  - `?tab=table` shows every item as a table, and `?tab=blockers` lists each
+    waiting or blocked item with what it needs.
+  - `?hide=<state>[,<state>...]` filters the map, list, and table by
+    structural state (`done`, `blocked`, `in_progress`, `waiting`, `unblocked`,
+    `abandoned`, `unknown`; unknown names are ignored). Hidden cards are
+    dropped before layout, so the map collapses: lanes and phases left empty
+    disappear and lines are re-routed. A filter never hides the selected item,
+    or an unfinished item that a shown item still needs; a note counts what is
+    hidden and offers **Show all**. The **Show** toggles above the map are
+    plain links that set `?hide=`, and every in-page link keeps it. The
+    Blockers tab has no filters.
+  - The map's default layout is the outline: lanes and phases stay as
+    columns and rows, but each cell lists its cards in dependency order (a
+    prerequisite above what needs it), indented by depth within the cell
+    (capped at four levels; cards keep their width and the lane widens).
+    Lines inside a cell run down a rail at its left edge; lines between cells
+    route through the gaps. `?layout=layered-grid` switches to the grid,
+    which orders cards in fixed cells to reduce crossings. The **Layout**
+    toggle beside the filters switches between Outline and Grid, every
+    in-page link keeps the choice, and an unknown name falls back to the
+    outline.
+  - **Check for changes** reloads with `?since=<fingerprint>` and says whether
+    the control files changed since the snapshot you were viewing.
+  - Narrow screens show the map as a list grouped by phase.
+  - It returns 404 for an unknown view, and an explanatory page with 422 for an
+    invalid declaration or 500 if the sources cannot be read.
+
+- `/api/project/<project_id>/dependency-maps/<view>`: the versioned
+  `DependencyMapSnapshot` JSON for a view declared in
+  `project/views/dependency_maps/<view>.md`. It returns 404 for an unknown
+  view, 422 for an invalid declaration, and 500 if the view or the project's
+  control files cannot be read. A `project_id` that names no readable
+  project returns a JSON error instead, as described in
+  [Project selectors](#project-selectors). HEAD builds the snapshot as GET
+  does, so the two always agree. `lrh dependency-map snapshot <view>` prints
+  the same JSON; see the [dependency-map reference](dependency-map.md).
 
 ## Conversation archive routes
 

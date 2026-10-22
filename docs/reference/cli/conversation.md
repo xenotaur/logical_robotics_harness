@@ -58,7 +58,7 @@ lrh conversation current-codex-thread-id --format json
 
 Reports the current Codex task/thread id and the matching LRH execution-record
 pointer without exporting, reading, or printing transcript content. This is the
-metadata-only resolver used by `/lrh-codex-session`, `/lrh-codex-export`,
+metadata-only resolver used by `/lrh-session-id-codex`, `/lrh-codex-export`,
 `export-codex-thread`, and `archive-codex-thread`.
 
 The session pointer form is:
@@ -100,7 +100,12 @@ path, and LRH does not inspect undocumented Codex app storage internals.
 The command is local and private-by-default:
 
 - it writes one Markdown file at `--out`;
-- it rejects source/output path collisions even when `--force` is supplied;
+- it rejects source/output path collisions even when `--force` is supplied,
+  including a link to the source created between the path check and the write
+  (the output's identity is re-checked on the opened file, against the file
+  that was read, before it is truncated);
+- a newly created output file has user-only (`0600`) permissions; an existing
+  output file being overwritten keeps its current permissions;
 - it does not import the transcript into a ledger, database, project control
   directory, or private state store;
 - generated frontmatter defaults to `privacy: private` and
@@ -454,7 +459,10 @@ The command is local and private-by-default:
   the write completes, on a best-effort basis (a platform or filesystem
   that doesn't support `chmod` does not fail the export);
 - passing the transcript itself (or a symlink, hardlink, or path alias of it)
-  as `--out` is rejected, even with `--force`;
+  as `--out` is rejected, even with `--force`, including a link to the
+  transcript created between the path check and the write (the output's
+  identity is re-checked on the opened file, against the file that was read,
+  before it is truncated);
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 
@@ -602,7 +610,10 @@ The command is local and private-by-default:
   frontmatter;
 - the output file is created with user-only (`0600`) permissions from the
   first write, not chmod-ed afterward;
-- passing the transcript itself as `--out` is rejected, even with `--force`;
+- passing the transcript itself as `--out` is rejected, even with `--force`,
+  including a link to the transcript created between the path check and the
+  write (the output's identity is re-checked on the opened file, against the file
+  that was read, before it is truncated);
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 

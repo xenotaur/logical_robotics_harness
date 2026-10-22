@@ -14,6 +14,7 @@ from lrh.control import (
     work_item_policy,
 )
 from lrh.control.parser import parse_frontmatter_mapping, split_frontmatter_and_body
+from lrh.dependency_maps import view as dependency_map_view
 
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
@@ -109,6 +110,15 @@ DESIGN_PROPOSAL_BUCKETS = ("proposed", "adopted", "rejected", "superseded")
 # plus these two sentinels; see the 2026-07-23 "Backend-Agnostic Session
 # Pointer Grammar" decision-log entry and project/executions/README.md.
 EXECUTION_TRANSCRIPT_SENTINELS = {"pending", "none"}
+
+# Issue codes scoped to ``views/dependency_maps/*.md``. They are errors for
+# ``lrh validate``, but no planning artifact depends on a view declaration, so
+# consumers that load planning state need not refuse to load over them.
+DEPENDENCY_MAP_VIEW_INVALID = "DEPENDENCY_MAP_VIEW_INVALID"
+DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE = "DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE"
+DEPENDENCY_MAP_VIEW_ISSUE_CODES = frozenset(
+    {DEPENDENCY_MAP_VIEW_INVALID, DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE}
+)
 
 
 @dataclass(frozen=True)
@@ -444,6 +454,10 @@ def validate_project(
         issues,
     )
 
+    _validate_dependency_map_views(
+        project_root, set(work_item_map), set(workstream_map), issues
+    )
+
     execution_files = [
         path
         for path in sorted((project_root / "executions").glob("**/*.md"))
@@ -507,6 +521,53 @@ def _validate_frontmatter_lint(
                     "FRONTMATTER_LINT_UNSAFE_SCALAR",
                     f"line {finding.line}, field '{finding.field}': "
                     f"{finding.detail}",
+                )
+            )
+
+
+def _validate_dependency_map_views(
+    project_root: Path,
+    work_item_ids: set[str],
+    workstream_ids: set[str],
+    issues: list[ValidationIssue],
+) -> None:
+    """Check each ``views/dependency_maps/*.md`` declaration's shape and IDs."""
+
+    directory = project_root / "views" / "dependency_maps"
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.glob("*.md")):
+        try:
+            view = dependency_map_view.parse_view(path, project_root.parent)
+        except OSError as err:
+            issues.append(
+                _issue(
+                    project_root, path, "error", DEPENDENCY_MAP_VIEW_INVALID, str(err)
+                )
+            )
+            continue
+        except dependency_map_view.ViewDeclarationError as err:
+            for problem in err.problems:
+                issues.append(
+                    _issue(
+                        project_root,
+                        path,
+                        "error",
+                        DEPENDENCY_MAP_VIEW_INVALID,
+                        problem,
+                    )
+                )
+            continue
+        for problem in dependency_map_view.reference_problems(
+            view, work_item_ids, workstream_ids
+        ):
+            issues.append(
+                _issue(
+                    project_root,
+                    path,
+                    "error",
+                    DEPENDENCY_MAP_VIEW_UNKNOWN_REFERENCE,
+                    problem,
                 )
             )
 

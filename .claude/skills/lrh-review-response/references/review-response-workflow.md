@@ -27,7 +27,7 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
 /lrh-confirm-fixes <pr-url>         ← fresh-eyes verification against the
     │  current diff (never against this skill's report); resolves threads
     │  the diff plainly satisfies; surfaces exceptions; ends at a
-    │  merge-readiness verdict + gh pr merge one-liner
+    │  merge-readiness verdict + lrh vcs merge one-liner
     │
     ▼
 Merge PR (human, or agent given         ← update records to landed, resolve WI

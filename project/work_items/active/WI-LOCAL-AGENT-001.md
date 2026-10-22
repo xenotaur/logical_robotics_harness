@@ -38,7 +38,7 @@ acceptance:
   - "`ask` answers a free-form question about the current checkout from tracked files, streaming readable Markdown with source references, with no agent tools."
   - "`brief` produces a work-item briefing that carries LRH readiness diagnostics and flags claims that contradict them."
   - "Every run is logged automatically and privately, including failures, with a one-key rating and a `log` summary; no manual bookkeeping is required."
-  - "Sources matching the listed credential-like patterns, or flagged by the sensitivity scanner, are never sent to the model or logged, shown by boundary tests (a best-effort guard, per proposal Decision 3); logs can be deleted and pruned."
+  - "Sources matching the listed credential-like patterns, or with a high-severity sensitivity-scanner finding, are never sent to the model or logged unless the owner names a scanner-flagged file and its categories in an explicit, logged `--allow-flagged` override, confirms each finding by rule and line with a typed `yes`, and does not pass `--yes`; medium-only sources are still sent with warnings by category, never by value; boundary tests show both sides (a best-effort guard, per proposal Decision 3); `export` and, if implemented, `report` withhold text on any finding; logs can be deleted and pruned."
   - "Fake-model tests cover the commands, logging, and local-only checks without model or network access."
   - "The owner has used both toys on real work and recorded a stop, revise, or proceed decision; production behavior is unchanged."
 required_evidence:
@@ -111,8 +111,33 @@ network tools and cannot modify repository files or project state.
    and cite sources as `S<n>` or `S<n>:L<a>-L<b>`. Exclude:
    - private paths, untracked files, and binary files;
    - credential-like paths, per the proposal's Decision 3 list;
-   - any source the sensitivity scanner flags (`lrh.conversations.sensitivity`),
-     which is dropped and listed as excluded in the source summary.
+   - any source with a high-severity finding from the sensitivity scanner
+     (`lrh.conversations.sensitivity`), which is dropped and listed as
+     excluded in the source summary. Medium-severity findings (email, IP
+     address, phone) are listed as warnings instead, by category and never
+     by value, per Decision 3.
+
+   `--allow-flagged <path>=<category>[,<category>...]` (repeatable) sends a
+   file named in the same command's `--files` despite a high-severity scanner
+   finding, per Decision 3's explicit owner override. It lifts only the named
+   categories and is refused if the file has another high-severity category,
+   none at all, was not requested, or is excluded by path. It never applies
+   to `--wi`, `brief`, or overview questions, and never lifts private,
+   untracked, binary, or credential-like exclusions. An override run always
+   stops at a confirmation listing every finding it would let through by
+   rule and line, never by value (`ALLOWED DESPITE <category>: <rule> at
+   L<n>`, where `L<n>` is the match's start line, `L<a>-L<b>` if it spans
+   lines, or `L?` if unknown); that text is shown in the terminal only and
+   never stored. The confirmation comes before the adapter is built or the
+   model is called; only a typed `yes` sends, a bare Enter or anything else
+   declines, and a decline is logged as `cancelled`.
+   `--allow-flagged` is refused with `--yes` or without an interactive
+   terminal. The final assembled-context scan skips only the allowed file's
+   numbered body lines (scanned once, on raw text, for the confirmation); its
+   header, with the path, and everything else are still scanned, and any
+   high-severity finding there refuses the request. The run record
+   notes the override and the confirmed findings as structured fields (path,
+   category, rule ID, start and end line), never by value.
 
    Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
@@ -132,13 +157,39 @@ network tools and cannot modify repository files or project state.
 6. **`log` summary.** Show recent runs and computed statistics: counts, outcome
    mix, latency and token distributions, ratings, citation-resolution rate, and
    flagged runs. An optional `report` writes a sanitized summary suitable for
-   committing to `experiments/`.
+   committing to `experiments/`. If implemented, it withholds, like `export`,
+   any question, rating note, or generated text in which the sensitivity
+   scanner reports any finding, medium-severity (email, IP address, phone)
+   included.
 7. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
    commands, logging, rating capture, flags, and deletion. Boundary tests must
-   show that credential-like paths and scanner-flagged sources are never sent
-   or logged. Update
-   `experimental/local_agent/README.md` to describe the toys; the pilot runbook
-   material is retired. Do not add live model or network calls to normal CI.
+   cover both sides of the severity boundary:
+   - credential-like paths and sources with high-severity scanner findings are
+     never sent or logged, except under a valid `--allow-flagged` override;
+   - medium-only sources are still sent, and their warnings name categories but
+     never the matched values;
+   - `export` and, if implemented, `report` withhold text with any finding,
+     including a medium-only finding in a question, rating note, or answer;
+   - `--allow-flagged` sends only a requested file whose high-severity
+     categories are exactly covered by the override; it is refused
+     otherwise, never lifts private, untracked, binary, or credential-like
+     exclusions, and the override is recorded as structured fields (path,
+     category, rule ID, start and end line), never by value;
+   - an override run lists every allowed finding by rule and line (never by
+     value) before any model call; only a typed `yes` sends, a bare Enter
+     declines and is logged as `cancelled`; it is refused with `--yes` or
+     without an interactive terminal; and a second finding of an allowed
+     category appears as its own line;
+   - the final assembled-context scan skips only the allowed file's body
+     lines: an allowed file is sent, including one with a multi-line finding,
+     while a high-severity finding in its header path, another requested
+     file, or the excluded-sources block still refuses the request;
+   - an override run exports cleanly: its structured override record does
+     not itself trip the export scan.
+
+   Update `experimental/local_agent/README.md` to describe the toys; the pilot
+   runbook material is retired. Do not add live model or network calls to
+   normal CI.
 8. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
    work, reviews the `log` summary, and records stop, revise, or proceed in this
    item's resolution. No numeric thresholds, manual timing, or hand-written
@@ -158,10 +209,16 @@ comparative study. Do not modify the default serve surface.
 - `brief` carries LRH readiness diagnostics and flags contradicting claims.
 - Every run is logged automatically and privately, including failures, with a
   one-key rating and a `log` summary; no manual bookkeeping is required.
-- Sources matching the listed credential-like patterns, or flagged by the
-  sensitivity scanner, are never sent to the model or logged, shown by boundary
-  tests. This is a best-effort guard (proposal Decision 3), not a guarantee
-  against every secret. Logs can be deleted and pruned.
+- Sources matching the listed credential-like patterns, or with a high-severity
+  sensitivity-scanner finding, are never sent to the model or logged, except a
+  scanner-flagged file the owner names, with its categories, in an explicit,
+  logged `--allow-flagged` override, confirmed per finding by rule and line
+  with a typed `yes` and refused with `--yes` or without an interactive
+  terminal. Medium-only sources are still sent, with warnings that name
+  categories but never values. `export` and, if implemented, `report`
+  withhold text with any finding. Boundary tests show both sides. This is a
+  best-effort guard (proposal Decision 3), not a guarantee against every
+  secret. Logs can be deleted and pruned.
 - Fake-model tests cover the commands, logging, and local-only checks without a
   live inference service or network access.
 - The owner has used both toys on real work and recorded stop, revise, or
@@ -196,3 +253,24 @@ records a decision after using the toys.
 
 `WI-LOCAL-AGENT-002` (T2) depends on this leaf and a separate owner decision;
 resolving this leaf does not start it automatically.
+
+**Owner decision, 2026-10-10: revise.**
+
+- **What was built:** T0 `ask` and T1 `brief` are complete (PRs #777, #788,
+  #799, #803, #806, and #809).
+- **How it was used:** the owner used both on real LRH work. The log holds 12
+  runs: 4 rated good and 2 ok among those after the fixes, plus 2 pre-fix
+  runs rated bad.
+- **What worked:** answers cite accurately, admit when the sources lack an
+  answer, and fail closed.
+- **What held it back:**
+  - latency of 1 to 4 minutes;
+  - scanner false positives that excluded key documents;
+  - one misreading of a cited line that no automated check catches.
+- **Next:** land the follow-ups (false-positive rewording, prototype fixes,
+  and prompt reordering for cache reuse), use the toys further, then record
+  the final stop, revise, or proceed decision as this item's resolution.
+- **Note on the scanner work item:** it was renamed to
+  `WI-SENSITIVITY-ASSIGNMENT-RULE-CODE-FP`, which removes its path exclusion
+  only. Its body quotes the rule's matches, so `brief` still excludes it until
+  that work item fixes the scanner.

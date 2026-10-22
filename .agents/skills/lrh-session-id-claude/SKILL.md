@@ -17,7 +17,8 @@ resolver, `lrh conversation current-claude-session-id`, plus the Claude
 desktop app's session-management tools (`get_session`, `list_sessions`). It
 does not export, inspect, print, or archive transcript content. It is the
 Claude variant of the session-ID skill family; the Codex counterpart is
-`/lrh-codex-session` (to be renamed `/lrh-session-id-codex`).
+`/lrh-session-id-codex` (formerly `/lrh-codex-session`, now a deprecated
+stub).
 
 `/lrh-closeout` Step 3, `/lrh-land` Step 3, and `/lrh-implement`'s alias
 capture call this skill instead of restating the resolution order. It is

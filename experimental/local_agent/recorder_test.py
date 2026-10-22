@@ -82,6 +82,30 @@ class StoreTest(unittest.TestCase):
         with self.assertRaises(recorder.StoreError):
             self.store.events(run_id)
 
+    def test_delete_and_prune(self) -> None:
+        first = self.store.start_run({"outcome": None})
+        second = self.store.start_run({"outcome": None})
+        self.store.update_run(first, created_at="2026-01-01T00:00:00+00:00")
+        self.store.update_run(second, created_at="2026-06-01T00:00:00+00:00")
+        self.assertEqual(self.store.prune("2026-03-01", dry_run=True), [first])
+        self.assertEqual(sorted(self.store.list_runs()), sorted([first, second]))
+        self.assertEqual(self.store.prune("2026-03-01"), [first])
+        self.assertEqual(self.store.list_runs(), [second])
+        self.store.delete_run(second)
+        self.assertEqual(self.store.list_runs(), [])
+        with self.assertRaises(recorder.StoreError):
+            self.store.delete_run(second)
+        with self.assertRaises(ValueError):
+            self.store.prune("not-a-date")
+
+    def test_empty_or_escaping_run_ids_are_rejected(self) -> None:
+        keep = self.store.start_run({"outcome": None})
+        for bad in ("", ".", "..", "a/b", "a\\b"):
+            with self.subTest(bad):
+                with self.assertRaises(recorder.StoreError):
+                    self.store.delete_run(bad)
+        self.assertEqual(self.store.list_runs(), [keep])
+
     def test_invalid_packet_sha_rejected(self) -> None:
         for bad in ("../../etc", "F" * 64, "abc"):
             with self.assertRaises(recorder.StoreError):

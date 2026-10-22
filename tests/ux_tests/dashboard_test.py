@@ -18,19 +18,19 @@ class OperationalStatusTest(unittest.TestCase):
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.NEEDS_ATTENTION),
-            "Needs Attention",
+            "Needs attention",
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.ACTIVE_WORK),
-            "Active Work",
+            "Active work",
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.AWAITING_REVIEW),
-            "Awaiting Review",
+            "Awaiting review",
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.STABLE),
-            "Stable / No Action Needed",
+            "Stable",
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.BLOCKED),
@@ -125,6 +125,30 @@ class OperationalStatusMapperTest(unittest.TestCase):
 
 
 class MetaDashboardViewTest(unittest.TestCase):
+    def test_every_status_maps_to_exactly_one_band_blocked_first(self) -> None:
+        # The statusboard mapping: triage_lane value -> band, one to one.
+        order = dashboard.OPERATIONAL_LANE_ORDER
+        self.assertEqual(set(order), set(dashboard.OperationalStatus))
+        self.assertEqual(len(order), len(set(order)))
+        self.assertEqual(
+            [dashboard.status_label(status) for status in order],
+            [
+                "Blocked",
+                "Needs attention",
+                "Active work",
+                "Awaiting review",
+                "Stable",
+                "Unknown",
+            ],
+        )
+        projects = [
+            _project(status.value, status) for status in dashboard.OperationalStatus
+        ]
+        view = dashboard.build_meta_dashboard(projects)
+        for lane in view.lanes:
+            with self.subTest(band=lane.status):
+                self.assertEqual([p.status for p in lane.projects], [lane.status])
+
     def test_lane_grouping_is_deterministic_and_stable(self) -> None:
         projects = [
             _project("zeta", dashboard.OperationalStatus.UNKNOWN),
@@ -140,12 +164,13 @@ class MetaDashboardViewTest(unittest.TestCase):
             [lane.status for lane in view.lanes],
             list(dashboard.OPERATIONAL_LANE_ORDER),
         )
-        self.assertEqual(view.lanes[0].label, "Needs Attention")
+        self.assertEqual(view.lanes[0].label, "Blocked")
+        self.assertEqual(view.lanes[1].label, "Needs attention")
         self.assertEqual(
-            [project.name for project in view.lanes[1].projects],
+            [project.name for project in view.lanes[2].projects],
             ["alpha", "beta"],
         )
-        self.assertEqual(view.lanes[1].count, 2)
+        self.assertEqual(view.lanes[2].count, 2)
         self.assertEqual(view.lanes[-1].projects[0].name, "zeta")
 
     def test_project_operational_card_uses_warning_and_workstream_counts(self) -> None:

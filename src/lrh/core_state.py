@@ -9,10 +9,15 @@ mutation or runtime execution authority.
 
 from __future__ import annotations
 
+import collections
+import hashlib
+import os
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Mapping
+from typing import Mapping, TypeVar
 
 from lrh.control import execution_readiness
 from lrh.control import loader as control_loader
@@ -195,11 +200,171 @@ class CoreProjectState:
     workstreams_by_id: Mapping[str, WorkstreamState]
 
 
+_T = TypeVar("_T")
+
+
+def control_fingerprint(project_dir: Path) -> str:
+    """A cheap fingerprint of every file under a ``project/`` control directory.
+
+    It covers each file's relative path, size, modification time (in
+    nanoseconds), and inode, so an added, deleted, renamed, edited, or
+    atomically replaced file changes it. Only metadata is read, never
+    contents: an edit that keeps the size and lands within the same
+    filesystem timestamp tick is not detected.
+    """
+
+    digest = hashlib.sha256()
+    root = str(project_dir)
+    entries: list[tuple[str, int, int, int]] = []
+    # The loader and validator read through symlinked directories, so the
+    # fingerprint follows them too, visiting each real directory once.
+    seen: set[tuple[int, int]] = set()
+    for directory, dirnames, filenames in os.walk(root, followlinks=True):
+        try:
+            info = os.stat(directory)
+        except OSError:
+            dirnames[:] = []
+            continue
+        if (info.st_dev, info.st_ino) in seen:
+            dirnames[:] = []
+            continue
+        seen.add((info.st_dev, info.st_ino))
+        dirnames.sort()
+        for name in filenames:
+            path = os.path.join(directory, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            relative = os.path.relpath(path, root)
+            entries.append((relative, stat.st_size, stat.st_mtime_ns, stat.st_ino))
+    for entry in sorted(entries):
+        digest.update(repr(entry).encode("utf-8"))
+    return digest.hexdigest()
+
+
+# How long a caller waits on another thread's build before building for
+# itself, so one stalled build (a hung filesystem) never blocks every request.
+_FLIGHT_WAIT_SECONDS = 60.0
+
+
+class _Flight:
+    """One in-progress computation that concurrent callers can wait for."""
+
+    def __init__(self, fingerprint: str) -> None:
+        self.fingerprint = fingerprint
+        self.done = threading.Event()
+        self.value: object = None
+        self.failed = False
+        self.waiters = 0
+
+
+class ProjectStateCache:
+    """A small, thread-safe cache of values computed from a project's control files.
+
+    Each entry is keyed by a name and a ``project/`` directory, and is reused
+    only while that directory's :func:`control_fingerprint` is unchanged, so
+    any change to a control file is seen on the next request. Long-running
+    readers (``lrh serve``) use it; one-shot commands do not need it.
+
+    Computation is single-flight: callers that miss on the same key and
+    fingerprint while a value is being built wait for that build instead of
+    starting their own, so a request arriving during the startup warm-up
+    shares its work.
+    """
+
+    def __init__(self, max_entries: int = 64) -> None:
+        self._max_entries = max_entries
+        self._lock = threading.Lock()
+        self._entries: collections.OrderedDict[tuple[str, str], tuple[str, object]] = (
+            collections.OrderedDict()
+        )
+        self._flights: dict[tuple[str, str], _Flight] = {}
+
+    def get(self, name: str, project_dir: Path, compute: Callable[[], _T]) -> _T:
+        """Return the cached value, or compute and store it.
+
+        The fingerprint is taken before computing, so a file that changes
+        while the value is being built makes the stored entry stale at once.
+        Exceptions propagate and are never cached; a caller that waited on a
+        build that failed, or that is still running after
+        ``_FLIGHT_WAIT_SECONDS``, computes for itself.
+        """
+
+        key = (name, str(Path(project_dir).resolve()))
+        fingerprint = control_fingerprint(Path(key[1]))
+        with self._lock:
+            hit = self._entries.get(key)
+            if hit is not None and hit[0] == fingerprint:
+                self._entries.move_to_end(key)
+                return hit[1]  # type: ignore[return-value]
+            flight = self._flights.get(key)
+            if flight is not None and flight.fingerprint == fingerprint:
+                owner = False
+                flight.waiters += 1
+            else:
+                flight = _Flight(fingerprint)
+                self._flights[key] = flight
+                owner = True
+        if not owner:
+            finished = flight.done.wait(_FLIGHT_WAIT_SECONDS)
+            if finished and not flight.failed:
+                return flight.value  # type: ignore[return-value]
+            value = compute()
+            # Publish the fallback build, unless the owner (or another
+            # fallback) already stored a value for this fingerprint.
+            self._store(key, fingerprint, value, replace=False)
+            return value
+        try:
+            value = compute()
+        except BaseException:
+            flight.failed = True
+            with self._lock:
+                if self._flights.get(key) is flight:
+                    del self._flights[key]
+            flight.done.set()
+            raise
+        flight.value = value
+        self._store(key, fingerprint, value, replace=True, flight=flight)
+        flight.done.set()
+        return value
+
+    def _store(
+        self,
+        key: tuple[str, str],
+        fingerprint: str,
+        value: object,
+        *,
+        replace: bool,
+        flight: _Flight | None = None,
+    ) -> None:
+        with self._lock:
+            current = self._entries.get(key)
+            if replace or current is None or current[0] != fingerprint:
+                self._entries[key] = (fingerprint, value)
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._max_entries:
+                self._entries.popitem(last=False)
+            if flight is not None and self._flights.get(key) is flight:
+                del self._flights[key]
+
+    def reserve(self, entries: int) -> None:
+        """Grow the capacity to at least ``entries``; it never shrinks."""
+
+        with self._lock:
+            self._max_entries = max(self._max_entries, entries)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._entries.clear()
+
+
 def load_core_project_state(
     root: Path,
     *,
     validation_report: control_validator.ValidationReport | None = None,
     validate: bool = True,
+    cache: ProjectStateCache | None = None,
 ) -> CoreProjectState:
     """Load deterministic shared project state from a repository or project root.
 
@@ -207,8 +372,18 @@ def load_core_project_state(
     structural errors return diagnostics instead of raising from loader indexing.
     Callers that already validated may pass ``validation_report`` to avoid
     re-running validation, or set ``validate=False`` when they intentionally want
-    loader-only interpretation.
+    loader-only interpretation. A ``cache`` reuses the result while the
+    project's control files are unchanged; the result is immutable, so sharing
+    it is safe.
     """
+
+    if cache is not None and validation_report is None:
+        project_dir = control_loader.find_project_dir(root)
+        return cache.get(
+            f"core-state:validate={validate}",
+            project_dir,
+            lambda: load_core_project_state(root, validate=validate),
+        )
 
     project_dir = control_loader.find_project_dir(root)
     project_root = _infer_project_root(project_dir)
@@ -223,7 +398,7 @@ def load_core_project_state(
         validate=validate,
     )
     validation = _validation_summary(report)
-    if validation.error_count:
+    if _has_state_blocking_errors(report):
         return _empty_core_project_state(identity, validation)
 
     loaded_project = control_loader.load_project(project_dir)
@@ -268,6 +443,22 @@ def _resolve_validation_report(
     if validate:
         return control_validator.validate_project(project_dir)
     return control_validator.ValidationReport(issues=[])
+
+
+def _has_state_blocking_errors(report: control_validator.ValidationReport) -> bool:
+    """Whether ``report`` has errors that make the planning state unsafe to load.
+
+    Dependency-map view errors still count toward ``ValidationSummary`` (and
+    fail ``lrh validate``), but views are read only by the dependency-map
+    pages, which report them on their own. Letting them blank the whole state
+    would hide every work item from unrelated pages.
+    """
+
+    return any(
+        issue.severity == "error"
+        and issue.code not in control_validator.DEPENDENCY_MAP_VIEW_ISSUE_CODES
+        for issue in report.issues
+    )
 
 
 def _empty_core_project_state(

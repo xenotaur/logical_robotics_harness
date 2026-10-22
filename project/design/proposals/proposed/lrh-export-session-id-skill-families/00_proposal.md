@@ -154,7 +154,8 @@ runs only on an explicit user request and is never started proactively,
 because every variant writes a permanent archive copy. `/lrh-session-id` is
 metadata-only, so it may be called from `/lrh-closeout`, `/lrh-land` and
 `/lrh-implement`. Nothing in its invocation rule forbids that; the same is
-true of `lrh-codex-session`, although no skill calls it that way today.
+true of `lrh-session-id-codex` (formerly `lrh-codex-session`), although no
+skill calls it that way today.
 
 The dispatcher picks the vendor in this order:
 1. **Explicit argument.** `/lrh-export codex ...` or `/lrh-session-id claude`.
@@ -250,8 +251,8 @@ guesses which session is current.
 
 The resolver CLI and the `lrh-session-id-antigravity` skill depend on that
 item. Until they ship, `/lrh-session-id` reports Antigravity as unsupported
-and records `pending`, the same way `lrh-codex-session` handles an unresolved
-pointer.
+and records `pending`, the same way `lrh-session-id-codex` handles an
+unresolved pointer.
 
 ### Decision 6: Every variant installs to every target
 

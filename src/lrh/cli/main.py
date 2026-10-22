@@ -8,6 +8,7 @@ import argparse
 import json
 import subprocess
 import sys
+import typing
 from pathlib import Path
 
 from lrh import (
@@ -26,6 +27,7 @@ from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
+from lrh.cli import vcs as vcs_cli
 from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
@@ -38,6 +40,8 @@ from lrh.conversations import (
     export_inspector,
     pdf_import,
 )
+from lrh.dependency_maps import snapshot as dependency_map_snapshot
+from lrh.dependency_maps import view as dependency_map_view
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.pii import config as pii_config
@@ -184,6 +188,12 @@ def main() -> None:
     )
 
     subparsers.add_parser(
+        "vcs",
+        add_help=False,
+        help="Backend-neutral VCS actions (SHA-locked pull request merge).",
+    )
+
+    subparsers.add_parser(
         "prompt",
         add_help=False,
         help="Prompt workflow helper commands.",
@@ -272,7 +282,11 @@ def main() -> None:
     skills_install_parser.add_argument(
         "--diff",
         action="store_true",
-        help="print a unified diff of local modifications for skipped skills",
+        help=(
+            "preview without writing files (implies --dry-run) and report how"
+            " each installed item differs from source (a unified diff for"
+            " changed text files)"
+        ),
     )
     skills_status_parser = skills_subparsers.add_parser(
         "status",
@@ -515,6 +529,14 @@ def main() -> None:
     chain_defaults_subparsers = chain_defaults_parser.add_subparsers(
         dest="chain_defaults_command"
     )
+    _plain_chain_defaults_error = chain_defaults_parser.error
+
+    def _chain_defaults_error(message: str) -> typing.NoReturn:
+        if "invalid choice" in message:
+            message = f"{message}\n{chain_defaults_status.capability_mismatch_hint()}"
+        _plain_chain_defaults_error(message)
+
+    chain_defaults_parser.error = _chain_defaults_error  # type: ignore[method-assign]
     chain_defaults_staleness_parser = chain_defaults_subparsers.add_parser(
         "check-staleness",
         help=(
@@ -526,6 +548,15 @@ def main() -> None:
         "--confirmed-commit",
         required=True,
         help="the commit stored consent was last confirmed against",
+    )
+    chain_defaults_staleness_parser.add_argument(
+        "--confirmed-at",
+        default=None,
+        help=(
+            "the profile's confirmed_at; the fingerprint store for user-scope "
+            "installed targets is accepted only when its stamp matches "
+            "(omitted: those targets fail closed)"
+        ),
     )
     chain_defaults_staleness_parser.add_argument(
         "--head",
@@ -566,6 +597,62 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+    chain_defaults_restamp_parser = chain_defaults_subparsers.add_parser(
+        "restamp",
+        help=(
+            "Re-stamp confirmed_commit/confirmed_at and record user-scope "
+            "installed-target fingerprints bound to that same stamp, as one "
+            "act. Run only after a human re-confirmed the stale-files payload."
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "preview the stale-files list, the fingerprint plan, and the new "
+            "stamp without writing anything"
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--expect-digest",
+        default=None,
+        help=(
+            "the plan_digest from the approved --dry-run preview; refuse "
+            "(exit 2, nothing written) if the plan has changed since"
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    dependency_map_parser = subparsers.add_parser(
+        "dependency-map",
+        help="Read-only dependency-map snapshots for declared views.",
+    )
+    dependency_map_subparsers = dependency_map_parser.add_subparsers(
+        dest="dependency_map_command"
+    )
+    dependency_map_snapshot_parser = dependency_map_subparsers.add_parser(
+        "snapshot",
+        help=(
+            "Print the versioned JSON snapshot of a view declared in "
+            "project/views/dependency_maps/<view>.md."
+        ),
+    )
+    dependency_map_snapshot_parser.add_argument("view", help="the view id")
+    dependency_map_snapshot_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="repository root (default: current directory)",
     )
 
     confirm_fixes_parser = subparsers.add_parser(
@@ -1130,6 +1217,14 @@ def main() -> None:
             )
         )
 
+    if args.command == "vcs":
+        raise SystemExit(
+            vcs_cli.run_vcs_cli(
+                argv=passthrough_args,
+                prog="lrh vcs",
+            )
+        )
+
     if args.command == "survey":
         raise SystemExit(
             sourcetree_surveyor.main(
@@ -1448,6 +1543,25 @@ def main() -> None:
             "agent-skills requires a subcommand (try: lrh agent-skills status)"
         )
 
+    if args.command == "dependency-map":
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+        if args.dependency_map_command != "snapshot":
+            dependency_map_parser.print_help(sys.stderr)
+            raise SystemExit(2)
+        project_root = Path(args.project_root).expanduser().resolve()
+        try:
+            snapshot = dependency_map_snapshot.build_snapshot(project_root, args.view)
+        except (
+            FileNotFoundError,
+            dependency_map_view.ViewDeclarationError,
+            dependency_map_snapshot.SnapshotError,
+        ) as err:
+            print(f"error: {err}", file=sys.stderr)
+            raise SystemExit(1) from err
+        print(snapshot.to_json())
+        raise SystemExit(0)
+
     if args.command == "chain-defaults":
         if args.chain_defaults_command == "check-staleness":
             if passthrough_args:
@@ -1458,6 +1572,7 @@ def main() -> None:
                     project_root=project_root,
                     confirmed_commit=args.confirmed_commit,
                     head=args.head,
+                    confirmed_at=args.confirmed_at,
                 )
             except gate_staleness.GateStalenessError as err:
                 # stderr, not stdout: --format json callers expect stdout to
@@ -1485,9 +1600,27 @@ def main() -> None:
             else:
                 print(chain_defaults_status.format_text(status))
             raise SystemExit(0)
+        if args.chain_defaults_command == "restamp":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                plan = chain_defaults_status.plan_restamp(project_root=project_root)
+                if not args.dry_run:
+                    chain_defaults_status.apply_restamp(
+                        project_root, plan, expect_digest=args.expect_digest
+                    )
+            except chain_defaults_status.ChainDefaultsStatusError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(chain_defaults_status.format_restamp_json(plan, args.dry_run))
+            else:
+                print(chain_defaults_status.format_restamp_text(plan, args.dry_run))
+            raise SystemExit(0)
         parser.error(
             "chain-defaults requires a subcommand "
-            "(try: lrh chain-defaults status or check-staleness)"
+            "(try: lrh chain-defaults status, check-staleness, or restamp)"
         )
 
     if args.command == "confirm-fixes":
@@ -2053,6 +2186,11 @@ def main() -> None:
                 if local_scope is False:
                     parser.error("--local cannot be combined with --scope user")
                 local_scope = True
+            # --diff is a read-only report: it must never install missing
+            # skills or apply --force overwrites, so it always previews.
+            install_preview = args.skills_command == "install" and (
+                args.dry_run or args.diff
+            )
             try:
                 skills_plan = installer.resolve_agent_skills_install_plan(
                     target=args.target,
@@ -2065,7 +2203,7 @@ def main() -> None:
                         target=skills_plan.target,
                         local=skills_plan.local,
                         project_root=Path.cwd(),
-                        dry_run=args.dry_run,
+                        dry_run=install_preview,
                         force=args.force,
                         source=skills_plan.source,
                     )
@@ -2084,7 +2222,7 @@ def main() -> None:
                         print()
                     print(f"{report.target.value}: {report.skills_dir}")
                 if args.skills_command == "install":
-                    output = installer.format_report(report, dry_run=args.dry_run)
+                    output = installer.format_report(report, dry_run=install_preview)
                 elif args.skills_command == "status":
                     output = installer.format_inspection_report(
                         report, issue_label="notice"
@@ -2095,7 +2233,10 @@ def main() -> None:
                     print(output)
                 if args.skills_command == "install" and args.diff:
                     for result in report.results:
-                        if result.status == installer.SkillStatus.USER_MODIFIED:
+                        if result.status in {
+                            installer.SkillStatus.USER_MODIFIED,
+                            installer.SkillStatus.FORCED,
+                        }:
                             try:
                                 diff_text = installer.diff_skill(
                                     result.name,

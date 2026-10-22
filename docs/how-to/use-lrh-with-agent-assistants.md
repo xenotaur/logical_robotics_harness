@@ -177,10 +177,16 @@ automatically when your request matches the skill's `description`.
 
 #### What changes in the bundle
 - Frontmatter is reduced to portable fields (`name`, `description`, `license`,
-  `compatibility`, `metadata`); agent-specific keys such as `argument-hint` and
-  `when_to_use` are dropped and reported.
+  `compatibility`, `metadata`); agent-specific keys such as `argument-hint` are
+  dropped and reported.
+- `when_to_use` guidance is kept. When it fits, it is appended to the
+  `description` (within the 1024-character limit), so it still steers automatic
+  selection. When it does not fit, the `description` is left as is and the
+  guidance becomes a generated `## When to use` section after the skill's
+  title, with a notice.
 - Codex metadata (`agents/`) is not bundled.
-- Skill instructions are exported unchanged.
+- Existing skill instructions are exported unchanged; the generated
+  `## When to use` section is the only addition.
 
 #### Capability limits
 Skill instructions do not grant tools. Most LRH workflows run local `git`, the

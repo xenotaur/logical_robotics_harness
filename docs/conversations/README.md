@@ -39,6 +39,7 @@ For exact command options and exit behavior, see the
 
 - [Import ChatGPT PDF conversations](chatgpt_pdf_import.md) — convert ChatGPT PDFs into private-by-default Markdown transcripts with sensitivity metadata and review guidance.
 - [Export Codex conversations](codex_export.md) — capture a current or specified Codex task through `/lrh-codex-export` without printing transcript text or committing raw exports.
+- [Open an agent session from a pointer](session_deep_links.md) — turn a `claude-app:` or `codex-app:` session pointer into a deep link with `lrh sessions deeplink`, and see which routes are verified.
 - [Conversation capture options](conversation-capture-options.md) — current manual capture/export choices, safety guidance, and implementation-status boundaries.
 - [Promote conversation-derived content to a project artifact](promote-conversation-to-project-artifact.md) — manual workflow for turning reviewed conversation material into durable LRH artifacts.
 

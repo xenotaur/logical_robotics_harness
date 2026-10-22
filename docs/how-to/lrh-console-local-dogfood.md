@@ -32,7 +32,7 @@ choose **Open**.
 With no saved configuration, the main window shows **Set up LRH Console** and
 the Settings window opens. Fill in:
 
-- **Backend program.** Choose one of:
+- **Server program.** Choose one of:
   - an installed `lrh` executable, such as `…/envs/lrh/bin/lrh`;
   - a Python interpreter plus an optional `PYTHONPATH`, for a source
     checkout. For example, interpreter `…/envs/lrh/bin/python` and
@@ -46,11 +46,17 @@ the Settings window opens. Fill in:
 - **Browser:** Google Chrome or the default browser. External links and
   **View > Open in …** use this choice.
 - **Start the server when LRH Console opens:** on by default.
+- **Appearance:** System (the default) follows the macOS appearance; Light and
+  Dark pin it. LRH Console's windows, including served pages, change at once.
+  **Restart server now** passes the new theme to the server, so pages in other
+  browsers, or a server started with Light or Dark, match too. From a shell,
+  `lrh serve --theme light|dark|system` does the same for the browser.
 
 Choose **Save**. The app checks every value before saving. If a value is
 wrong, it is rejected with a message next to the field, and the previous
 settings stay in effect. The first save starts the server, unless you turned
-that off. Later changes to the program or workspace wait for a restart. The configuration is stored in
+that off. Later changes to the program, workspace, or appearance wait for a
+restart. The configuration is stored in
 `~/Library/Application Support/io.github.xenotaur.lrh-console/config.json`,
 and only you can read the file.
 
@@ -62,21 +68,27 @@ effect when the server restarts.
 
 | Action | How |
 | --- | --- |
-| Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, and choosing either again brings it to the front. |
-| Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
-| Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). |
+| Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, with Settings on the left and Server Details on the right. Choosing either again brings it to the front; **Server Details…** also scrolls to and briefly highlights the details. |
+| Start, stop, restart the server | **Server > Start Server** (or **Restart Server**, when the server is running) and **Server > Stop Server**. Each is enabled only when it applies. ⌘⇧I is the first item's shortcut: it starts a stopped server at once, or restarts a running one after asking "Restart the server? The current page will reload." (**Restart** or **Cancel**) in a sheet on the main window. **Restart server now** in Settings restarts without asking. |
+| Go to the statusboard or the workspace page | LRH Console opens on the statusboard. **View > Statusboard** (⇧⌘H) returns to it, and **View > Workspace** (⇧⌘0) opens the served project's workspace page. In a served page, the LRH icon in the top bar always goes home to the statusboard, and the sidebar switches between All projects and each registered project. |
+| Zoom the page | **View > Zoom In** (⌘=), **Zoom Out** (⌘−), and **Actual Size** (⌘0) zoom the main window in Chrome's steps from 50% to 300%. The level applies to every page, survives navigation, **Server > Restart Server**, and quitting the app, and is saved in `zoom.json` beside the settings. When it is not 100%, the menu item reads **Actual Size (125%)**. **Settings > Window > Reset** does not change it. Page zoom needs macOS 11 or later, so the app requires macOS 11. |
+| Tell whether a page is still loading | When a navigation takes longer than about 300 ms (a sidebar or in-page link, a View menu item, Back, Forward, Reload, or **Server > Restart**), the window title changes to **LRH Console — Loading…** until the page finishes. It also clears if a download takes over, or on the next navigation. A load that fails (for example, a link clicked while the server is stopped) shows it for up to 20 seconds, because WebKit reports no failed loads. Jumps within the current page never show it. Served pages in a browser show their own dimmed "Loading…" status instead. |
+| Resize or move the window | LRH Console opens larger by default (about 1540 by 1064 points, never more than 90% of the display) and remembers the main window's size and position. It restores them on the next launch, on the same display when that display is still connected (even if you rearranged your displays), and moves the window fully onto a connected display otherwise. To start over, use **Settings > Window > Reset window size and position**: the window returns to the default at once and the saved frame (`window-state.json`, next to the app's configuration) is removed. Nothing is saved again until you move or resize the window, so the next launch also uses the default. |
+| Open Settings from a page | The gear in a served page's top bar opens the Settings window. In a browser it opens a read-only display and about page. |
+| Trace a dependency map | LRH Console runs Serve with `--interactive`. On a dependency map, point at a card to preview what it needs and what needs it; click to select it and open its details; press Escape to close. The **Show** checkboxes hide states without ever hiding something a shown item still needs. The top bar's Light / Dark / System switch appears when Settings > Appearance is System; it resets when LRH Console restarts, so use Appearance for a lasting choice. |
 | Reload | **View > Reload** (⌘R). |
+| Go back or forward | **View > Back** (⌘[) or **View > Forward** (⌘]), or the **‹** and **›** buttons after the sidebar toggle in a served page's top bar, which do the same and grey out to match. The buttons appear only inside LRH Console, never in a browser. They move between pages of the running server only, never to a status page or a previous server's address, and are enabled only when there is a page to go to. A restart starts a fresh history. |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |
 | Hide the window | Close it (⌘W). The app and server keep running, and clicking the Dock icon brings the window back. |
-| Quit | ⌘Q, or **LRH Console > Quit LRH Console**. The window shows "Stopping LRH Serve…" while the server stops, then the app exits. Quitting from the Dock menu exits at once, and the server then stops itself within a few seconds because its parent is gone. |
+| Quit | ⌘Q, or **LRH Console > Quit LRH Console**. The window shows "Stopping LRH server…" while the server stops, then the app exits. Quitting from the Dock menu exits at once, and the server then stops itself within a few seconds because its parent is gone. |
 
 How the app behaves:
 
-- The app owns exactly one backend. It never adopts, stops, or signals an
+- The app owns exactly one server. It never adopts, stops, or signals an
   `lrh serve` that you started yourself.
-- If the app crashes, its backend notices that the parent is gone and exits
+- If the app crashes, its server notices that the parent is gone and exits
   within a few seconds.
-- The main window shows only the app's own pages and the current backend's
+- The main window shows only the app's own pages and the current server's
   exact local address.
 - Links to other sites open in your browser, at most one per second. Popups
   never open inside the app.
@@ -92,14 +104,15 @@ How the app behaves:
 | **Server failed**, code `spawn_failed` | The program path cannot be run. Fix it in Settings. |
 | **Server failed**, code `exited_before_ready` | Python could not start LRH, usually because of the interpreter or `PYTHONPATH`. Check **Server Details** for the output. |
 | **Server failed**, code `startup_timeout` or `exited_unexpectedly` | Check **Server Details**, then choose **Server > Start Server** again. |
-| **Incompatible backend** | The configured `lrh` speaks a different desktop protocol version, or served a different workspace. Update `lrh`, or choose another program. |
+| **Incompatible server** | The configured `lrh` speaks a different desktop protocol version, or served a different workspace. Update `lrh`, or choose another program. |
 
 **Server Details** shows:
 
 - the state and the owned process ID;
 - the endpoint;
-- the configured and served workspaces;
-- the protocol and backend versions;
+- the configured and served workspaces. When the configured path is a
+  symlink to the served one, the served row says they are the same directory;
+- the protocol and server versions;
 - the last error and exit code;
 - the result of the last browser handoff;
 - the last 64 KiB of the server's output.
@@ -122,7 +135,7 @@ See [the toolchain how-to](project-setup/desktop-toolchain.md#build-and-run-the-
 
 | Interaction | In the app | In a browser |
 | --- | --- | --- |
-| Dashboard, Meta, project, work-item, and design pages | Works | Works (same origin, same project) |
+| Statusboard, workspace, project, work-item, and design pages | Works | Works (same origin, same project) |
 | Workbench prompt, run-packet, and run-report previews | Works | Works |
 | `?download=1` Markdown downloads | Handed to the chosen browser, which saves the file (the app never writes files) | Works |
 | JSON routes (`/api/...`) | Shown as text | Shown as text |
@@ -131,7 +144,7 @@ See [the toolchain how-to](project-setup/desktop-toolchain.md#build-and-run-the-
 When Chrome is not installed, **View > Open in Chrome** reads "not found: uses
 default browser", and handoffs use the default browser. Server Details records
 which browser was used. Both views show the same project, because the browser
-opens the app's own backend address.
+opens the app's own server address.
 
 ## Limitations
 
@@ -141,7 +154,7 @@ opens the app's own backend address.
 - The app is not signed or notarized, and has no installer, updates, or login
   autostart.
 - One workspace at a time. Use Meta for cross-project views.
-- ⌘Q waits for a backend that is still starting to finish starting or time
+- ⌘Q waits for a server that is still starting to finish starting or time
   out, then stops it. The window shows "Stopping…" meanwhile, and the app
   stays responsive.
 - Links are handed to the browser whenever page content navigates away from
@@ -149,7 +162,7 @@ opens the app's own backend address.
   own pages do not do this. The handoff is limited to one per second.
 - The program's protocol version is checked when the server starts, not
   when you save Settings. An incompatible `lrh` shows the **Incompatible
-  backend** page.
+  server** page.
 
 ## Validation
 
@@ -174,13 +187,15 @@ apps/desktop/scripts/run bundle
 Run these checks for each dogfood session. Record the results in
 `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md`.
 
-1. Open LRH Console from the Dock. The dashboard appears without any
+1. Open LRH Console from the Dock. The statusboard appears without any
    terminal.
 2. Choose **Server > Stop**. The page shows "Server stopped", and only
    **Start** is enabled.
-3. Choose **Server > Start**. The dashboard returns.
-4. Choose **Server > Restart**. The dashboard returns on a new port.
-5. Use **View > Meta**, **View > Dashboard**, and **View > Reload**.
+3. Choose **Server > Start**. The statusboard returns.
+4. Choose **Server > Restart**. The statusboard returns on a new port.
+5. Use **View > Statusboard**, **View > Workspace**, and **View > Reload**. Open
+   `/health`, then use **View > Back** (⌘[) to return, and **View > Forward**
+   (⌘]) to go there again.
 6. Click an internal link; it opens in the app. Click an external link; it
    opens in the browser.
 7. Use **View > Open in Chrome** and **Open in Default Browser**. Both show
@@ -207,7 +222,7 @@ Run these checks for each dogfood session. Record the results in
 14. Choose **Server > Restart**, then press ⌘Q at once. The app shows
     "Stopping…", then exits. No `lrh serve --desktop-protocol` process
     remains (`pgrep -fl -- 'serve --desktop-protocol'` prints nothing).
-15. Crash the backend while the app is running. Use the PID that Server
+15. Crash the server while the app is running. Use the PID that Server
     Details shows under **Owned process**, so nothing else is signaled:
 
     ```bash
@@ -215,7 +230,7 @@ Run these checks for each dogfood session. Record the results in
     ```
 
     The page shows **Server failed** with `exited_unexpectedly`. Choose
-    **Server > Start Server**, and the dashboard returns.
+    **Server > Start Server**, and the statusboard returns.
 16. Crash the app. Find the PID of the app installed in `/Applications`.
     The anchored pattern leaves other builds alone, including a dev or bundle
     build running from a worktree:
@@ -230,9 +245,9 @@ Run these checks for each dogfood session. Record the results in
     kill -9 <app-pid>
     ```
 
-    Within a few seconds the backend exits on its own, so
+    Within a few seconds the server exits on its own, so
     `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH
-    Console from the Dock, and the dashboard returns.
+    Console from the Dock, and the statusboard returns.
 17. Note anything slow, confusing, or missing.
 
 Steps 12, 15, and 16 force failures deliberately. Run them at least once

@@ -1,6 +1,14 @@
-"""Command line for the stage-0 briefing prototype.
+"""Command line for the local-agent toys.
 
-Typical flow::
+T0 (use these)::
+
+    ask      -> answer a question from tracked files; streams, logs, asks a rating
+    rate     -> rate a run later (g/o/b) with an optional note
+    log      -> recent runs and statistics computed from the private log
+    delete   -> remove one run's private records
+    prune    -> remove runs older than a date
+
+Legacy stage-0 pilot commands (superseded; kept until reworked)::
 
     packet   -> build and store a pinned context packet; prints its sha256
     task     -> the same, for a pre-registered task id from tasks.yaml
@@ -14,12 +22,15 @@ Typical flow::
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import pathlib
 import subprocess
 import sys
 
 from local_agent import (
+    ask,
+    brief,
     briefing,
     context,
     export,
@@ -85,6 +96,78 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-packet-bytes", type=int, default=None, help=argparse.SUPPRESS
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    asker = sub.add_parser("ask", help="T0: answer a question from tracked files")
+    asker.add_argument("question")
+    scope = asker.add_mutually_exclusive_group()
+    scope.add_argument("--wi", default=None, help="scope to a work item (WI-...)")
+    scope.add_argument("--files", nargs="+", default=None, help="tracked files")
+    asker.add_argument(
+        "--repo", type=pathlib.Path, default=pathlib.Path("."), help="checkout"
+    )
+    asker.add_argument("--commit", default="HEAD", help="revision to read")
+    asker.add_argument(
+        "--project-dir", default=".", help="subdirectory holding project/ (--wi)"
+    )
+    asker.add_argument("--no-rate", action="store_true", help="skip the rating prompt")
+    asker.add_argument(
+        "--yes", action="store_true", help="send without the confirmation prompt"
+    )
+    asker.add_argument(
+        "--allow-flagged",
+        action="append",
+        default=[],
+        metavar="PATH=CATEGORY[,CATEGORY]",
+        help=(
+            "send a --files path despite these high-severity scanner categories; "
+            "needs an interactive, typed 'yes' and cannot be used with --yes"
+        ),
+    )
+    _add_backend_args(asker)
+
+    briefer = sub.add_parser(
+        "brief", help="T1: brief a work item, checked against LRH readiness"
+    )
+    briefer.add_argument("work_item", help="work item id (WI-...)")
+    briefer.add_argument(
+        "--repo", type=pathlib.Path, default=pathlib.Path("."), help="checkout"
+    )
+    briefer.add_argument("--commit", default="HEAD", help="revision to read")
+    briefer.add_argument(
+        "--project-dir", default=".", help="subdirectory holding project/"
+    )
+    briefer.add_argument(
+        "--no-rate", action="store_true", help="skip the rating prompt"
+    )
+    briefer.add_argument(
+        "--yes", action="store_true", help="send without the confirmation prompt"
+    )
+    _add_backend_args(briefer)
+
+    rater = sub.add_parser("rate", help="rate a run: g(ood), o(k), or b(ad)")
+    rater.add_argument("run_id")
+    rater.add_argument("rating", choices=("g", "o", "b", "good", "ok", "bad"))
+    rater.add_argument("--note", default="")
+
+    logger = sub.add_parser("log", help="recent runs and summary statistics")
+    logger.add_argument("--limit", type=int, default=10)
+    logger.add_argument(
+        "--since", default=None, help="only runs created on or after YYYY-MM-DD (UTC)"
+    )
+    logger.add_argument(
+        "--kind",
+        action="append",
+        default=None,
+        choices=("ask", "brief", "pilot"),
+        help="only runs of this kind (repeatable)",
+    )
+
+    deleter = sub.add_parser("delete", help="permanently remove one run")
+    deleter.add_argument("run_id")
+
+    pruner = sub.add_parser("prune", help="remove runs created before a date")
+    pruner.add_argument("--before", required=True, help="ISO date, e.g. 2026-12-31")
+    pruner.add_argument("--dry-run", action="store_true")
 
     packet = sub.add_parser("packet", help="build and store a pinned context packet")
     packet.add_argument("--repo", type=pathlib.Path, required=True)
@@ -172,6 +255,239 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _add_backend_args(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--backend", choices=("ollama", "fake"), default="ollama")
+    command.add_argument("--base-url", default=settings.DEFAULT_OLLAMA_BASE_URL)
+    command.add_argument("--model", default=settings.DEFAULT_MODEL)
+    command.add_argument(
+        "--model-digest", default=settings.DEFAULT_MODEL_MANIFEST_DIGEST
+    )
+    command.add_argument(
+        "--fake-response",
+        type=pathlib.Path,
+        default=None,
+        help="file whose contents the fake backend returns",
+    )
+    command.add_argument("--num-ctx", type=int, default=None)
+    command.add_argument("--max-output-tokens", type=int, default=None)
+    command.add_argument("--timeout", type=float, default=None)
+
+
+def _prompt_rating(store: recorder.Store, run_id: str) -> None:
+    """Ask for a one-key rating; skipping is fine and recorded as unrated."""
+    try:
+        choice = input("rate [g]ood / [o]k / [b]ad / [enter] skip: ").strip().lower()
+        if choice not in ask.RATINGS:
+            return
+        note = input("note (optional): ")
+    except (EOFError, KeyboardInterrupt):
+        print(file=sys.stderr)
+        return
+    ask.record_rating(store, run_id, choice, note)
+
+
+def _parse_allow_flagged(values: list[str]) -> dict[str, frozenset[str]]:
+    """Parse repeated ``PATH=CATEGORY[,CATEGORY]`` values."""
+    allow: dict[str, set[str]] = {}
+    for value in values:
+        path, sep, categories = value.rpartition("=")
+        names = {name.strip() for name in categories.split(",") if name.strip()}
+        if not sep or not path or not names:
+            raise ValueError(
+                f"--allow-flagged needs PATH=CATEGORY[,CATEGORY], got {value!r}"
+            )
+        allow.setdefault(path, set()).update(names)
+    return {path: frozenset(names) for path, names in allow.items()}
+
+
+def _confirm_terminal() -> bool:
+    """Whether the owner can both see the findings list and type a reply."""
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def _confirm_allowed(ctx: ask.AskContext) -> bool:
+    """Ask for a typed ``yes`` to send the listed flagged findings.
+
+    The prompt goes to stderr, the same stream as the findings list, so the
+    owner cannot confirm findings they were not shown.
+    """
+    sys.stderr.write(
+        f"send {len(ctx.allowed_flagged)} flagged finding(s) listed above "
+        "to the local model? type 'yes' to send: "
+    )
+    sys.stderr.flush()
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return answer.strip() == "yes"
+
+
+def _kind(args: argparse.Namespace) -> str:
+    return brief.KIND_BRIEF if args.command == "brief" else ask.KIND_ASK
+
+
+def _record_failure(
+    args: argparse.Namespace,
+    store: recorder.Store,
+    question: str,
+    outcome: str,
+    detail: str,
+    ctx: ask.AskContext | None = None,
+) -> str:
+    """Log a run that stopped before the model call, as ask or brief."""
+    record = {"work_item_id": args.wi} if _kind(args) == brief.KIND_BRIEF else None
+    prompt_version = (
+        brief.PROMPT_VERSION if _kind(args) == brief.KIND_BRIEF else ask.PROMPT_VERSION
+    )
+    return ask.record_failure(
+        store,
+        question,
+        outcome,
+        detail,
+        ctx=ctx,
+        kind=_kind(args),
+        record=record,
+        prompt_version=prompt_version,
+    )
+
+
+def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
+    budgets = _budgets(args)
+    try:
+        allow_flagged = _parse_allow_flagged(args.allow_flagged)
+    except ValueError as error:
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", f"arguments: {error}"
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
+    if allow_flagged and (args.yes or not _confirm_terminal()):
+        detail = (
+            "--allow-flagged cannot be combined with --yes"
+            if args.yes
+            else "--allow-flagged needs an interactive terminal on stdin and stderr"
+        )
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", detail
+        )
+        print(f"error: {detail} (run {run_id})", file=sys.stderr)
+        return 2
+    try:
+        ctx = ask.build_context(
+            repo=args.repo,
+            revision=args.commit,
+            work_item=args.wi,
+            files=args.files,
+            project_dir=args.project_dir,
+            budgets=budgets,
+            allow_flagged=allow_flagged,
+        )
+    except (readiness.WorkItemReadinessError, sources.SourceError) as error:
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", f"context: {error}"
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
+    print(ask.source_summary(ctx), file=sys.stderr)
+    reason = ask.unsendable_reason(ctx)
+    if reason:
+        excluded = "; ".join(f"{e['path']} ({e['reason']})" for e in ctx.excluded)
+        detail = f"{reason}: {excluded}" if excluded else reason
+        run_id = _record_failure(
+            args, store, args.question, "missing_prerequisite", detail, ctx=ctx
+        )
+        print(f"not sent (run {run_id})", file=sys.stderr)
+        return 2
+    interactive = sys.stdin.isatty()
+    if ctx.allowed_flagged:
+        # Typed "yes" only, before any adapter or model call (Decision 3).
+        if not _confirm_allowed(ctx):
+            run_id = _record_failure(
+                args,
+                store,
+                args.question,
+                "cancelled",
+                "declined the --allow-flagged confirmation",
+                ctx=ctx,
+            )
+            print(f"\nnot sent (run {run_id})", file=sys.stderr)
+            return 1
+    elif interactive and not args.yes:
+        try:
+            answer = input("send to the local model? [Y/n] ").strip().lower()
+            declined = answer not in ("", "y", "yes")
+        except (EOFError, KeyboardInterrupt):
+            declined = True
+        if declined:
+            run_id = _record_failure(
+                args,
+                store,
+                args.question,
+                "cancelled",
+                "declined before sending",
+                ctx=ctx,
+            )
+            print(f"\nnot sent (run {run_id})", file=sys.stderr)
+            return 1
+    try:
+        adapter = _adapter(args)
+    except (OSError, UnicodeDecodeError) as error:
+        run_id = _record_failure(
+            args,
+            store,
+            args.question,
+            "missing_prerequisite",
+            f"adapter: {error}",
+            ctx=ctx,
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
+    except model.BackendError as error:
+        outcome = (
+            "missing_prerequisite"
+            if error.kind == model.KIND_MISSING_PREREQUISITE
+            else "backend_error"
+        )
+        run_id = _record_failure(
+            args, store, args.question, outcome, f"adapter: {error}", ctx=ctx
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
+
+    def stream(chunk: str) -> None:
+        sys.stdout.write(chunk)
+        sys.stdout.flush()
+
+    try:
+        if _kind(args) == brief.KIND_BRIEF:
+            run_id = brief.run_brief(
+                store=store,
+                work_item=args.wi,
+                ctx=ctx,
+                adapter=adapter,
+                budgets=budgets,
+                on_text=stream,
+            )
+        else:
+            run_id = ask.run_ask(
+                store=store,
+                question=args.question,
+                ctx=ctx,
+                adapter=adapter,
+                budgets=budgets,
+                on_text=stream,
+            )
+    except KeyboardInterrupt:
+        print("\ncancelled (recorded)", file=sys.stderr)
+        return 130
+    print()
+    print(ask.footer(store, run_id), file=sys.stderr)
+    if interactive and not args.no_rate:
+        _prompt_rating(store, run_id)
+    return 0 if store.load_run(run_id).get("outcome") == "completed" else 1
+
+
 def _adapter(args: argparse.Namespace) -> model.ModelAdapter:
     if args.backend == "fake":
         text = "{}"
@@ -196,6 +512,66 @@ def main(argv: list[str] | None = None) -> int:
 
 def _dispatch(args: argparse.Namespace) -> int:
     store = recorder.Store(args.store or recorder.default_store_root())
+
+    if args.command == "ask":
+        return _run_ask(args, store)
+
+    if args.command == "brief":
+        # T1: ask --wi with the briefing preset; no file overrides.
+        args.question = brief.question(args.work_item)
+        args.wi = args.work_item
+        args.files = None
+        args.allow_flagged = []
+        return _run_ask(args, store)
+
+    if args.command == "rate":
+        try:
+            ask.record_rating(store, args.run_id, args.rating, args.note)
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(f"rated {args.run_id}")
+        return 0
+
+    if args.command == "log":
+        if args.since is not None:
+            try:
+                since = datetime.date.fromisoformat(args.since).isoformat()
+            except ValueError:
+                print(
+                    f"error: --since needs YYYY-MM-DD, got {args.since!r}",
+                    file=sys.stderr,
+                )
+                return 2
+            if since != args.since:
+                print(
+                    f"error: --since needs YYYY-MM-DD, got {args.since!r}",
+                    file=sys.stderr,
+                )
+                return 2
+        kinds = frozenset(args.kind) if args.kind else None
+        print(
+            ask.summarize(store, limit=args.limit, since=args.since, kinds=kinds),
+            end="",
+        )
+        return 0
+
+    if args.command == "delete":
+        store.delete_run(args.run_id)
+        print(f"deleted {args.run_id}")
+        return 0
+
+    if args.command == "prune":
+        try:
+            removed = store.prune(args.before, dry_run=args.dry_run)
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        verb = "would remove" if args.dry_run else "removed"
+        print(f"{verb} {len(removed)} run(s)")
+        for run_id in removed:
+            print(f"  {run_id}")
+        return 0
 
     if args.command == "task":
         try:

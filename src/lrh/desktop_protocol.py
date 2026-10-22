@@ -614,6 +614,7 @@ def run_session(
     poll_interval: float = PARENT_POLL_INTERVAL_SECONDS,
     parent_alive: Callable[[], bool] | None = None,
     stop_signal: StopSignal | None = None,
+    on_ready: Callable[[Path], None] | None = None,
 ) -> SessionResult:
     """Run one owned-server session over an already-established channel.
 
@@ -628,6 +629,9 @@ def run_session(
         stop_timeout: seconds allowed for the HTTP server to stop.
         poll_interval: seconds between parent-liveness/stop-signal checks.
         parent_alive: optional probe; returning False triggers shutdown.
+        on_ready: optional callback, given the served project root, run once
+            right after ``ready`` is sent (never before, and never on a
+            startup failure). Errors are logged and otherwise ignored.
         stop_signal: optional flag set by a signal handler.
 
     Returns:
@@ -735,6 +739,11 @@ def run_session(
             return SessionResult(
                 EXIT_PARENT_LOST, REASON_PARENT_CHANNEL_CLOSED, launch_id
             )
+        if on_ready is not None:
+            try:
+                on_ready(workspace.project_root)
+            except Exception as err:  # noqa: BLE001 - ready is already sent
+                _log(log_stream, f"on_ready failed: {type(err).__name__}: {err}")
     except Exception as err:  # noqa: BLE001 - keep pre-ready failures correlated
         # ready has not been sent, so this is still a startup failure: stop
         # anything already started and report it with the request's launch ID.
@@ -902,6 +911,7 @@ def run_desktop_protocol(
     server_factory: ServerFactory,
     *,
     start_request_timeout: float = DEFAULT_START_REQUEST_TIMEOUT_SECONDS,
+    on_ready: Callable[[Path], None] | None = None,
 ) -> int:
     """Run desktop-protocol mode on this process's stdin/stdout.
 
@@ -941,6 +951,7 @@ def run_desktop_protocol(
             start_request_timeout=start_request_timeout,
             parent_alive=_parent_alive,
             stop_signal=stop_signal,
+            on_ready=on_ready,
         )
     except Exception as err:  # noqa: BLE001 - only reachable before ready
         _log(sys.stderr, f"internal error: {type(err).__name__}: {err}")

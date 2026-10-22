@@ -4,7 +4,7 @@ type: "design_proposal"
 title: "LRH Console: Local Dogfood and Dependency Maps"
 status: "proposed"
 created_on: "2026-09-24"
-updated_on: "2026-09-24"
+updated_on: "2026-09-26"
 implementation_status: "not_started"
 implemented_by: []
 evidence: []
@@ -287,6 +287,13 @@ At L1, record three genuine planning questions across LRH and LCATS, with answer
 traceable to source records. Verify cycles, missing IDs, hidden dependencies,
 ambiguous lanes, absent phases, stale snapshots, and larger real project views.
 Do not substitute the attractive synthetic example for the real-project pilot.
+
+### Visual mockups
+
+The [dependency analyzer mockups](mockups/README.md) illustrate the L1 overview,
+blocker tracing, parallel-work exploration, and task detail drawer. They use
+synthetic task states and are visual references, not runtime evidence. The gallery
+records their known inconsistencies and the semantics to preserve in implementation.
 
 ## Implementation Plan
 

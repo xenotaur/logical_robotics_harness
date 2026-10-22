@@ -1,16 +1,12 @@
 ---
 name: lrh-antigravity-export
-description: >
-  Export the current or specified Google Antigravity session transcript into a private,
-  non-authoritative Markdown export artifact. Use when the user asks to export,
-  capture, or archive an Antigravity conversation session. Wraps `lrh conversation
-  export-antigravity-session`, verifies the artifact with `lrh conversation
-  inspect-export`, and reports metadata-only terminal status.
-when_to_use: >
-  Invoke when the user asks to export, capture, or archive an Antigravity
-  session transcript log. Supports explicit `--transcript-path`, `--conversation-id`,
-  or `--latest` discovery, defaulting to a durable private session archive when `--out` is omitted.
-argument-hint: "[--out OUTPUT.md] [--transcript-path PATH | --conversation-id ID | --latest]"
+description: 'Export the current or specified Google Antigravity session transcript
+  into a private, non-authoritative Markdown export artifact. Use when the user asks
+  to export, capture, or archive an Antigravity conversation session. Wraps `lrh conversation
+  export-antigravity-session`, verifies the artifact with `lrh conversation inspect-export`,
+  and reports metadata-only terminal status.
+
+  '
 ---
 
 # lrh-antigravity-export Skill
@@ -45,6 +41,22 @@ Provide one of the mutually exclusive discovery flags or transcript path argumen
 
 ---
 
+## Running `lrh`
+
+**If `lrh` is not on PATH**, every `lrh` command in this workflow can run
+from an LRH checkout as `PYTHONPATH=src python3 -m lrh.cli.main ...` with
+the same subcommand and flags. That covers the capability checks
+(`--help`), session or thread resolution, the export itself, and
+`inspect-export`. Use the same prefix for all of them in a given run.
+
+An editable `lrh` install can also point at a different checkout than the
+one you are working in (`pip show lrh` reports its "Editable project
+location"), and `lrh version` reports install-time metadata rather than the
+code that actually runs. When in doubt inside an LRH checkout, prefer the
+`PYTHONPATH=src` form.
+
+---
+
 ## Execution Procedure
 
 Work through these steps in order:
@@ -71,6 +83,14 @@ Execute the exporter CLI subcommand with restrictive file creation umask (`umask
 
 If `--out` is omitted, the CLI outputs the durable session archive destination path.
 
+**If the destination already exists** (typically a same-session re-export
+without `--force`), the exporter refuses to overwrite it and this step
+fails. To replace it, re-run with `--force`, which **overwrites** the
+existing file at the destination; tell the user that before re-running.
+Alternatively, choose a different `--out`. This skill has no
+confirm-before-write gate today (that question is
+`WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`), and this note adds none.
+
 ### Step 3 — Verify Export Artifact
 
 Run the LRH export inspector supplying the source transcript file (`--source <transcript_file>`) to verify frontmatter schema validity, source SHA-256 integrity, and summary statistics:
@@ -79,7 +99,18 @@ Run the LRH export inspector supplying the source transcript file (`--source <tr
 lrh conversation inspect-export <output_path> --source <transcript_file>
 ```
 
-Confirm that inspection reports exit code 0 and `Source hash: match`.
+Confirm exit code 0 and a `Source hash:` of either `match` or
+`match_source_grew`; both are a verified export. `match_source_grew` means
+the live transcript grew after the export read it but its recorded prefix
+still matches (the normal case for a still-running session). The export is
+a snapshot as of the moment it ran. A true `mismatch` (nonzero exit) means
+the source no longer matches what was exported: an earlier byte changed,
+the source shrank, or (for an export with no recorded byte count) the
+whole file differs. Among hash comparisons, that is the only failing
+result. Any nonzero exit is a failed verification, though, including
+`source_missing`, `source_not_file`, `source_unreadable`, and a
+`transcript_statistics` mismatch. Report it and keep the files private for
+debugging.
 
 ### Step 4 — Terminal Summary
 
@@ -92,6 +123,14 @@ Present a summary table with verbatim manifest metadata:
 | **Exported Artifact** | `<output_path>` |
 | **Source ID** | `<source_id>` |
 | **Source SHA-256** | `<source_sha256>` |
+| **Verification** | `match` or `match_source_grew (+N bytes since export)` |
 | **Privacy** | `private` |
 | **Sensitivity** | `none_detected` (or `potential`, `unscanned`) |
 | **Warnings** | `<warning_count>` |
+
+A `potential` sensitivity status means the heuristic scanner flagged
+strings that need a human review before the export is shared anywhere. It
+does not mean the export failed. `unscanned` means no scan was run (for
+example, `--no-scan-sensitive`). `none_detected` is not a guarantee that the
+content is safe to share.
+

@@ -64,10 +64,10 @@ _STRAY_OUTPUT_CHILD = """
 import os, sys
 from lrh import serve
 original = serve._desktop_server_factory
-def noisy_factory(project_root):
+def noisy_factory(project_root, **options):
     print("stray print to sys.stdout")
     os.write(1, b"stray write to fd 1\\n")
-    return original(project_root)
+    return original(project_root, **options)
 serve._desktop_server_factory = noisy_factory
 sys.exit(serve.run_serve_cli(["--desktop-protocol"]))
 """

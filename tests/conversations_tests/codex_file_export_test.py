@@ -274,5 +274,105 @@ world
             self.assertIn("error: source_id must be non-empty", mock_stderr.getvalue())
 
 
+class TestCodexFileExportDescriptorLevelCollision(unittest.TestCase):
+    def test_link_created_after_path_check_is_rejected_and_source_untouched(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+
+            # Simulate the race: the path check passes (output absent), then a
+            # hardlink to the source appears before the write opens it.
+            def racing_check(source: Path, destination: Path) -> None:
+                os.link(source, destination)
+
+            with patch.object(
+                codex_file_export,
+                "_reject_source_output_collision",
+                side_effect=racing_check,
+            ):
+                with self.assertRaisesRegex(
+                    codex_file_export.CodexFileExportError, "different files"
+                ):
+                    codex_file_export.convert_codex_file(
+                        source_path,
+                        output_path=output_path,
+                        force=True,
+                    )
+
+            self.assertEqual(source_path.read_text(encoding="utf-8"), "hello")
+
+    def test_new_output_is_created_private(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+
+            codex_file_export.convert_codex_file(
+                source_path, output_path=output_path, exported_at=EXPORTED_AT
+            )
+
+            self.assertEqual(output_path.stat().st_mode & 0o777, 0o600)
+
+    def test_force_overwrite_truncates_longer_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+            output_path.write_text("x" * 100_000, encoding="utf-8")
+
+            result = codex_file_export.convert_codex_file(
+                source_path,
+                output_path=output_path,
+                force=True,
+                exported_at=EXPORTED_AT,
+            )
+
+            self.assertEqual(output_path.read_text(encoding="utf-8"), result.markdown)
+
+    def _assert_source_survives_path_change(self, *, replace: bool) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            moved = Path(temp_dir) / "moved.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+            real_render = codex_file_export.render_codex_markdown
+
+            # Runs between the source read and the write: the output is
+            # hardlinked to the original file, then the original leaves the
+            # source pathname (renamed away, optionally replaced by a new file).
+            def racing_render(*args: object, **kwargs: object) -> str:
+                os.link(source_path, output_path)
+                os.rename(source_path, moved)
+                if replace:
+                    source_path.write_text("replacement", encoding="utf-8")
+                return real_render(*args, **kwargs)
+
+            with patch.object(
+                codex_file_export,
+                "render_codex_markdown",
+                side_effect=racing_render,
+            ):
+                with self.assertRaisesRegex(
+                    codex_file_export.CodexFileExportError, "different files"
+                ):
+                    codex_file_export.convert_codex_file(
+                        source_path,
+                        output_path=output_path,
+                        force=True,
+                    )
+
+            self.assertEqual(moved.read_text(encoding="utf-8"), "hello")
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "hello")
+
+    def test_source_renamed_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=False)
+
+    def test_source_replaced_after_read_is_not_truncated(self) -> None:
+        self._assert_source_survives_path_change(replace=True)
+
+
 if __name__ == "__main__":
     unittest.main()

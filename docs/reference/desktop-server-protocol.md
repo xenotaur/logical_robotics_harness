@@ -15,7 +15,7 @@ Implementation: `src/lrh/desktop_protocol.py` (child side) and
 
 | Topic | Rule |
 | --- | --- |
-| Entry point | `<lrh-executable> serve --desktop-protocol [--desktop-start-timeout SECONDS]` |
+| Entry point | `<lrh-executable> serve --desktop-protocol [--theme THEME] [--desktop-start-timeout SECONDS]` |
 | Transport | The child's own stdin (parent → child) and stdout (child → parent) pipes, held privately by the parent. |
 | Framing | One UTF-8 JSON object per line (NDJSON), `\n`-terminated, at most 65,536 bytes including the newline. |
 | Human logs | stderr only. Machine messages never appear on stderr; human text never appears on stdout. |
@@ -29,10 +29,13 @@ Implementation: `src/lrh/desktop_protocol.py` (child side) and
 ## Launching the backend
 
 The supervisor runs one explicitly configured executable, never a name looked
-up through an interactive shell, and appends exactly these arguments:
+up through an interactive shell, and appends exactly these arguments. The
+theme comes from its **Appearance** setting; a session started with the
+`LRH_CONSOLE_*` developer variables omits `--theme`, which means `system`.
+LRH Console always passes `--interactive`.
 
 ```bash
-/absolute/path/to/lrh serve --desktop-protocol
+/absolute/path/to/lrh serve --desktop-protocol --theme system --interactive
 ```
 
 `python -m lrh.cli.main serve --desktop-protocol` is equivalent when the
@@ -42,6 +45,10 @@ supervisor is configured with a Python interpreter instead of the `lrh` script.
   `--project-root`, `--codex-archive-root`, `--allow-nonlocal-host`, or
   `--show-config`, even when their values equal the defaults. The child exits
   with code 2 and a usage message on stderr, before any machine message.
+- `--theme light|dark|system` (default `system`) sets the page theme, as in
+  plain `lrh serve`. It does not change any protocol message.
+- `--interactive` turns on Serve's packaged scripts, as in plain `lrh serve`.
+  It does not change any protocol message.
 - `--desktop-start-timeout SECONDS` (0.1–120, default 10) bounds how long the
   child waits for the `start` request. It is only valid with `--desktop-protocol`.
 - Configure the real executable. A wrapper that spawns `lrh` as a grandchild
@@ -336,6 +343,28 @@ in URLs.
   or a browser page on the same machine can reach the loopback port, exactly
   as with foreground `lrh serve`. The L0 shell's navigation and capability
   policy, and any future Host/Origin validation, are separate work.
+- **Agent-session deep links are a separate, allowlisted handoff.** The
+  shell's web-link handoff still opens only `http(s)` links, and a link in a
+  page can never load in the window. A link that matches an entry in
+  [`src/lrh/conversations/session_links.json`](../../src/lrh/conversations/session_links.json)
+  (today a Claude or Codex desktop-app session link) is instead opened in that
+  app by a fixed per-platform opener (`/usr/bin/open` on macOS,
+  `/usr/bin/xdg-open` on other unix), under the same one-per-second limit as
+  web links. The link must match exactly: the entry's scheme, host and path
+  shape, a UUID id, and no credentials, port, query, fragment or extra path
+  segments. The same file is the Python builder's route definition
+  (`lrh sessions deeplink`), so both sides share one set of route shapes and
+  test vectors; the Rust side embeds it at compile time, which is why it lives
+  under `src/lrh/` (the Python sdist excludes `apps/`). They are separate
+  implementations and can still differ at the edges: this shell compares a
+  case-normalized scheme (`CLAUDE://` is accepted and opened as `claude://`)
+  where the Python helper rejects the raw uppercase form, and it validates the
+  definition more strictly (schema version, a single `{id}`). The window gains
+  no capability, the content security
+  policy is unchanged, and the result is recorded as the last handoff in Server
+  Details. The Claude `epitaxy` route is undocumented by Anthropic and may
+  change, so treat session links as best-effort. See
+  [Open an agent session from a pointer](../conversations/session_deep_links.md).
 
 ## Design choices
 

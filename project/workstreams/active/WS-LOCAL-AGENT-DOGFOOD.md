@@ -71,7 +71,7 @@ decision not to add a standalone `/lrh-assess` skill.
 
 | Item | Deliverable | Start condition |
 | --- | --- | --- |
-| `WI-LOCAL-AGENT-001` | T0 ask and T1 brief: usable commands with automatic logging, ratings, and log summaries. | Active; toy ladder approved 2026-09-29. |
+| `WI-LOCAL-AGENT-001` | T0 ask and T1 brief: usable commands with automatic logging, ratings, and log summaries. | Active; toy ladder approved 2026-09-29; owner decision 2026-10-10: revise. |
 | `WI-LOCAL-AGENT-002` | T2 look-around: a capped, read-only tool loop over tracked files, with automated boundary tests. | T0/T1 used and the owner explicitly authorizes read/search tools. |
 
 T3 and later toys (suggest a patch, execute under guardrails, session handoff,

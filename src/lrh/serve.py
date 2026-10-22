@@ -1065,7 +1065,11 @@ _SPECIMEN_STYLES = """<style>
     min-width: 12rem;
     padding: var(--lrh-space-3);
   }
-  .lrh-card--blocked { border-style: dashed; border-inline-start-style: solid; }
+  .lrh-card--blocked {
+    border: 2px dashed var(--lrh-color-status-blocked-line);
+    border-inline-start: 4px solid var(--card-line);
+  }
+  .lrh-pill--outlined { box-shadow: inset 0 0 0 1px currentColor; }
   .lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }
   .lrh-card--abandoned .lrh-specimen-title { text-decoration: line-through; }
   .lrh-pill-struck { text-decoration: line-through; }

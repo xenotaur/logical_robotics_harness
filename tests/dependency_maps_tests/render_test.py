@@ -292,6 +292,14 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Blocked: waiting on ops", page)
         self.assertIn("Not prompt-ready", page)
         self.assertIn("lrh-card--blocked", page)
+        # The dashes are heavy and in the Blocked hue, so they show at any zoom.
+        blocked = render.MAP_STYLES.split(".lrh-card--blocked {", 1)[1].split("}", 1)[0]
+        for declaration in (
+            "border-color: var(--lrh-color-status-blocked-line);",
+            "border-style: dashed;",
+            "border-width: 2px;",
+        ):
+            self.assertIn(declaration, blocked)
 
     def test_every_state_has_a_label_and_icon_not_only_color(self) -> None:
         for state, (_key, glyph, label) in render.STATE_STYLES.items():
@@ -311,12 +319,16 @@ class RenderTest(unittest.TestCase):
                 )
         self.assertIn("lrh-pill--filled", render._pill("in_progress"))
         self.assertIn("lrh-pill--outlined", render._pill("unblocked"))
+        outlined = render.MAP_STYLES.split(".lrh-pill--outlined {", 1)[1].split("}", 1)[
+            0
+        ]
+        self.assertIn("background: transparent;", outlined)
+        self.assertIn("box-shadow: inset 0 0 0 1px currentColor;", outlined)
         self.assertIn("lrh-pill--filled", render._pill("unknown"))
         self.assertIn(
             '<span class="lrh-pill-struck">Abandoned</span>', render._pill("abandoned")
         )
         for rule in (
-            ".lrh-pill--outlined { background: transparent; }",
             ".lrh-pill-struck { text-decoration: line-through; }",
             ".lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }",
             ".lrh-card--abandoned .lrh-card-title { text-decoration: line-through; }",

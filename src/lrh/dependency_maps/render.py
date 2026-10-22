@@ -1032,7 +1032,12 @@ MAP_STYLES = """
   }
   /* Shapes, so similar hues never differ by color alone. An outlined pill
      shows the surface beneath it; status text meets contrast on every surface. */
-  .lrh-pill--outlined { background: transparent; }
+  /* The inset ring doubles the outline without changing the pill's size, so
+     hollow reads clearly beside filled, in dark mode too. */
+  .lrh-pill--outlined {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
   .lrh-pill-struck { text-decoration: line-through; }
   .lrh-flag {
     color: var(--lrh-color-text-muted);
@@ -1094,7 +1099,13 @@ MAP_STYLES = """
   }
   .lrh-card:hover { border-color: var(--lrh-color-action-accent); }
   .lrh-card:focus-visible { box-shadow: var(--lrh-focus-ring); outline: none; }
-  .lrh-card--blocked { border-style: dashed; }
+  /* Heavier and in the Blocked hue, so the dashes show at any zoom. Selection
+     and hover recolor it, but keep the dashes and width. */
+  .lrh-card--blocked {
+    border-color: var(--lrh-color-status-blocked-line);
+    border-style: dashed;
+    border-width: 2px;
+  }
   /* Closed and set aside: sunken, with the title struck through. No new border
      style, so it never resembles a blocked card's dashed border. */
   .lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }

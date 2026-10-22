@@ -2,14 +2,14 @@
 execution_id: 2026_10_22_01_09_29_WI_SERVE_PROJECT_DIR_MISSING_PAGE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SERVE_PROJECT_DIR_MISSING_PAGE_REVIEW)[2026-10-15T05:38:48+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_13_06_18_05_WI_SERVE_PROJECT_DIR_MISSING_PAGE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/841
-commit:
+commit: a94f15d4e783d52c7e95e79105c74b47e31a8ba6
 created_at: 2026-10-22T01:09:29+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/841
-session_transcript: pending
+session_transcript: claude-app:c94e499e-da6e-4e3f-a979-5876278e9f67
 ---
 # Summary
 

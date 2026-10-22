@@ -14,7 +14,7 @@
 
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
@@ -27,8 +27,8 @@ use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
 use crate::settings::{
-    self, Appearance, BrowserChoice, Config, ConfigStore, Display, FieldError, SavedWindow,
-    WindowFrame, WindowStateStore,
+    self, zoom_percent, zoom_step, Appearance, BrowserChoice, Config, ConfigStore, Display,
+    FieldError, SavedWindow, WindowFrame, WindowStateStore, ZoomStore,
 };
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
@@ -53,13 +53,16 @@ pub const ENV_WORKSPACE: &str = "LRH_CONSOLE_WORKSPACE";
 pub mod menu_id {
     pub const SETTINGS: &str = "app-settings";
     pub const QUIT: &str = "app-quit";
-    pub const START: &str = "server-start";
+    /// One item that reads Start Server or Restart Server with the state.
+    pub const START_OR_RESTART: &str = "server-start-or-restart";
     pub const STOP: &str = "server-stop";
-    pub const RESTART: &str = "server-restart";
     pub const DETAILS: &str = "server-details";
     pub const STATUSBOARD: &str = "view-statusboard";
     pub const WORKSPACE: &str = "view-workspace";
     pub const RELOAD: &str = "view-reload";
+    pub const ACTUAL_SIZE: &str = "view-actual-size";
+    pub const ZOOM_IN: &str = "view-zoom-in";
+    pub const ZOOM_OUT: &str = "view-zoom-out";
     pub const BACK: &str = "view-back";
     pub const FORWARD: &str = "view-forward";
     pub const OPEN_CHROME: &str = "view-open-chrome";
@@ -212,11 +215,46 @@ impl NavigationPolicy {
     /// the running backend's origin. The shell opens native Settings for it
     /// instead of loading the page.
     pub fn is_settings_request(&self, url: &Url) -> bool {
-        url.path() == SETTINGS_PAGE_PATH
-            && lock(&self.backend)
-                .as_ref()
-                .is_some_and(|backend| backend.origin() == url.origin())
+        url.path() == SETTINGS_PAGE_PATH && self.is_backend_origin(url)
     }
+
+    /// `Some(true)` for the page's Back button, `Some(false)` for Forward,
+    /// on the current backend only.
+    pub fn history_request(&self, url: &Url) -> Option<bool> {
+        if !self.is_backend_origin(url) {
+            return None;
+        }
+        match url.path() {
+            HISTORY_BACK_PATH => Some(true),
+            HISTORY_FORWARD_PATH => Some(false),
+            _ => None,
+        }
+    }
+
+    fn is_backend_origin(&self, url: &Url) -> bool {
+        lock(&self.backend)
+            .as_ref()
+            .is_some_and(|backend| backend.origin() == url.origin())
+    }
+}
+
+/// The page's Back and Forward buttons link to these Serve paths
+/// (`lrh.ux.frame.HISTORY_BACK_PATH` and `HISTORY_FORWARD_PATH`). The app
+/// intercepts them, like the gear, and moves through its own history.
+pub const HISTORY_BACK_PATH: &str = "/desktop/back";
+pub const HISTORY_FORWARD_PATH: &str = "/desktop/forward";
+
+/// Marks every page in the main window as shown inside the app, so the
+/// frame's Back and Forward buttons appear (`lrh.ux.frame.HISTORY_APP_CLASS`).
+/// It runs natively before the page's own scripts and needs none of them.
+pub const IN_APP_SCRIPT: &str = "(function () {\n  var mark = function () {\n    if (document.documentElement) {\n      document.documentElement.classList.add('lrh-in-app');\n    }\n  };\n  mark();\n  document.addEventListener('DOMContentLoaded', mark);\n})();";
+
+/// The script that greys out the page's Back and Forward buttons to match
+/// the app's history. Only booleans are interpolated.
+pub fn history_buttons_script(back: bool, forward: bool) -> String {
+    format!(
+        "(function (state) {{\n  for (var name in state) {{\n    var button = document.querySelector('[data-lrh-history=\"' + name + '\"]');\n    if (!button) continue;\n    button.setAttribute('aria-disabled', state[name] ? 'false' : 'true');\n    if (state[name]) button.removeAttribute('tabindex');\n    else button.setAttribute('tabindex', '-1');\n  }}\n}})({{back: {back}, forward: {forward}}});"
+    )
 }
 
 /// The Serve path the frame's gear links to (`lrh.ux.frame.SETTINGS_PATH`).
@@ -675,19 +713,115 @@ pub enum ConfigSource {
     Environment,
 }
 
+/// The shortcut of the one Start Server / Restart Server item. One item, so
+/// the shortcut never moves: on macOS, muda 0.20 cannot clear a menu item's
+/// key equivalent, so a shortcut moved between two items would stay on both
+/// and the disabled one would swallow it.
+pub const SERVER_SHORTCUT: &str = "CmdOrCtrl+Shift+I";
+
+/// Page zoom shortcuts, as in Claude and Chrome. Statusboard moved from ⌘0
+/// to ⌘⇧H ("home") so Actual Size can have ⌘0. One shortcut per item: Zoom
+/// In is ⌘=, the key beside Zoom Out's ⌘−.
+pub const ZOOM_IN_SHORTCUT: &str = "CmdOrCtrl+=";
+pub const ZOOM_OUT_SHORTCUT: &str = "CmdOrCtrl+-";
+pub const ACTUAL_SIZE_SHORTCUT: &str = "CmdOrCtrl+0";
+pub const STATUSBOARD_SHORTCUT: &str = "CmdOrCtrl+Shift+H";
+
+/// The Actual Size item's label, which shows the level when it is not 100%.
+pub fn actual_size_label(level: f64) -> String {
+    match zoom_percent(level) {
+        100 => "Actual Size".to_string(),
+        percent => format!("Actual Size ({percent}%)"),
+    }
+}
+
+/// The zoom menu item whose label shows the level.
+struct ZoomItems<R: Runtime> {
+    actual_size: MenuItem<R>,
+}
+
+/// The confirmation shown before a restart, which reloads the page.
+pub const RESTART_PROMPT: &str = "Restart the server? The current page will reload.";
+
+/// What the Start Server / Restart Server item does for an enablement:
+/// start a stopped server, restart (after asking) a running one, or nothing
+/// while the server is busy or there is nothing to start.
+pub fn server_item_action(enablement: MenuEnablement) -> Option<Action> {
+    if enablement.restart {
+        Some(Action::Restart)
+    } else if enablement.start {
+        Some(Action::Start)
+    } else {
+        None
+    }
+}
+
+/// The item's label for an action; while busy it keeps its last label.
+pub fn server_item_label(action: Action) -> &'static str {
+    match action {
+        Action::Restart => "Restart Server",
+        _ => "Start Server",
+    }
+}
+
+/// Keeps a restart from being asked for twice. It is held from the moment
+/// the confirmation opens until the worker claims the confirmed restart (and
+/// disables the menu item), so a second press in between does nothing. A
+/// restart from elsewhere (Settings) does not release an open prompt.
+#[derive(Debug, Default)]
+pub struct RestartGuard(AtomicU8);
+
+const GUARD_IDLE: u8 = 0;
+const GUARD_ASKING: u8 = 1;
+const GUARD_CONFIRMED: u8 = 2;
+
+impl RestartGuard {
+    /// Takes the guard to open a confirmation; false if one is already open
+    /// or a confirmed restart is not yet claimed.
+    pub fn begin(&self) -> bool {
+        self.0
+            .compare_exchange(GUARD_IDLE, GUARD_ASKING, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    /// Records the answer and says whether to request the restart. A
+    /// confirmed restart keeps the guard until [`RestartGuard::claimed`];
+    /// anything else releases it now.
+    pub fn answered(&self, restart: bool, running: bool) -> bool {
+        let request = restart && running;
+        let next = if request { GUARD_CONFIRMED } else { GUARD_IDLE };
+        self.0.store(next, Ordering::SeqCst);
+        request
+    }
+
+    /// The worker has taken a restart. Releases only a confirmed one, so an
+    /// open prompt stays the only one.
+    pub fn claimed(&self) {
+        let _ = self.0.compare_exchange(
+            GUARD_CONFIRMED,
+            GUARD_IDLE,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        );
+    }
+}
+
 /// Handles to the menu items whose enablement follows state.
 struct StateItems<R: Runtime> {
-    start: MenuItem<R>,
+    /// Start Server or Restart Server, with [`SERVER_SHORTCUT`].
+    run: MenuItem<R>,
     stop: MenuItem<R>,
-    restart: MenuItem<R>,
     running_views: Vec<MenuItem<R>>,
 }
 
 impl<R: Runtime> StateItems<R> {
     fn apply(&self, enablement: MenuEnablement) {
-        let _ = self.start.set_enabled(enablement.start);
+        let action = server_item_action(enablement);
+        let _ = self.run.set_enabled(action.is_some());
+        if let Some(action) = action {
+            let _ = self.run.set_text(server_item_label(action));
+        }
         let _ = self.stop.set_enabled(enablement.stop);
-        let _ = self.restart.set_enabled(enablement.restart);
         for item in &self.running_views {
             let _ = item.set_enabled(enablement.running_views);
         }
@@ -708,6 +842,12 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
+    /// The main window's page zoom level, and where it is remembered.
+    zoom: Mutex<f64>,
+    zoom_store: Option<ZoomStore>,
+    /// Held while the restart confirmation is open or a confirmed restart is
+    /// not yet claimed by the worker.
+    confirming: RestartGuard,
     /// The main window's loading cue, so View > Reload can mark its load.
     cue: Arc<LoadingCue>,
     /// Where the main window's frame is remembered, if there is a config dir.
@@ -931,6 +1071,19 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
                 }
                 return false;
             }
+            // The page's Back and Forward buttons do what the View menu does.
+            if let Some(back) = policy.history_request(url) {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    let id = if back {
+                        menu_id::BACK
+                    } else {
+                        menu_id::FORWARD
+                    };
+                    handle_menu(&handle, id);
+                });
+                return false;
+            }
             if policy.allows(url) {
                 history.record(url, policy.backend().as_ref());
                 // Navigation decisions run on the main thread, like every
@@ -957,9 +1110,25 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         })
         // Downloads (Serve's `?download=1` prompt Markdown) open in the
         // browser, which saves them; the app never writes files itself.
+        .initialization_script(IN_APP_SCRIPT)
         .on_page_load(move |window, payload| {
-            if payload.event() == PageLoadEvent::Finished && load_cue.end() {
+            if payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+            if load_cue.end() {
                 set_main_title(&window, false);
+            }
+            // Grey out the page's Back and Forward to match the menu.
+            if let Some(state) = window.try_state::<ShellState>() {
+                let backend = state.policy.backend();
+                let (back, forward) = {
+                    let pages = lock(&state.history);
+                    (
+                        pages.can_go_back(backend.as_ref()),
+                        pages.can_go_forward(backend.as_ref()),
+                    )
+                };
+                let _ = window.eval(history_buttons_script(back, forward));
             }
         })
         .on_download(move |webview, event| {
@@ -1049,11 +1218,15 @@ pub fn show_settings<R: Runtime>(app: &AppHandle<R>, section: SettingsSection) {
     }
 }
 
+/// The app menu and the items whose state follows the app.
+type BuiltMenu<R> = (Menu<R>, StateItems<R>, HistoryItems<R>, ZoomItems<R>);
+
 /// Builds the app menu: the platform app menu, Edit, Server, View, Window.
 fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     chrome_available: bool,
-) -> tauri::Result<(Menu<R>, StateItems<R>, HistoryItems<R>)> {
+    zoom: f64,
+) -> tauri::Result<BuiltMenu<R>> {
     let item = |id: &str, text: &str, enabled: bool, accelerator: Option<&str>| {
         MenuItem::with_id(app, id, text, enabled, accelerator)
     };
@@ -1063,15 +1236,19 @@ fn build_menu<R: Runtime>(
         "Open in Chrome (not found: uses default browser)"
     };
     let items = StateItems {
-        start: item(menu_id::START, "Start Server", false, None)?,
+        run: item(
+            menu_id::START_OR_RESTART,
+            "Start Server",
+            false,
+            Some(SERVER_SHORTCUT),
+        )?,
         stop: item(menu_id::STOP, "Stop Server", false, None)?,
-        restart: item(menu_id::RESTART, "Restart Server", false, None)?,
         running_views: vec![
             item(
                 menu_id::STATUSBOARD,
                 "Statusboard",
                 false,
-                Some("CmdOrCtrl+0"),
+                Some(STATUSBOARD_SHORTCUT),
             )?,
             item(
                 menu_id::WORKSPACE,
@@ -1096,6 +1273,14 @@ fn build_menu<R: Runtime>(
         Some("CmdOrCtrl+I"),
     )?;
     let reload = item(menu_id::RELOAD, "Reload", true, Some("CmdOrCtrl+R"))?;
+    let actual_size = item(
+        menu_id::ACTUAL_SIZE,
+        &actual_size_label(zoom),
+        true,
+        Some(ACTUAL_SIZE_SHORTCUT),
+    )?;
+    let zoom_in = item(menu_id::ZOOM_IN, "Zoom In", true, Some(ZOOM_IN_SHORTCUT))?;
+    let zoom_out = item(menu_id::ZOOM_OUT, "Zoom Out", true, Some(ZOOM_OUT_SHORTCUT))?;
     // Enabled by the main window's history as pages are visited.
     let back = item(menu_id::BACK, "Back", false, Some("CmdOrCtrl+["))?;
     let forward = item(menu_id::FORWARD, "Forward", false, Some("CmdOrCtrl+]"))?;
@@ -1152,9 +1337,8 @@ fn build_menu<R: Runtime>(
         "Server",
         true,
         &[
-            &items.start,
+            &items.run,
             &items.stop,
-            &items.restart,
             &PredefinedMenuItem::separator(app)?,
             &details,
         ],
@@ -1174,6 +1358,10 @@ fn build_menu<R: Runtime>(
             meta,
             &reload,
             &PredefinedMenuItem::separator(app)?,
+            &actual_size,
+            &zoom_in,
+            &zoom_out,
+            &PredefinedMenuItem::separator(app)?,
             open_chrome,
             open_browser,
         ],
@@ -1190,7 +1378,7 @@ fn build_menu<R: Runtime>(
         ],
     )?;
     let menu = Menu::with_items(app, &[&app_menu, &edit, &server, &view, &window])?;
-    Ok((menu, items, [back, forward]))
+    Ok((menu, items, [back, forward], ZoomItems { actual_size }))
 }
 
 /// The configuration chosen at startup: the developer override if any
@@ -1552,8 +1740,11 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .is_none_or(|config| config.start_on_open);
 
     let chrome_available = browser::chrome_available();
-    let (menu, items, history_items) = build_menu(app, chrome_available)?;
+    let zoom_store = config_dir.as_deref().map(ZoomStore::in_dir);
+    let zoom = zoom_store.as_ref().map_or(1.0, ZoomStore::load);
+    let (menu, items, history_items, zoom_items) = build_menu(app, chrome_available, zoom)?;
     app.set_menu(menu)?;
+    app.manage(zoom_items);
 
     let links = Arc::new(LinkHandoff::default());
     if let Some(config) = &startup.config {
@@ -1572,7 +1763,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let pages = Arc::clone(&history.pages);
     let cue = Arc::new(LoadingCue::default());
     let frame = initial_main_frame(app, window_state.as_ref());
-    build_main_window(
+    let main = build_main_window(
         app,
         policy.clone(),
         Arc::clone(&links),
@@ -1581,6 +1772,10 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         Arc::clone(&cue),
         frame,
     )?;
+    // The remembered zoom; the webview keeps it across navigations.
+    if zoom != 1.0 {
+        let _ = main.set_zoom(zoom);
+    }
 
     let (sender, receiver) = mpsc::channel();
     app.manage(ShellState {
@@ -1595,9 +1790,12 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         chrome_available,
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
+        confirming: RestartGuard::default(),
         cue,
         window_state,
         window_saver: Arc::default(),
+        zoom: Mutex::new(zoom),
+        zoom_store,
     });
 
     let worker_app = app.clone();
@@ -1612,7 +1810,14 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     Err(RecvTimeoutError::Disconnected) => return,
                 };
                 if let Some(action) = action {
+                    // The confirmed restart is claimed (or dropped) here.
+                    let release_guard = || {
+                        if action == Action::Restart {
+                            worker_app.state::<ShellState>().confirming.claimed();
+                        }
+                    };
                     if supervisor.is_shut_down() {
+                        release_guard();
                         continue;
                     }
                     if action == Action::Start && supervisor.state() == State::Running {
@@ -1620,6 +1825,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                         continue;
                     }
                     items.apply(MenuEnablement::BUSY);
+                    release_guard();
                     let transient = match action {
                         Action::Stop => State::Stopping,
                         Action::Start | Action::Restart => State::Starting,
@@ -1728,6 +1934,59 @@ fn current_backend_page<R: Runtime>(app: &AppHandle<R>, state: &ShellState) -> O
     (url.origin() == backend.origin()).then_some(url)
 }
 
+/// Asks before restarting, since a restart reloads the page; Cancel does
+/// nothing. The dialog is a sheet on the main window, only one can be open
+/// at a time, and the restart happens only if the server is still running
+/// when the user answers. It runs without blocking the main thread.
+fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+    let state = app.state::<ShellState>();
+    if !state.confirming.begin() {
+        return;
+    }
+    let mut dialog = app
+        .dialog()
+        .message(RESTART_PROMPT)
+        .title("Restart Server")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Restart".to_string(),
+            "Cancel".to_string(),
+        ));
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        dialog = dialog.parent(&window);
+    }
+    let handle = app.clone();
+    dialog.show(move |restart| {
+        let state = handle.state::<ShellState>();
+        let running = state.supervisor.state() == State::Running;
+        if state.confirming.answered(restart, running) {
+            state.request(Action::Restart);
+        }
+    });
+}
+
+/// Changes the main window's page zoom, updates the Actual Size label, and
+/// remembers the level. A failed save only means it is not remembered.
+fn set_zoom<R: Runtime>(app: &AppHandle<R>, change: impl FnOnce(f64) -> f64) {
+    let state = app.state::<ShellState>();
+    let level = {
+        let mut zoom = lock(&state.zoom);
+        *zoom = change(*zoom);
+        *zoom
+    };
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.set_zoom(level);
+    }
+    if let Some(items) = app.try_state::<ZoomItems<R>>() {
+        let _ = items.actual_size.set_text(actual_size_label(level));
+    }
+    if let Some(store) = &state.zoom_store {
+        let _ = store.save(level);
+    }
+}
+
 /// Handles a menu event by ID.
 pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     let state = app.state::<ShellState>();
@@ -1738,9 +1997,16 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             }
         }
         menu_id::QUIT => app.exit(0),
-        menu_id::START => state.request(Action::Start),
+        menu_id::START_OR_RESTART => {
+            let configured = state.supervisor.is_configured();
+            let enablement = MenuEnablement::for_state(state.supervisor.state(), configured);
+            match server_item_action(enablement) {
+                Some(Action::Restart) => confirm_restart(app),
+                Some(action) => state.request(action),
+                None => {}
+            }
+        }
         menu_id::STOP => state.request(Action::Stop),
-        menu_id::RESTART => state.request(Action::Restart),
         menu_id::STATUSBOARD => {
             if let Some(url) = backend_page(&state, HOME_PAGE) {
                 navigate_main(app, &url);
@@ -1760,6 +2026,9 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
                 navigate_main(app, &url);
             }
         }
+        menu_id::ACTUAL_SIZE => set_zoom(app, |_| 1.0),
+        menu_id::ZOOM_IN => set_zoom(app, |level| zoom_step(level, true)),
+        menu_id::ZOOM_OUT => set_zoom(app, |level| zoom_step(level, false)),
         menu_id::RELOAD => {
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
                 if let Ok(url) = window.url() {
@@ -2635,6 +2904,43 @@ mod tests {
     }
 
     #[test]
+    fn only_the_backend_history_paths_are_history_requests() {
+        let policy = NavigationPolicy::default();
+        let back = Url::parse("http://127.0.0.1:49152/desktop/back").unwrap();
+        assert_eq!(policy.history_request(&back), None, "no backend yet");
+
+        policy.set_backend(Some(&Url::parse("http://127.0.0.1:49152/").unwrap()));
+        assert_eq!(policy.history_request(&back), Some(true));
+        assert_eq!(
+            policy.history_request(&Url::parse("http://127.0.0.1:49152/desktop/forward").unwrap()),
+            Some(false)
+        );
+        for other in [
+            "http://127.0.0.1:49153/desktop/back",
+            "http://127.0.0.1:49152/desktop/backx",
+            "http://127.0.0.1:49152/desktop",
+            "http://127.0.0.1:49152/meta",
+            "https://example.com/desktop/back",
+        ] {
+            assert_eq!(
+                policy.history_request(&Url::parse(other).unwrap()),
+                None,
+                "{other}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_page_buttons_are_marked_and_greyed_out_by_native_scripts() {
+        assert!(IN_APP_SCRIPT.contains("classList.add('lrh-in-app')"));
+        let script = history_buttons_script(true, false);
+        assert!(script.ends_with("({back: true, forward: false});"));
+        assert!(script.contains("[data-lrh-history=\"' + name + '\"]"));
+        assert!(script.contains("'aria-disabled'"));
+        assert!(history_buttons_script(false, true).ends_with("({back: false, forward: true});"));
+    }
+
+    #[test]
     fn only_the_backend_settings_path_is_a_settings_request() {
         let policy = NavigationPolicy::default();
         let settings = Url::parse("http://127.0.0.1:49152/settings").unwrap();
@@ -2713,6 +3019,63 @@ mod tests {
         let stopped = MenuEnablement::for_state(State::Stopped, true);
         assert!(stopped.start && !stopped.stop && !stopped.restart && !stopped.running_views);
         assert!(!MenuEnablement::for_state(State::Failed, false).start);
+    }
+
+    #[test]
+    fn zoom_has_chrome_shortcuts_and_the_label_shows_the_level() {
+        assert_eq!(ZOOM_IN_SHORTCUT, "CmdOrCtrl+=");
+        assert_eq!(ZOOM_OUT_SHORTCUT, "CmdOrCtrl+-");
+        assert_eq!(ACTUAL_SIZE_SHORTCUT, "CmdOrCtrl+0");
+        // Statusboard gave up ⌘0 to Actual Size.
+        assert_eq!(STATUSBOARD_SHORTCUT, "CmdOrCtrl+Shift+H");
+        assert_ne!(STATUSBOARD_SHORTCUT, ACTUAL_SIZE_SHORTCUT);
+        assert_eq!(actual_size_label(1.0), "Actual Size");
+        assert_eq!(actual_size_label(1.25), "Actual Size (125%)");
+        assert_eq!(actual_size_label(0.67), "Actual Size (67%)");
+    }
+
+    #[test]
+    fn a_confirmed_restart_holds_the_guard_until_the_worker_claims_it() {
+        let guard = RestartGuard::default();
+        assert!(guard.begin());
+        assert!(!guard.begin(), "a second press must not open another");
+
+        // Restart chosen while running: request it, and keep the guard.
+        assert!(guard.answered(true, true));
+        assert!(!guard.begin(), "still held until the worker claims it");
+        guard.claimed();
+        assert!(guard.begin());
+
+        // Cancel, or a server that stopped meanwhile: release at once.
+        assert!(!guard.answered(false, true));
+        assert!(guard.begin());
+        assert!(!guard.answered(true, false));
+        assert!(guard.begin());
+
+        // A restart from Settings while the prompt is open leaves it the
+        // only prompt.
+        guard.claimed();
+        assert!(!guard.begin());
+    }
+
+    #[test]
+    fn one_item_starts_a_stopped_server_and_restarts_a_running_one() {
+        let at =
+            |state, configured| server_item_action(MenuEnablement::for_state(state, configured));
+        assert_eq!(at(State::Stopped, true), Some(Action::Start));
+        assert_eq!(at(State::Failed, true), Some(Action::Start));
+        assert_eq!(at(State::Running, true), Some(Action::Restart));
+        // Busy, or nothing to start: the item is disabled.
+        assert_eq!(at(State::Starting, true), None);
+        assert_eq!(at(State::Stopping, true), None);
+        assert_eq!(at(State::Stopped, false), None);
+        assert_eq!(server_item_label(Action::Start), "Start Server");
+        assert_eq!(server_item_label(Action::Restart), "Restart Server");
+        assert_eq!(SERVER_SHORTCUT, "CmdOrCtrl+Shift+I");
+        assert_eq!(
+            RESTART_PROMPT,
+            "Restart the server? The current page will reload."
+        );
     }
 
     fn status(state: State, error: Option<SupervisorError>) -> Status {

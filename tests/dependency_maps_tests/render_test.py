@@ -114,10 +114,11 @@ def _example() -> DependencyMapSnapshot:
 
 
 def _view(snapshot: DependencyMapSnapshot, **options: object) -> str:
+    chosen = options.pop("layout_override", layout.DEFAULT_LAYOUT)
     settings = {"tab": "map", "item": None, "since": None, **options}
     return render.render_view(
         snapshot,
-        layout.DEFAULT_LAYOUT,
+        chosen,
         full_page_href=lambda item_id: f"/full/{item_id}",
         **settings,
     )
@@ -125,7 +126,7 @@ def _view(snapshot: DependencyMapSnapshot, **options: object) -> str:
 
 class LayeredGridLayoutTest(unittest.TestCase):
     def test_cards_sit_in_their_lane_and_phase_cells(self) -> None:
-        result = layout.DEFAULT_LAYOUT.layout(_example())
+        result = layout.LayeredGridLayout().layout(_example())
         cards = {card.id: card for card in result.cards}
         lanes = {box.id: box for box in result.lanes}
         phases = {box.id: box for box in result.phases}
@@ -142,7 +143,7 @@ class LayeredGridLayoutTest(unittest.TestCase):
         self.assertEqual([box.id for box in result.phases], ["one", "two"])
 
     def test_lines_are_right_angled_and_run_from_prerequisite_to_item(self) -> None:
-        result = layout.DEFAULT_LAYOUT.layout(_example())
+        result = layout.LayeredGridLayout().layout(_example())
         cards = {card.id: card for card in result.cards}
 
         self.assertEqual(len(result.lines), 2)
@@ -164,7 +165,7 @@ class LayeredGridLayoutTest(unittest.TestCase):
             lanes=("WS-A", "WS-B", "WS-C"),
         )
 
-        (line,) = layout.DEFAULT_LAYOUT.layout(snapshot).lines
+        (line,) = layout.LayeredGridLayout().layout(snapshot).lines
 
         self.assertEqual(len(line.points), 6)
         for (x1, y1), (x2, y2) in zip(line.points, line.points[1:]):
@@ -181,7 +182,9 @@ class LayeredGridLayoutTest(unittest.TestCase):
             (_edge("WI-X", "WI-2"), _edge("WI-Y", "WI-1")),
         )
 
-        cards = {card.id: card for card in layout.DEFAULT_LAYOUT.layout(snapshot).cards}
+        cards = {
+            card.id: card for card in layout.LayeredGridLayout().layout(snapshot).cards
+        }
 
         # Linked cards line up, so the two edges do not cross.
         self.assertEqual(
@@ -203,7 +206,7 @@ class LayeredGridLayoutTest(unittest.TestCase):
             ),
             lanes=("WS-A", "WS-B", "WS-C"),
         )
-        result = layout.DEFAULT_LAYOUT.layout(snapshot)
+        result = layout.LayeredGridLayout().layout(snapshot)
         cards = {card.id: card for card in result.cards}
 
         for line in result.lines:
@@ -215,7 +218,7 @@ class LayeredGridLayoutTest(unittest.TestCase):
                 self.assertIn(line.points[-1][0], (item.x, item.x + item.width))
 
     def test_cards_come_in_reading_order(self) -> None:
-        result = layout.DEFAULT_LAYOUT.layout(_example())
+        result = layout.LayeredGridLayout().layout(_example())
         phases = [box.id for box in result.phases]
         lanes = [box.id for box in result.lanes]
 
@@ -228,13 +231,13 @@ class LayeredGridLayoutTest(unittest.TestCase):
     def test_nodes_without_rows_are_skipped_not_fatal(self) -> None:
         snapshot = _snapshot((_node("WI-A", None, "one"), _node("WI-B", "WS-A", "one")))
 
-        result = layout.DEFAULT_LAYOUT.layout(snapshot)
+        result = layout.LayeredGridLayout().layout(snapshot)
 
         self.assertEqual([card.id for card in result.cards], ["WI-B"])
 
     def test_layout_is_deterministic_and_named(self) -> None:
-        first = layout.DEFAULT_LAYOUT.layout(_example())
-        self.assertEqual(first, layout.DEFAULT_LAYOUT.layout(_example()))
+        first = layout.LayeredGridLayout().layout(_example())
+        self.assertEqual(first, layout.LayeredGridLayout().layout(_example()))
         self.assertEqual(first.name, "layered-grid")
 
     def test_another_layout_replaces_the_default_without_renderer_changes(self) -> None:
@@ -439,7 +442,8 @@ class RenderTest(unittest.TestCase):
         self.assertIn('<section class="lrh-map-list"', page)
         self.assertRegex(
             render.MAP_STYLES,
-            r"@media \(max-width: 48rem\) \{\s*\.lrh-map-scroll, \.lrh-legend \{ "
+            r"@media \(max-width: 48rem\) \{\s*\.lrh-map-scroll, \.lrh-legend, "
+            r"\.lrh-layout-toggle \{ "
             r"display: none; \}\s*\.lrh-map-list \{ display: block; \}",
         )
 
@@ -534,7 +538,7 @@ class FilterTest(unittest.TestCase):
                 ),
             )
         )
-        full = layout.DEFAULT_LAYOUT.layout(snapshot)
+        full = layout.LayeredGridLayout().layout(snapshot)
         page = _view(snapshot, hide=frozenset({"done"}))
 
         self.assertEqual({box.id for box in full.phases}, {"one", "two"})
@@ -834,6 +838,271 @@ class FilterTest(unittest.TestCase):
 
         self.assertEqual(_card_ids(page), {"WI-A"})
         self.assertIn("<dt>Downstream</dt><dd>1 item (1 hidden by filters)</dd>", page)
+
+
+def _chain(*ids: str, lane: str = "WS-A", phase: str = "one") -> DependencyMapSnapshot:
+    """A chain in one cell: each item depends on the one before it."""
+
+    nodes = tuple(_node(node_id, lane, phase) for node_id in ids)
+    edges = tuple(_edge(later, earlier) for earlier, later in zip(ids, ids[1:]))
+    return _snapshot(nodes, edges)
+
+
+class OutlineLayoutTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.outline = layout.OutlineLayout()
+
+    def test_a_chain_is_ordered_and_indented_by_depth(self) -> None:
+        # IDs out of dependency order, to prove the order is not by ID.
+        result = self.outline.layout(_chain("WI-C", "WI-A", "WI-B"))
+        cards = list(result.cards)
+
+        self.assertEqual([card.id for card in cards], ["WI-C", "WI-A", "WI-B"])
+        self.assertEqual(
+            [card.x - cards[0].x for card in cards],
+            [0, layout.OUTLINE_INDENT, 2 * layout.OUTLINE_INDENT],
+        )
+        # Cards keep their full width; the lane widens instead.
+        self.assertEqual({card.width for card in cards}, {layout.CARD_WIDTH})
+        (lane,) = [box for box in result.lanes if box.id == "WS-A"]
+        self.assertEqual(
+            lane.width,
+            layout.CARD_WIDTH
+            + 2 * layout.CELL_PADDING
+            + layout.OUTLINE_RAIL
+            + 2 * layout.OUTLINE_INDENT,
+        )
+        self.assertEqual(result.name, "outline")
+
+    def test_a_dependent_sits_just_under_what_it_needs(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one"),
+                _node("WI-B", "WS-A", "one"),
+                _node("WI-C", "WS-A", "one"),
+            ),
+            (_edge("WI-C", "WI-A"),),
+        )
+
+        cards = self.outline.layout(snapshot).cards
+
+        self.assertEqual([card.id for card in cards], ["WI-A", "WI-C", "WI-B"])
+
+    def test_indentation_is_capped(self) -> None:
+        ids = tuple(f"WI-{index}" for index in range(layout.OUTLINE_MAX_DEPTH + 3))
+        cards = self.outline.layout(_chain(*ids)).cards
+
+        indents = [card.x - cards[0].x for card in cards]
+        cap = layout.OUTLINE_MAX_DEPTH * layout.OUTLINE_INDENT
+        self.assertEqual(max(indents), cap)
+        self.assertEqual(indents[-3:], [cap, cap, cap])
+
+    def test_a_cycle_falls_back_to_a_stable_order(self) -> None:
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one") for node_id in ("WI-C", "WI-A", "WI-B")
+            ),
+            (_edge("WI-A", "WI-C"), _edge("WI-B", "WI-A"), _edge("WI-C", "WI-B")),
+        )
+
+        first = self.outline.layout(snapshot)
+        second = self.outline.layout(snapshot)
+
+        self.assertEqual({card.id for card in first.cards}, {"WI-A", "WI-B", "WI-C"})
+        self.assertEqual(first, second)
+
+    def test_lines_inside_a_cell_run_down_the_rail_clear_of_cards(self) -> None:
+        result = self.outline.layout(_chain("WI-A", "WI-B", "WI-C"))
+        left = min(card.x for card in result.cards)
+
+        self.assertEqual(len(result.lines), 2)
+        for line in result.lines:
+            rail_x = line.points[1][0]
+            self.assertLess(rail_x, left)
+            self.assertEqual(line.points[1][0], line.points[2][0])
+
+    def test_lines_between_cells_and_offscreen_items_as_in_the_grid(self) -> None:
+        result = self.outline.layout(_example())
+        cards = {card.id: card for card in result.cards}
+
+        self.assertNotIn("WI-OUT", cards)
+        self.assertEqual({card.lane for card in result.cards}, {"WS-A", "WS-B"})
+        line = next(line for line in result.lines if line.item == "WI-B")
+        # From WI-A's right edge in one lane to WI-B's left edge in the next.
+        self.assertEqual(line.points[0][0], cards["WI-A"].x + cards["WI-A"].width)
+        self.assertEqual(line.points[-1][0], cards["WI-B"].x)
+
+    def test_unknown_layout_names_fall_back_to_the_default(self) -> None:
+        self.assertIs(layout.layout_named(None), layout.DEFAULT_LAYOUT)
+        self.assertIs(layout.layout_named("nope"), layout.DEFAULT_LAYOUT)
+        self.assertEqual(layout.layout_named("outline").name, "outline")
+
+    def test_lines_never_cross_other_cards(self) -> None:
+        def crossings(result: layout.LayoutResult) -> list[tuple[str, str]]:
+            found = []
+            for line in result.lines:
+                for (x1, y1), (x2, y2) in zip(line.points, line.points[1:]):
+                    for card in result.cards:
+                        if card.id in (line.source, line.item):
+                            continue
+                        left, right = sorted((x1, x2))
+                        top, bottom = sorted((y1, y2))
+                        if (
+                            left < card.x + card.width
+                            and right > card.x
+                            and top < card.y + card.height
+                            and bottom > card.y
+                        ):
+                            found.append((line.item, card.id))
+            return found
+
+        # A deep source exits left; a deep item is entered two lanes away.
+        nodes = (
+            _node("WI-S", "WS-A", "one"),
+            _node("WI-P0", "WS-C", "two"),
+            _node("WI-P1", "WS-C", "two"),
+            _node("WI-P2", "WS-C", "two"),
+            _node("WI-Q", "WS-C", "two"),
+            _node("WI-X0", "WS-B", "one"),
+            _node("WI-X1", "WS-B", "one"),
+            _node("WI-X2", "WS-B", "one"),
+            _node("WI-X3", "WS-B", "one"),
+            _node("WI-Y", "WS-A", "two"),
+        )
+        edges = (
+            _edge("WI-P1", "WI-P0"),
+            _edge("WI-P2", "WI-P1"),
+            _edge("WI-P2", "WI-S"),
+            _edge("WI-X1", "WI-X0"),
+            _edge("WI-X2", "WI-X1"),
+            _edge("WI-X3", "WI-X2"),
+            _edge("WI-Y", "WI-X3"),
+            # A shallow card leaving a lane widened by deeper cards.
+            _edge("WI-Q", "WI-X0"),
+        )
+        snapshot = _snapshot(nodes, edges, lanes=("WS-A", "WS-B", "WS-C"))
+
+        self.assertEqual(crossings(self.outline.layout(snapshot)), [])
+        self.assertEqual(crossings(self.outline.layout(_example())), [])
+
+    def test_a_cycle_only_reorders_its_own_edges(self) -> None:
+        # WI-A and WI-B form a cycle; WI-AA needs WI-A and must still follow it.
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one")
+                for node_id in ("WI-R", "WI-A", "WI-AA", "WI-B")
+            ),
+            (
+                _edge("WI-A", "WI-R"),
+                _edge("WI-A", "WI-B"),
+                _edge("WI-B", "WI-A"),
+                _edge("WI-AA", "WI-A"),
+            ),
+        )
+
+        order = [card.id for card in self.outline.layout(snapshot).cards]
+
+        self.assertLess(order.index("WI-R"), order.index("WI-A"))
+        self.assertLess(order.index("WI-A"), order.index("WI-AA"))
+
+    def test_a_cycle_is_broken_at_a_card_on_the_cycle(self) -> None:
+        # WI-X and WI-Y form a cycle; WI-A sorts first but only depends on it.
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one") for node_id in ("WI-A", "WI-X", "WI-Y")
+            ),
+            (
+                _edge("WI-X", "WI-Y"),
+                _edge("WI-Y", "WI-X"),
+                _edge("WI-A", "WI-X"),
+            ),
+        )
+
+        order = [card.id for card in self.outline.layout(snapshot).cards]
+
+        self.assertLess(order.index("WI-X"), order.index("WI-A"))
+
+    def test_a_cycle_that_needs_another_stays_below_it(self) -> None:
+        # Two cycles, WI-A/WI-B and WI-C/WI-D; WI-A needs WI-C.
+        snapshot = _snapshot(
+            tuple(
+                _node(node_id, "WS-A", "one")
+                for node_id in ("WI-A", "WI-B", "WI-C", "WI-D")
+            ),
+            (
+                _edge("WI-A", "WI-B"),
+                _edge("WI-B", "WI-A"),
+                _edge("WI-C", "WI-D"),
+                _edge("WI-D", "WI-C"),
+                _edge("WI-A", "WI-C"),
+            ),
+        )
+
+        order = [card.id for card in self.outline.layout(snapshot).cards]
+
+        self.assertLess(order.index("WI-C"), order.index("WI-A"))
+        self.assertLess(order.index("WI-D"), order.index("WI-A"))
+
+    def test_the_cycle_diagnostic_stays_visible_in_the_outline(self) -> None:
+        diagnostic = Diagnostic(
+            code="cycle", severity="error", message="depends_on cycle among WI-A, WI-B"
+        )
+        snapshot = _snapshot(
+            (_node("WI-A", "WS-A", "one"), _node("WI-B", "WS-A", "one")),
+            (_edge("WI-A", "WI-B"), _edge("WI-B", "WI-A")),
+            diagnostics=(diagnostic,),
+        )
+
+        page = _view(snapshot, layout_override=layout.OutlineLayout())
+
+        self.assertIn("depends_on cycle among WI-A, WI-B", page)
+        self.assertIn("Layout: outline.", page)
+
+
+class LayoutToggleTest(unittest.TestCase):
+    def test_outline_is_the_default(self) -> None:
+        self.assertEqual(layout.DEFAULT_LAYOUT.name, "outline")
+        self.assertIn("Layout: outline.", _view(_example()))
+
+    def test_links_keep_the_layout_and_the_toggle_switches_it(self) -> None:
+        page = _view(
+            _example(),
+            item="WI-B",
+            hide=frozenset({"done"}),
+            layout_override=layout.LayeredGridLayout(),
+        )
+
+        self.assertIn("Layout: layered-grid.", page)
+        self.assertIn('<nav class="lrh-layout-toggle" aria-label="Map layout">', page)
+        self.assertIn('<span aria-current="true">Grid</span>', page)
+        self.assertIn('<a href="?item=WI-B&amp;hide=done">Outline</a>', page)
+        self.assertIn('href="?item=WI-A&amp;hide=done&amp;layout=layered-grid"', page)
+        self.assertIn(
+            'href="?tab=table&amp;item=WI-B&amp;hide=done&amp;layout=layered-grid"',
+            page,
+        )
+        self.assertIn("layout=layered-grid&amp;since=sha256", page)
+        self.assertIn('<a href="?item=WI-B&amp;layout=layered-grid">Show all</a>', page)
+
+    def test_the_default_layout_adds_nothing_to_links(self) -> None:
+        page = _view(_example(), item="WI-B")
+
+        self.assertNotIn("layout=outline", page)
+        self.assertIn('<span aria-current="true">Outline</span>', page)
+        self.assertIn('<a href="?item=WI-B&amp;layout=layered-grid">Grid</a>', page)
+
+    def test_the_toggle_sits_with_the_filters(self) -> None:
+        page = _view(_example())
+
+        self.assertLess(
+            page.index('class="lrh-filters"'), page.index("lrh-layout-toggle")
+        )
+        self.assertLess(page.index("lrh-layout-toggle"), page.index('lrh-legend"'))
+
+    def test_other_tabs_have_no_toggle(self) -> None:
+        page = _view(_example(), tab="table", layout_override=layout.OutlineLayout())
+
+        self.assertNotIn("lrh-layout-toggle", page.split("<style", 1)[0])
 
 
 if __name__ == "__main__":

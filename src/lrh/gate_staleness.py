@@ -103,11 +103,82 @@ class LineRange:
         return self.start <= other_end and other_start <= self.end
 
 
+#: Machine-readable staleness categories, so a reader can tell "no baseline
+#: was ever recorded" apart from "the file really changed" without parsing
+#: `reason` prose. Values map to the next step in `CATEGORY_NEXT_STEPS`.
+CATEGORY_FRESH = "fresh"
+CATEGORY_NO_BASELINE = "no_baseline"
+CATEGORY_CONTENT_CHANGED = "content_changed"
+CATEGORY_BASELINE_STAMP_MISMATCH = "baseline_stamp_mismatch"
+CATEGORY_CONFIRMED_AT_NOT_SUPPLIED = "confirmed_at_not_supplied"
+CATEGORY_BASELINE_STORE_INVALID = "baseline_store_invalid"
+CATEGORY_TARGET_MISSING = "target_missing"
+CATEGORY_TARGET_UNREADABLE = "target_unreadable"
+CATEGORY_TARGET_UNRESOLVED = "target_unresolved"
+CATEGORY_GATE_DEFINITION_CHANGED = "gate_definition_changed"
+CATEGORY_UNVERIFIABLE = "unverifiable"
+
+#: What the user can do next for each stale category. Deliberately never
+#: implies that a missing baseline means the file changed.
+CATEGORY_NEXT_STEPS = {
+    CATEGORY_NO_BASELINE: (
+        "No fingerprint baseline is recorded for this installed file; that "
+        "does not mean it changed. Preview a baseline with `lrh "
+        "chain-defaults restamp --dry-run`, then re-confirm."
+    ),
+    CATEGORY_CONTENT_CHANGED: (
+        "The installed file differs from its recorded fingerprint. Review the "
+        "change, then re-confirm and re-stamp."
+    ),
+    CATEGORY_BASELINE_STAMP_MISMATCH: (
+        "The recorded fingerprints belong to a different confirmation stamp "
+        "than the profile. Preview with `lrh chain-defaults restamp "
+        "--dry-run`, then re-confirm; do not edit the store by hand."
+    ),
+    CATEGORY_CONFIRMED_AT_NOT_SUPPLIED: (
+        "The check was run without the profile's confirmed_at, so a recorded "
+        "baseline could not be validated; that is not a content change. Re-run "
+        "with `--confirmed-at <profile confirmed_at>`, or use `lrh "
+        "chain-defaults status`, which supplies it."
+    ),
+    CATEGORY_BASELINE_STORE_INVALID: (
+        "The recorded fingerprint store could not be read or is malformed, so "
+        "no baseline can be trusted; that is not a content change. Preview "
+        "with `lrh chain-defaults restamp --dry-run` and re-confirm to write a "
+        "fresh baseline; do not edit the store by hand."
+    ),
+    CATEGORY_TARGET_MISSING: (
+        "The installed file is missing. Reinstall skills (`lrh skills "
+        "install`) and re-check."
+    ),
+    CATEGORY_TARGET_UNREADABLE: (
+        "The installed file cannot be read. Fix its permissions and re-check."
+    ),
+    CATEGORY_TARGET_UNRESOLVED: (
+        "The installed skill target could not be located. Install skills "
+        "(`lrh skills install`) or run from the project root."
+    ),
+    CATEGORY_GATE_DEFINITION_CHANGED: (
+        "A gate-definition region changed since confirmation. Review the "
+        "diff, then re-confirm and re-stamp."
+    ),
+    CATEGORY_UNVERIFIABLE: (
+        "Staleness could not be verified from git history. Check the watched "
+        "path exists, then re-run."
+    ),
+}
+
+
 @dataclasses.dataclass(frozen=True)
 class FileStaleness:
     path: str
     stale: bool
     reason: str
+    category: str = ""
+
+    @property
+    def next_step(self) -> str | None:
+        return CATEGORY_NEXT_STEPS.get(self.category) if self.stale else None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -306,17 +377,27 @@ def check_file_staleness(
                     "resolved installed-target path absent at both commits "
                     "-- unable to verify, failing closed"
                 ),
+                category=CATEGORY_UNVERIFIABLE,
             )
         return FileStaleness(
-            relative_path, stale=False, reason="absent at both commits"
+            relative_path,
+            stale=False,
+            reason="absent at both commits",
+            category=CATEGORY_FRESH,
         )
     if old_content is None:
         return FileStaleness(
-            relative_path, stale=True, reason="file added since confirmation"
+            relative_path,
+            stale=True,
+            reason="file added since confirmation",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
     if new_content is None:
         return FileStaleness(
-            relative_path, stale=True, reason="file removed since confirmation"
+            relative_path,
+            stale=True,
+            reason="file removed since confirmation",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
 
     diff_text = _run_git(
@@ -324,7 +405,9 @@ def check_file_staleness(
         project_root,
     )
     if not diff_text.strip():
-        return FileStaleness(relative_path, stale=False, reason="no change")
+        return FileStaleness(
+            relative_path, stale=False, reason="no change", category=CATEGORY_FRESH
+        )
 
     hunks = parse_unified_diff_hunks(diff_text)
     old_ranges = extract_marker_ranges(old_content)
@@ -334,11 +417,13 @@ def check_file_staleness(
             relative_path,
             stale=True,
             reason="diff touches a GATE-DEFINITION region",
+            category=CATEGORY_GATE_DEFINITION_CHANGED,
         )
     return FileStaleness(
         relative_path,
         stale=False,
         reason="diff present but outside all GATE-DEFINITION regions",
+        category=CATEGORY_FRESH,
     )
 
 
@@ -448,6 +533,90 @@ def resolve_watch_targets(
     return tuple(resolved)
 
 
+@dataclasses.dataclass(frozen=True)
+class InstallationRef:
+    """One agent-skills install location: its target name and skills directory."""
+
+    target: str
+    skills_dir: pathlib.Path
+    scope: str  # "user" or "project"
+
+
+@dataclasses.dataclass(frozen=True)
+class WatchCoverage:
+    """Which LRH skill installations the staleness check actually watches.
+
+    "Not stale" is only a statement about `watched`. Any `unwatched` entry is
+    an installation that holds LRH gate-bearing skills but is outside the
+    configured targets, so it can drift without this check noticing.
+    """
+
+    #: True when `project/agent_skills.yaml` supplied the targets/scope;
+    #: False when the conventional default (claude, user scope) applies.
+    configured: bool
+    watched: tuple[InstallationRef, ...]
+    unwatched: tuple[InstallationRef, ...]
+
+    @property
+    def all_installations_verified(self) -> bool:
+        return not self.unwatched
+
+
+def describe_watch_coverage(project_root: pathlib.Path) -> WatchCoverage | None:
+    """Report watched vs. present-but-unwatched LRH skill installations.
+
+    Returns None for the harness repo itself (its own `src/lrh/skills/` tree is
+    the watch set) and when installed-target resolution fails (every target is
+    reported `unresolved` elsewhere). Checks every target in both user and
+    project scope, and lists those where at least one canonical gate-bearing
+    skill is present but whose directory is not being watched.
+    """
+    if (project_root / "src" / "lrh" / "skills").is_dir():
+        return None
+    try:
+        from lrh.skills import installer
+    except ImportError:
+        return None
+    try:
+        config = installer.load_agent_skills_config(project_root)
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+        watched_targets = installer.resolve_install_targets(
+            target=plan.target, local=plan.local, project_root=project_root
+        )
+    except (installer.SkillSourceError, ValueError, IndexError, OSError):
+        return None
+    scope_of = {True: "project", False: "user"}
+    watched = tuple(
+        InstallationRef(t.target.value, t.skills_dir, scope_of[plan.local])
+        for t in watched_targets
+    )
+    watched_dirs = {ref.skills_dir for ref in watched}
+    unwatched: list[InstallationRef] = []
+    for local in (False, True):
+        for candidate in installer.resolve_install_targets(
+            target=installer.TargetSelection.ALL,
+            local=local,
+            project_root=project_root,
+        ):
+            if candidate.skills_dir in watched_dirs:
+                continue
+            if any(
+                (candidate.skills_dir / name).exists()
+                for name in INSTALLED_CANONICAL_SKILL_NAMES
+            ):
+                unwatched.append(
+                    InstallationRef(
+                        candidate.target.value, candidate.skills_dir, scope_of[local]
+                    )
+                )
+    return WatchCoverage(
+        configured=config is not None
+        and (config.target is not None or config.local is not None),
+        watched=watched,
+        unwatched=tuple(unwatched),
+    )
+
+
 def compute_fingerprint(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -536,41 +705,57 @@ class FingerprintStore:
     fingerprints: dict[str, str]
 
 
+def read_fingerprint_store(
+    project_root: pathlib.Path,
+) -> tuple[FingerprintStore | None, str | None]:
+    """Load the persisted fingerprint store and say why it is unusable, if so.
+
+    Returns `(store, None)` for a valid store, `(None, None)` when no store
+    was ever recorded, and `(None, detail)` when one exists or its location
+    is needed but it cannot be used -- unreadable, malformed (including one
+    missing either stamp key, such as the old bare name-to-hash map), or the
+    git common dir cannot be resolved. Never raises.
+    """
+    try:
+        path = fingerprint_store_path(project_root)
+    except GateStalenessError as err:
+        return None, f"fingerprint store location could not be resolved: {err}"
+    if not path.exists():
+        return None, None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
+        return None, f"fingerprint store is unreadable or not valid JSON ({err})"
+    if not isinstance(data, dict):
+        return None, "fingerprint store is not a JSON object"
+    commit = data.get("confirmed_commit")
+    confirmed_at = data.get("confirmed_at")
+    fingerprints = data.get("fingerprints")
+    if not isinstance(commit, str) or not commit:
+        return None, "fingerprint store has no confirmed_commit stamp"
+    if not isinstance(confirmed_at, str) or not confirmed_at:
+        return None, "fingerprint store has no confirmed_at stamp"
+    if not isinstance(fingerprints, dict):
+        return None, "fingerprint store has no fingerprints map"
+    return (
+        FingerprintStore(
+            confirmed_commit=commit,
+            confirmed_at=confirmed_at,
+            fingerprints={str(key): str(value) for key, value in fingerprints.items()},
+        ),
+        None,
+    )
+
+
 def load_fingerprint_store(project_root: pathlib.Path) -> FingerprintStore | None:
     """Load the persisted fingerprint store, or None if unavailable.
 
     Returns None (never raises) on a missing, unreadable, or malformed store
     -- including one missing either stamp key, such as the old bare
-    name-to-hash map -- and when the git common dir cannot be resolved.
-    `check_gate_staleness` treats None as "no fingerprint on record" and
-    fails every untracked target closed.
+    name-to-hash map -- and when the git common dir cannot be resolved. Use
+    `read_fingerprint_store` to learn *why* a store is unusable.
     """
-    try:
-        path = fingerprint_store_path(project_root)
-    except GateStalenessError:
-        return None
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    commit = data.get("confirmed_commit")
-    confirmed_at = data.get("confirmed_at")
-    fingerprints = data.get("fingerprints")
-    if not isinstance(commit, str) or not commit:
-        return None
-    if not isinstance(confirmed_at, str) or not confirmed_at:
-        return None
-    if not isinstance(fingerprints, dict):
-        return None
-    return FingerprintStore(
-        confirmed_commit=commit,
-        confirmed_at=confirmed_at,
-        fingerprints={str(key): str(value) for key, value in fingerprints.items()},
-    )
+    return read_fingerprint_store(project_root)[0]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -732,22 +917,25 @@ def _store_mismatch_reason(
     store: FingerprintStore,
     resolved_commit: str,
     confirmed_at: object | None,
-) -> str | None:
-    """Return why `store` can't be trusted for this stamp, or None if it can."""
+) -> tuple[str, str] | None:
+    """Return `(reason, category)` for why `store` can't be trusted for this
+    stamp, or None if it can."""
     if confirmed_at is None:
         return (
             "no confirmed_at supplied, so the fingerprint store's stamp cannot "
-            "be validated -- failing closed"
+            "be validated -- failing closed",
+            CATEGORY_CONFIRMED_AT_NOT_SUPPLIED,
         )
     try:
         wanted_at = canonical_confirmed_at(confirmed_at)
         stored_at = canonical_confirmed_at(store.confirmed_at)
     except GateStalenessError as err:
-        return f"{err} -- failing closed"
+        return f"{err} -- failing closed", CATEGORY_BASELINE_STORE_INVALID
     if store.confirmed_commit != resolved_commit or stored_at != wanted_at:
         return (
             "fingerprint store was recorded for a different confirmation "
-            "stamp -- failing closed"
+            "stamp -- failing closed",
+            CATEGORY_BASELINE_STAMP_MISMATCH,
         )
     return None
 
@@ -759,19 +947,27 @@ def check_target_staleness(
     target: WatchTarget,
     fingerprints: dict[str, str] | None,
     store_unavailable_reason: str | None = None,
+    store_unavailable_category: str = CATEGORY_BASELINE_STAMP_MISMATCH,
 ) -> FileStaleness:
     """Check one resolved `WatchTarget` for staleness, by whichever means
     its `kind` supports.
 
     `store_unavailable_reason`, when set, fails every fingerprint-kind
-    target closed with that reason (e.g. the store's stamp does not match
-    the profile being checked).
+    target closed with that reason and `store_unavailable_category` (e.g.
+    the store's stamp does not match the profile being checked, or no
+    `confirmed_at` was supplied to validate it, or the store is unusable).
+
+    For a fingerprint-kind target the installed file is checked first: a
+    missing or unreadable file is reported as such regardless of the
+    baseline, because that is what the user must fix first (restamp refuses
+    such targets) and it is true whether or not a baseline exists.
     """
     if target.kind == "unresolved":
         return FileStaleness(
             target.canonical_name,
             stale=True,
             reason="installed target could not be resolved -- failing closed",
+            category=CATEGORY_TARGET_UNRESOLVED,
         )
     if target.kind == "git":
         if target.relative_path is None:
@@ -792,9 +988,28 @@ def check_target_staleness(
             f"WatchTarget {target.canonical_name!r} has kind='fingerprint' "
             "but no absolute_path -- malformed WatchTarget"
         )
+    if not target.absolute_path.is_file():
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target file missing -- failing closed",
+            category=CATEGORY_TARGET_MISSING,
+        )
+    try:
+        content = target.absolute_path.read_bytes()
+    except OSError:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target file unreadable -- failing closed",
+            category=CATEGORY_TARGET_UNREADABLE,
+        )
     if store_unavailable_reason is not None:
         return FileStaleness(
-            target.canonical_name, stale=True, reason=store_unavailable_reason
+            target.canonical_name,
+            stale=True,
+            reason=store_unavailable_reason,
+            category=store_unavailable_category,
         )
     if fingerprints is None or target.canonical_name not in fingerprints:
         return FileStaleness(
@@ -804,20 +1019,7 @@ def check_target_staleness(
                 "no persisted content fingerprint on record for this "
                 "untracked installed target -- failing closed"
             ),
-        )
-    if not target.absolute_path.is_file():
-        return FileStaleness(
-            target.canonical_name,
-            stale=True,
-            reason="installed target file missing -- failing closed",
-        )
-    try:
-        content = target.absolute_path.read_bytes()
-    except OSError:
-        return FileStaleness(
-            target.canonical_name,
-            stale=True,
-            reason="installed target file unreadable -- failing closed",
+            category=CATEGORY_NO_BASELINE,
         )
     current = compute_fingerprint(content)
     stored = fingerprints[target.canonical_name]
@@ -826,11 +1028,13 @@ def check_target_staleness(
             target.canonical_name,
             stale=True,
             reason="installed file content differs from persisted fingerprint",
+            category=CATEGORY_CONTENT_CHANGED,
         )
     return FileStaleness(
         target.canonical_name,
         stale=False,
         reason="installed file content matches persisted fingerprint",
+        category=CATEGORY_FRESH,
     )
 
 
@@ -886,13 +1090,17 @@ def check_gate_staleness(
         targets = resolve_watch_targets(project_root)
         fingerprints: dict[str, str] | None = None
         store_reason: str | None = None
+        store_category = CATEGORY_BASELINE_STAMP_MISMATCH
         if any(target.kind == "fingerprint" for target in targets):
-            store = load_fingerprint_store(project_root)
+            store, store_problem = read_fingerprint_store(project_root)
             if store is not None:
-                store_reason = _store_mismatch_reason(
-                    store, resolved_commit, confirmed_at
-                )
+                mismatch = _store_mismatch_reason(store, resolved_commit, confirmed_at)
+                if mismatch is not None:
+                    store_reason, store_category = mismatch
                 fingerprints = store.fingerprints
+            elif store_problem is not None:
+                store_reason = f"{store_problem} -- failing closed"
+                store_category = CATEGORY_BASELINE_STORE_INVALID
         files = tuple(
             check_target_staleness(
                 project_root,
@@ -901,6 +1109,7 @@ def check_gate_staleness(
                 target,
                 fingerprints,
                 store_reason,
+                store_category,
             )
             for target in targets
         )
@@ -913,6 +1122,16 @@ def check_gate_staleness(
     )
 
 
+def distinct_next_steps(files: typing.Iterable[FileStaleness]) -> list[str]:
+    """Each distinct next-step text for the stale `files`, in first-seen order."""
+    steps: list[str] = []
+    for f in files:
+        step = f.next_step
+        if step and step not in steps:
+            steps.append(step)
+    return steps
+
+
 def format_json(result: StalenessResult) -> str:
     return json.dumps(
         {
@@ -920,7 +1139,12 @@ def format_json(result: StalenessResult) -> str:
             "head": result.head,
             "stale": result.stale,
             "files": [
-                {"path": f.path, "stale": f.stale, "reason": f.reason}
+                {
+                    "path": f.path,
+                    "stale": f.stale,
+                    "reason": f.reason,
+                    "category": f.category,
+                }
                 for f in result.files
             ],
         },
@@ -938,6 +1162,8 @@ def format_text(result: StalenessResult) -> str:
         lines.append("stale files:")
         for stale_file in result.stale_files:
             lines.append(f"  - {stale_file.path}: {stale_file.reason}")
+        for step in distinct_next_steps(result.stale_files):
+            lines.append(f"next step: {step}")
     else:
         lines.append("no gate-definition changes since confirmation")
     return "\n".join(lines)

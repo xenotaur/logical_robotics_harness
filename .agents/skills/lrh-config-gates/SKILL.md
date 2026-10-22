@@ -166,6 +166,14 @@ If Step 3 made field changes in this run that are not yet on `main`, do not
 offer this step now: the stamp must cover the values on `main`. Say so, and
 tell the user to re-confirm after those changes land.
 
+Before the first `chain-defaults` call in this skill, run the CLI/skill
+preflight (`lrh chain-defaults --help` must list `restamp`; see
+`lrh-land/references/land-workflow.md`, "CLI/skill preflight"). A stale entry
+with category `no_baseline` means no fingerprint was recorded, not that the
+file changed. Also read the `coverage` block: a clean result verifies only the
+configured targets, and any `unwatched_installations` (e.g. Codex's
+`~/.agents/skills`) are not verified until added to `targets:`.
+
 The re-stamp always lands on `main` through Step 5's `main` path, never on a
 feature branch: a stamp committed onto a PR branch would name a commit that
 is not on `main` and mix policy state into an unrelated PR. So, scoped to

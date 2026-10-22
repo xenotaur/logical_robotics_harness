@@ -2,10 +2,10 @@
 execution_id: 2026_10_13_01_18_28_LRH_CONSOLE_READINESS_VOCABULARY_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_READINESS_VOCABULARY_SELFREVIEW)[2026-10-13T01:18:28+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_13_01_18_28_LRH_CONSOLE_READINESS_VOCABULARY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/840
-commit:
+commit: fadee470121d09a5a0c15218567ca6f6f26d3406
 created_at: 2026-10-13T01:18:28+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/840

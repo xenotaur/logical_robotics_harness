@@ -13,10 +13,21 @@ use tauri::webview::NewWindowResponse;
 use tauri::Url;
 
 fn build_app() -> tauri::App<tauri::test::MockRuntime> {
+    // With the dialog plugin, as the app registers it, so its page-facing
+    // commands are checked too.
     lrh_console_lib::with_commands(tauri::test::mock_builder())
+        .plugin(tauri_plugin_dialog::init())
         .build(lrh_console_lib::context())
         .expect("failed to build mock app")
 }
+
+/// The dialog plugin's page-facing commands. The app shows its dialogs from
+/// Rust; no window may invoke these.
+const DIALOG_COMMANDS: [&str; 3] = [
+    "plugin:dialog|message",
+    "plugin:dialog|open",
+    "plugin:dialog|save",
+];
 
 fn invoke_request(cmd: &str, origin: &Url) -> tauri::webview::InvokeRequest {
     tauri::webview::InvokeRequest {
@@ -41,7 +52,7 @@ const APP_COMMANDS: [&str; 6] = [
 ];
 
 fn assert_denied(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, origin: &Url) {
-    for command in APP_COMMANDS {
+    for command in APP_COMMANDS.iter().chain(DIALOG_COMMANDS.iter()) {
         let error = tauri::test::get_ipc_response(window, invoke_request(command, origin))
             .expect_err("this content must not reach app commands");
         assert!(
@@ -123,6 +134,17 @@ fn the_settings_window_may_call_its_commands_from_bundled_pages() {
     .expect("the Settings window may call get_app_info");
     let value: serde_json::Value = response.deserialize().expect("json response");
     assert_eq!(value["name"], "LRH Console");
+
+    // Dialogs are shown from Rust, so even the Settings window gets none.
+    for command in DIALOG_COMMANDS {
+        let error =
+            tauri::test::get_ipc_response(&window, invoke_request(command, &shell::bundled_base()))
+                .expect_err("the Settings window must not reach dialog commands");
+        assert!(
+            format!("{error:?}").contains("not allowed"),
+            "expected an ACL denial for {command}, got {error:?}"
+        );
+    }
 
     // The other commands pass the ACL; they fail later only because this mock
     // app has no managed shell state.
@@ -251,6 +273,35 @@ fn main_window_capability_still_grants_no_permissions() {
 
     assert_eq!(capability["windows"], serde_json::json!(["main"]));
     assert_eq!(capability["permissions"], serde_json::json!([]));
+}
+
+#[test]
+fn settings_window_capability_grants_exactly_its_commands() {
+    let capability: serde_json::Value =
+        serde_json::from_str(include_str!("../capabilities/settings-window.json")).unwrap();
+
+    assert_eq!(capability["windows"], serde_json::json!(["settings"]));
+    assert_eq!(
+        capability["permissions"],
+        serde_json::json!([
+            "allow-get-app-info",
+            "allow-get-settings",
+            "allow-save-settings",
+            "allow-get-server-details",
+            "allow-restart-server",
+            "allow-reset-window-state"
+        ])
+    );
+}
+
+#[test]
+fn the_app_requires_macos_11_for_page_zoom() {
+    // View > Zoom uses WKWebView pageZoom, which exists only on macOS 11+;
+    // wry calls it unconditionally, so older systems must not run the app.
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+
+    assert_eq!(config["bundle"]["macOS"]["minimumSystemVersion"], "11.0");
 }
 
 #[test]

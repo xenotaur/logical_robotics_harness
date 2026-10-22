@@ -173,11 +173,12 @@
     }
 
     // Same-page links rendered with the old ?item= (tabs, Check for changes,
-    // the top bar's Refresh, the filters) follow the new selection.
+    // the top bar's Refresh, the filters, the layout toggle) follow the new
+    // selection.
     function syncLinks(id) {
       const links = document.querySelectorAll(
         ".lrh-tabs a, .lrh-map-header a[href*='since='], .lrh-topbar a[href], " +
-          ".lrh-filters a, .lrh-filter-note a",
+          ".lrh-filters a, .lrh-filter-note a, .lrh-layout-toggle a",
       );
       for (const link of links) {
         const url = new URL(link.href, window.location.href);
@@ -303,6 +304,11 @@
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
       if (!link || link.hasAttribute("download")) return;
+      // The desktop app answers its own links (the gear, Back, Forward) without
+      // loading a page, and a greyed-out link goes nowhere, so neither may dim
+      // the page. In a browser the gear is a real page load.
+      if (link.getAttribute("aria-disabled") === "true") return;
+      if (link.hasAttribute("data-lrh-app-link") && root.classList.contains("lrh-in-app")) return;
       if (link.target && link.target !== "_self") return;
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin) return;

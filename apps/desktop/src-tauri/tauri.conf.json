@@ -24,6 +24,9 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "LRH Console"
+    "shortDescription": "LRH Console",
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
   }
 }

@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Console Visual Language
 status: proposed
 created_on: 2026-05-16
-updated_on: 2026-10-12
+updated_on: 2026-10-14
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -573,6 +573,27 @@ leaves flagged execution-ready, which no LRH work item declares today. Whether a
 should use prompt readiness instead is an open triage-rule question, like the
 Blocked-rule question `WI-LRH-PROJECT-UPDATE-SKILL` raises for
 `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS`. It is not decided here.
+
+### Default map layout (`WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`, 2026-10-14)
+
+Q7's pluggable `Layout` interface now has two implementations:
+
+- `layered-grid`: fixed lane-and-phase cells, ordered to reduce crossings.
+- `outline`:
+  - keeps the lane columns and phase rows;
+  - lists each cell's cards in dependency order, indented by depth (capped at four levels);
+  - widens a lane rather than shrinking indented cards;
+  - runs lines inside a cell down a rail at the cell's left edge.
+
+**Owner decision (2026-10-14):** after comparing both on `lrh-console-l1` and LCATS
+`worldcon-2026`, the owner judged the outline "more readable than the grid" and chose it
+as the default. The grid stays one click away through the Layout toggle or
+`?layout=layered-grid`.
+
+The owner also found both layouts hard to follow where lines overlap. Cards take
+inputs on both sides, and parallel right-angled lines are hard to tell apart even
+with highlighting. That is a separate question about how lines are drawn,
+including whether to revisit curved lines, tracked as `WI-LRH-CONSOLE-MAP-EDGE-READABILITY`.
 
 ### Effort and critical path (Q4)
 

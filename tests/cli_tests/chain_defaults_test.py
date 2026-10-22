@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -209,6 +210,58 @@ class ChainDefaultsCliTest(unittest.TestCase):
                 (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text(), before
             )
             self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+
+    def test_unknown_subcommand_hints_cli_may_be_older_than_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as h:
+            completed = self._lrh(["chain-defaults", "bogus"], pathlib.Path(h))
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("invalid choice", completed.stderr)
+        self.assertIn("older than the installed skills", completed.stderr)
+        self.assertIn("which -a lrh", completed.stderr)
+
+    def test_status_json_exposes_categories_and_cli_block(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root, home)
+            completed = self._lrh(
+                [
+                    "chain-defaults",
+                    "status",
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                ],
+                home,
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(
+                {f["category"] for f in payload["staleness"]["files"]},
+                {"no_baseline"},
+            )
+            self.assertIn("restamp", payload["cli"]["chain_defaults_capabilities"])
+
+    def test_every_chain_defaults_subcommand_named_by_skills_is_provided(self) -> None:
+        skills = self._repo_root() / "src" / "lrh" / "skills"
+        named: set[str] = set()
+        for path in skills.rglob("*.md"):
+            named.update(
+                re.findall(r"lrh chain-defaults ([a-z][a-z-]*)", path.read_text())
+            )
+        # Prose like "lrh chain-defaults --help" has no subcommand and is skipped.
+        self.assertIn("restamp", named)
+        self.assertLessEqual(
+            named - {"requires"}, set(chain_defaults_status.CLI_CAPABILITIES)
+        )
+        with tempfile.TemporaryDirectory() as h:
+            for sub in sorted(named & set(chain_defaults_status.CLI_CAPABILITIES)):
+                completed = self._lrh(
+                    ["chain-defaults", sub, "--help"], pathlib.Path(h)
+                )
+                self.assertEqual(
+                    completed.returncode, 0, msg=f"{sub}: {completed.stderr}"
+                )
 
 
 if __name__ == "__main__":

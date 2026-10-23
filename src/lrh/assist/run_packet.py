@@ -31,7 +31,7 @@ def render_run_packet_from_work_item(
 
     path = pathlib.Path(work_item_path)
     parsed = control_parser.parse_markdown_file(path)
-    diagnostics = validate_frontmatter(path, parsed.frontmatter)
+    diagnostics = _validate_frontmatter(path, parsed.frontmatter)
     if diagnostics:
         return RunPacketResult(
             markdown=_render_diagnostic_packet(
@@ -85,10 +85,10 @@ def validate_work_item(
 
     path = pathlib.Path(work_item_path)
     parsed = control_parser.parse_markdown_file(path)
-    return validate_frontmatter(path, parsed.frontmatter)
+    return _validate_frontmatter(path, parsed.frontmatter)
 
 
-def validate_frontmatter(
+def _validate_frontmatter(
     path: pathlib.Path,
     frontmatter: dict[str, Any],
 ) -> tuple[execution_readiness.ExecutionReadinessIssue, ...]:

@@ -2599,7 +2599,7 @@ def _run_packet_validation_text(path: Path, *, declared: bool) -> tuple[str, boo
         return "Not declared", False
     try:
         diagnostics = run_packet.validate_work_item(path)
-    except (ValueError, OSError, UnicodeDecodeError):
+    except (ValueError, OSError):
         return "Fails<ul><li>the work item could not be read</li></ul>", False
     if not diagnostics:
         return "Passes", True

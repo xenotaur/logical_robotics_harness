@@ -230,11 +230,13 @@ scripts/test tests/packaging_tests/skills_mirror_sync_test.py
 ```
 
 Without `--force`, the installer never overwrites a skill that differs from
-`src`; it prints `warning: <skill> has local modifications — skipped`. If the
-preview shows any such warning, do not add `--force` to the repo-wide command —
-that would sweep unrelated stale skills into this PR. Regenerate only the
-affected skill instead, as described in CONTRIBUTING.md's "Claude Code
-skills" section.
+`src`; it prints `warning: <skill> has local modifications — skipped`. The new
+skill cannot trigger this warning: the existence check above confirmed it has
+no target directories, so the non-forced run installs it. Any such warning
+therefore names a *different*, pre-existing skill that is already out of sync
+on your base branch. Leave that skill alone and do not add `--force` — that
+would rewrite unrelated skills into this PR. Report the out-of-sync skill so
+it can be fixed separately; the mirror sync test fails until it is.
 
 If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
 or no `lrh skills install` (an older or client checkout), fall back to

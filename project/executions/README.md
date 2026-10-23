@@ -62,7 +62,9 @@ entry in `project/memory/decision_log.md`.
 
 | Value | Meaning |
 |---|---|
+| `antigravity-app:<conversation-id>` | Google Antigravity session conversation ID |
 | `claude-app:<host-uuid-stem>` | Claude.app session, host id, `local_` prefix stripped |
+| `codex-app:<thread-id>` | Codex app session task/thread id |
 | `codex-cloud:<task-id>` | Codex Cloud task |
 | `chatgpt:<conversation-id>` | ChatGPT conversation |
 | `pending` | A retrievable session exists; its ID is not yet recorded. **A to-do.** |

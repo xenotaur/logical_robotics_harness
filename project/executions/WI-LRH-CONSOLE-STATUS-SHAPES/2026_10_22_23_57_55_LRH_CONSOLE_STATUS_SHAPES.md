@@ -2,10 +2,10 @@
 execution_id: 2026_10_22_23_57_55_LRH_CONSOLE_STATUS_SHAPES
 prompt_id: PROMPT(WI-LRH-CONSOLE-STATUS-SHAPES:LRH_CONSOLE_STATUS_SHAPES)[2026-10-17T19:36:28+00:00]
 work_item: WI-LRH-CONSOLE-STATUS-SHAPES
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/852
-commit:
+commit: bf8f6fb6d01bbb2fc914a3d9ba83d5744829738c
 created_at: 2026-10-22T23:57:55+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/852

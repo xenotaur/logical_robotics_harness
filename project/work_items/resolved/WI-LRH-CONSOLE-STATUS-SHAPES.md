@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-STATUS-SHAPES"
 title: "Distinguish similar status hues by shape for color-vision safety"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #852 (commit bf8f6fb6). Unblocked pills are outlined with a doubled ring beside filled In progress pills. Abandoned cards are sunken with a struck-through title, and the Abandoned pill strikes its label, beside Unknown''s plain card and filled pill. At the owner''s request, Blocked cards'' dashed border became 2px in the Blocked hue so it shows at any zoom. Dashed stays the only border style. The style specimen gains the shapes and an Abandoned example, and the visual-language proposal records the rule under Color vision (Q12). The owner checked it in light and dark on the branch app.'
 owner: "anthony"
 contributors:
 - "anthony"

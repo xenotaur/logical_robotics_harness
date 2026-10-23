@@ -2,10 +2,10 @@
 execution_id: 2026_10_22_23_57_56_LRH_CONSOLE_STATUS_SHAPES_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_STATUS_SHAPES_SELFREVIEW)[2026-10-22T23:57:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_22_23_57_55_LRH_CONSOLE_STATUS_SHAPES
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/852
-commit:
+commit: bf8f6fb6d01bbb2fc914a3d9ba83d5744829738c
 created_at: 2026-10-22T23:57:56+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/852

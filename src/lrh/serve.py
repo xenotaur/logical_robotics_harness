@@ -2485,23 +2485,26 @@ def render_project_work_item_page(
     # "Ready" is never shown unqualified (visual-language proposal, Q3): each
     # value names the check that produced it.
     readiness = item.execution_readiness
-    if item.status == "blocked":
-        execution_ready = "No (the work item is blocked)"
-    elif readiness is None:
+    if readiness is None:
         execution_ready = "Not declared"
     elif readiness.execution_ready:
         execution_ready = "Yes"
     else:
         execution_ready = "No"
-    copy_enabled = (
-        item.status != "blocked" and readiness is not None and readiness.execution_ready
+    # The validation run-packet generation itself runs, so the page and the
+    # Copy button agree with generation. The blocked flag is reported on its
+    # own: generation does not consider it.
+    run_packet_text, run_packet_passes = _run_packet_validation_text(
+        item.path, declared=readiness is not None
     )
+    if item.blocked:
+        reason = item.blocked_reason or "no reason given"
+        blocked = f"Yes: {reason}"
+    else:
+        blocked = "No"
+    copy_enabled = run_packet_passes
     disabled = "" if copy_enabled else "disabled"
-    copy_note = (
-        ""
-        if copy_enabled
-        else " (available once the work item's execution-ready flag is set)"
-    )
+    copy_note = "" if copy_enabled else " (available once the run packet passes)"
     # Prompt-readiness applies only to open work, as on the map's drawer.
     prompt_ready = (
         "Not applicable (closed)"
@@ -2550,13 +2553,17 @@ def render_project_work_item_page(
 <dl class="lrh-readiness">
 <dt>Prompt-ready</dt><dd>{prompt_ready}</dd>
 <dt>Execution-ready flag (run packets)</dt><dd>{html.escape(execution_ready)}</dd>
+<dt>Run packet (validated)</dt><dd>{run_packet_text}</dd>
+<dt>Blocked flag</dt><dd>{html.escape(blocked)}</dd>
 <dt>Authorization</dt><dd>Not derived: needs your approval</dd>
 </dl>
 <p>Prompt-ready is the result of <code>lrh work-items readiness</code>, as on
 the dependency map. The execution-ready flag is the work item's own
-<code>execution_ready</code> setting among the optional run-packet fields below;
-generating a run packet also checks that the required fields are present and
-valid.</p>
+<code>execution_ready</code> setting among the optional run-packet fields below.
+The run packet passes when run-packet generation's own validation passes: the
+flag, plus the required fields being present and valid. The blocked flag is the
+work item's <code>blocked</code> setting; run-packet generation does not check
+it.</p>
 <h3>Run-packet fields</h3>
 <p>Validation commands: {html.escape(validation_commands)}</p>
 <p>Required evidence: {html.escape(required_evidence)}</p>
@@ -2577,6 +2584,29 @@ source markdown.</p>
 renderer.</p>
 </div></body></html>"""
     return 200, page
+
+
+def _run_packet_validation_text(path: Path, *, declared: bool) -> tuple[str, bool]:
+    """Whether run-packet generation would succeed for one work item, as HTML,
+    with its errors when it would not, and that result as a boolean.
+
+    Uses the validation generation runs (``run_packet.validate_work_item``)
+    without rendering a packet. An item with no run-packet fields is "Not
+    declared"; generation would reject it too.
+    """
+
+    if not declared:
+        return "Not declared", False
+    try:
+        diagnostics = run_packet.validate_work_item(path)
+    except (ValueError, OSError, UnicodeDecodeError):
+        return "Fails<ul><li>the work item could not be read</li></ul>", False
+    if not diagnostics:
+        return "Passes", True
+    errors = "".join(
+        f"<li>{html.escape(diagnostic.message)}</li>" for diagnostic in diagnostics
+    )
+    return f"Fails<ul>{errors}</ul>", False
 
 
 def _prompt_readiness_text(path: Path) -> str:

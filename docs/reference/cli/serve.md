@@ -171,7 +171,9 @@ name.
 ## Work-item routes
 
 - `/project/<project_id>/work-items/<work_item_id>`: the work item's
-  readiness detail page in the named project.
+  readiness detail page in the named project: prompt-readiness, the
+  execution-ready flag, whether its run packet passes generation's own
+  validation (with the errors when it does not), and its blocked flag.
 - `/project/<project_id>/work-items/<work_item_id>/prompt`: a preview of the
   work item's generated prompt. Its Back links lead to the work item's
   detail page and to `/project/<project_id>`.

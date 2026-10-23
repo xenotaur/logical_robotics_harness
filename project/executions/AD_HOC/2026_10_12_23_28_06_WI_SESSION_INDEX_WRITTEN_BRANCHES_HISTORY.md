@@ -2,14 +2,14 @@
 execution_id: 2026_10_12_23_28_06_WI_SESSION_INDEX_WRITTEN_BRANCHES_HISTORY
 prompt_id: PROMPT(AD_HOC:WI_SESSION_INDEX_WRITTEN_BRANCHES_HISTORY)[2026-10-12T23:25:28+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/838
-commit:
+commit: 2f6acb5cde8d85cdd80ebf390342dc294f04128c
 created_at: 2026-10-12T23:28:06+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SESSION-INDEX-WRITTEN-BRANCHES-HISTORY.md
-session_transcript: pending
+session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---
 
 # Summary

@@ -167,8 +167,8 @@ Three call paths set `branch`. All of them go through
 
 ## Non-Goals
 
-- Does not backfill the existing 48 rows (that would need a per-PR
-  head-branch lookup). That is a possible separate one-off.
+- Does not backfill existing rows (48 as of 2026-10-12; doing so would
+  need a per-PR head-branch lookup). That is a possible separate one-off.
 - Does not change `branch` latest-wins for non-empty values. One
   deliberate change: an empty-string branch, which today overwrites the
   stored branch, is now ignored (see Required Change 1).
@@ -191,6 +191,8 @@ Three call paths set `branch`. All of them go through
 - The `prompt_workflow_sessions.py` module docstring, the CLI help, and the
   `src/` and all install copies of `execution-session-reference.md`
   describe the new behavior.
+- `git grep -n -i "fork stitching" -- src/lrh .claude/skills .agents/skills
+  .gemini/plugins/lrh/skills` returns nothing.
 - `scripts/test` passes with the new tests, and `lrh validate` reports 0
   errors.
 

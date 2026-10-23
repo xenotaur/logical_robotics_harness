@@ -225,10 +225,12 @@ Without `--force`, the installer never overwrites a skill that differs from
 `src`; it prints `warning: <skill> has local modifications — skipped`. The new
 skill cannot trigger this warning: the existence check above confirmed it has
 no target directories, so the non-forced run installs it. Any such warning
-therefore names a *different*, pre-existing skill that is already out of sync
-on your base branch. Leave that skill alone and do not add `--force` — that
-would rewrite unrelated skills into this PR. Report the out-of-sync skill so
-it can be fixed separately; the mirror sync test fails until it is.
+therefore names a *different*, pre-existing item — another skill, or the
+Antigravity `plugin.json` — that is already out of sync, either on your base
+branch or through an uncommitted edit in your working tree. Leave it alone and
+do not add `--force` — that would rewrite unrelated items into this PR. Report
+it (or revert your own stray edit) so it can be fixed separately; the mirror
+sync test fails until it is.
 
 If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
 or no `lrh skills install` (an older or client checkout), fall back to

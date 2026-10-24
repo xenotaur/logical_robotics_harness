@@ -292,6 +292,14 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Blocked: waiting on ops", page)
         self.assertIn("Not prompt-ready", page)
         self.assertIn("lrh-card--blocked", page)
+        # The dashes are heavy and in the Blocked hue, so they show at any zoom.
+        blocked = render.MAP_STYLES.split(".lrh-card--blocked {", 1)[1].split("}", 1)[0]
+        for declaration in (
+            "border-color: var(--lrh-color-status-blocked-line);",
+            "border-style: dashed;",
+            "border-width: 2px;",
+        ):
+            self.assertIn(declaration, blocked)
 
     def test_every_state_has_a_label_and_icon_not_only_color(self) -> None:
         for state, (_key, glyph, label) in render.STATE_STYLES.items():
@@ -299,6 +307,63 @@ class RenderTest(unittest.TestCase):
                 pill = render._pill(state)
                 self.assertIn(label, pill)
                 self.assertIn(glyph, pill)
+
+    def test_states_sharing_a_hue_differ_by_shape(self) -> None:
+        # Q12: In progress and Unblocked are both blue; Abandoned and Unknown
+        # share the neutral. Each pair must differ without color.
+        for first, second in (("in_progress", "unblocked"), ("unknown", "abandoned")):
+            with self.subTest(pair=(first, second)):
+                self.assertNotEqual(
+                    render.PILL_SHAPES.get(first, "filled"),
+                    render.PILL_SHAPES.get(second, "filled"),
+                )
+        self.assertIn("lrh-pill--filled", render._pill("in_progress"))
+        self.assertIn("lrh-pill--outlined", render._pill("unblocked"))
+        outlined = render.MAP_STYLES.split(".lrh-pill--outlined {", 1)[1].split("}", 1)[
+            0
+        ]
+        self.assertIn("background: transparent;", outlined)
+        self.assertIn("box-shadow: inset 0 0 0 1px currentColor;", outlined)
+        self.assertIn("lrh-pill--filled", render._pill("unknown"))
+        self.assertIn(
+            '<span class="lrh-pill-struck">Abandoned</span>', render._pill("abandoned")
+        )
+        for rule in (
+            ".lrh-pill-struck { text-decoration: line-through; }",
+            ".lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }",
+            ".lrh-card--abandoned .lrh-card-title { text-decoration: line-through; }",
+        ):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, render.MAP_STYLES)
+
+    def test_abandoned_cards_are_sunken_and_struck_without_a_new_border(self) -> None:
+        snapshot = _snapshot(
+            (
+                _node("WI-A", "WS-A", "one", "abandoned", lifecycle="abandoned"),
+                _node("WI-B", "WS-A", "one", "unknown", lifecycle="odd"),
+            )
+        )
+        page = _view(snapshot)
+
+        cards = {
+            card_id: tag
+            for tag, card_id in re.findall(
+                r'(<a class="lrh-card[^"]*"[^>]*data-id="([^"]+)")', page
+            )
+        }
+        self.assertIn("lrh-card--abandoned", cards["WI-A"])
+        self.assertNotIn("lrh-card--abandoned", cards["WI-B"])
+        self.assertNotIn("lrh-card--blocked", cards["WI-A"])
+        # Dashed is the only border style, longhand or shorthand, so no card
+        # resembles a blocked card's dashed edge.
+        styles = "none|hidden|dotted|dashed|double|groove|ridge|inset|outset"
+        borders = re.findall(
+            rf"border(?:-[a-z]+)*:[^;]*\b({styles})\b", render.MAP_STYLES
+        )
+        self.assertEqual(set(borders), {"dashed"})
+        # Outlined pills set no fill, so they never depend on rule order.
+        self.assertNotIn("status-unblocked-bg", render.MAP_STYLES)
+        self.assertIn("abandoned cards are sunken with a struck-through title", page)
 
     def test_lines_differ_by_style_and_have_a_legend(self) -> None:
         page = _view(_example())

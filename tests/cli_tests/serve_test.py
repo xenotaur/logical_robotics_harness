@@ -433,10 +433,17 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(head_status, 200)
         self.assertIn("text/html", head_type)
         self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
-        for key, label, _icon in serve._SPECIMEN_STATES:
-            self.assertIn(f"</span> {label}</span>", body)
-            for part in ("fg", "bg", "line"):
+        for key, label, _icon, shape in serve._SPECIMEN_STATES:
+            if shape == "struck":
+                self.assertIn(f'<span class="lrh-pill-struck">{label}</span>', body)
+            else:
+                self.assertIn(f"</span> {label}</span>", body)
+            self.assertIn(f"lrh-pill--{shape}", body)
+            for part in ("fg", "line") if shape == "outlined" else ("fg", "bg", "line"):
                 self.assertIn(f"var(--lrh-color-status-{key}-{part})", body)
+        # Outlined pills show the surface beneath them, never a fill.
+        self.assertNotIn("var(--lrh-color-status-unblocked-bg)", body)
+        self.assertIn('<div class="lrh-card lrh-card--abandoned"', body)
         for key, label in serve._SPECIMEN_BANDS:
             self.assertIn(f"<h3>{label} ", body)
             for part in ("fg", "bg", "line"):

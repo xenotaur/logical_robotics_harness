@@ -33,6 +33,9 @@ STATUS_PILLS = {
     "abandoned": ("unknown", "⊘", "Abandoned"),
 }
 BLOCKED_PILL = ("blocked", "✕", "Blocked")
+# As on the map, pills that share a hue also differ by shape: Abandoned strikes
+# its label beside the filled Proposed pill.
+STATUS_SHAPES = {"abandoned": "struck"}
 
 STYLES = dependency_map_render.PILL_STYLES + """
   .lrh-wib-filters { display: flex; flex-wrap: wrap; gap: var(--lrh-space-2);
@@ -491,14 +494,18 @@ def _current(filters: Mapping[str, str], key: str, value: str | None) -> str:
 
 
 def _status_pill(status: str) -> str:
-    return _pill(STATUS_PILLS.get(status, ("unknown", "?", status or "Unknown")))
+    style = STATUS_PILLS.get(status, ("unknown", "?", status or "Unknown"))
+    return _pill(style, STATUS_SHAPES.get(status, "filled"))
 
 
-def _pill(style: tuple[str, str, str]) -> str:
+def _pill(style: tuple[str, str, str], shape: str = "filled") -> str:
     key, glyph, label = style
+    text = html.escape(label)
+    if shape == "struck":
+        text = f'<span class="lrh-pill-struck">{text}</span>'
     return (
-        f'<span class="lrh-pill lrh-pill--{key}"><span aria-hidden="true">'
-        f"{glyph}</span> {html.escape(label)}</span>"
+        f'<span class="lrh-pill lrh-pill--{key} lrh-pill--{shape}">'
+        f'<span aria-hidden="true">{glyph}</span> {text}</span>'
     )
 
 

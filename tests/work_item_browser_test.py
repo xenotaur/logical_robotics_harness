@@ -295,6 +295,12 @@ class TestWorkItemBrowserPayload(unittest.TestCase):
 
         for label, glyph in (("Proposed", "○"), ("Active", "▶"), ("Resolved", "✓")):
             self.assertIn(f'<span aria-hidden="true">{glyph}</span> {label}', page)
+        # Abandoned shares Proposed's gray, so it also strikes its label.
+        self.assertIn(
+            '<span class="lrh-pill-struck">Abandoned</span>',
+            work_item_browser._status_pill("abandoned"),
+        )
+        self.assertIn("lrh-pill--filled", work_item_browser._status_pill("proposed"))
         self.assertIn("PHASE-02 (via WS-ONE)", page)
         self.assertIn("No phase", page)
         self.assertNotIn("<form", page)

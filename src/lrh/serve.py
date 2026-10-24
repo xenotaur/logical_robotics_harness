@@ -1021,14 +1021,17 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 """.format(styles=_base_styles(), selector=selector)
 
 
+# (token key, label, icon, shape). Shapes match the dependency map's pills
+# (dependency_map_render.PILL_SHAPES); Abandoned shares Unknown's hue.
 _SPECIMEN_STATES = (
-    ("done", "Done", "\u2713"),
-    ("progress", "In progress", "\u25b6"),
-    ("unblocked", "Unblocked", "\u25cb"),
-    ("waiting", "Waiting", "\u29d7"),
-    ("blocked", "Blocked", "\u2715"),
-    ("review", "Awaiting review", "\u25ce"),
-    ("unknown", "Unknown", "?"),
+    ("done", "Done", "\u2713", "filled"),
+    ("progress", "In progress", "\u25b6", "filled"),
+    ("unblocked", "Unblocked", "\u25cb", "outlined"),
+    ("waiting", "Waiting", "\u29d7", "filled"),
+    ("blocked", "Blocked", "\u2715", "filled"),
+    ("review", "Awaiting review", "\u25ce", "filled"),
+    ("unknown", "Unknown", "?", "filled"),
+    ("unknown", "Abandoned", "\u2298", "struck"),
 )
 _SPECIMEN_BANDS = (
     ("needs-attention", "Needs attention"),
@@ -1063,7 +1066,14 @@ _SPECIMEN_STYLES = """<style>
     min-width: 12rem;
     padding: var(--lrh-space-3);
   }
-  .lrh-card--blocked { border-style: dashed; border-inline-start-style: solid; }
+  .lrh-card--blocked {
+    border: 2px dashed var(--lrh-color-status-blocked-line);
+    border-inline-start: 4px solid var(--card-line);
+  }
+  .lrh-pill--outlined { box-shadow: inset 0 0 0 1px currentColor; }
+  .lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }
+  .lrh-card--abandoned .lrh-specimen-title { text-decoration: line-through; }
+  .lrh-pill-struck { text-decoration: line-through; }
   .lrh-band {
     border-inline-start: 6px solid var(--band-line);
     border-radius: var(--lrh-radius-sm);
@@ -1087,6 +1097,21 @@ _SPECIMEN_STYLES = """<style>
 </style>"""
 
 
+def _specimen_pill(key: str, label: str, icon: str, shape: str) -> str:
+    """One status pill: outlined pills show the surface beneath them."""
+
+    background = (
+        "" if shape == "outlined" else f"background: var(--lrh-color-status-{key}-bg); "
+    )
+    if shape == "struck":
+        label = f'<span class="lrh-pill-struck">{label}</span>'
+    return (
+        f'<span class="lrh-pill lrh-pill--{shape}" style="{background}'
+        f'color: var(--lrh-color-status-{key}-fg)">'
+        f'<span aria-hidden="true">{icon}</span> {label}</span>'
+    )
+
+
 def render_style_specimen() -> str:
     """Render a read-only specimen of the shared tokens in the current theme.
 
@@ -1100,20 +1125,20 @@ def render_style_specimen() -> str:
         for name in ("page", "panel", "sunken", "overlay")
     )
     pills = "".join(
-        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
-        f' color: var(--lrh-color-status-{key}-fg)">'
-        f'<span aria-hidden="true">{icon}</span> {label}</span>'
-        for key, label, icon in _SPECIMEN_STATES
+        _specimen_pill(key, label, icon, shape)
+        for key, label, icon, shape in _SPECIMEN_STATES
     )
+    card_classes = {
+        "Blocked": " lrh-card--blocked",
+        "Abandoned": " lrh-card--abandoned",
+    }
     cards = "".join(
-        f'<div class="lrh-card{" lrh-card--blocked" if key == "blocked" else ""}"'
+        f'<div class="lrh-card{card_classes.get(label, "")}"'
         f' style="--card-line: var(--lrh-color-status-{key}-line)">'
         f'<span class="lrh-specimen-id">WI-EXAMPLE-{index}</span><br>'
-        f"Example work item<br>"
-        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
-        f' color: var(--lrh-color-status-{key}-fg)">'
-        f'<span aria-hidden="true">{icon}</span> {label}</span></div>'
-        for index, (key, label, icon) in enumerate(_SPECIMEN_STATES, start=1)
+        f'<span class="lrh-specimen-title">Example work item</span><br>'
+        f"{_specimen_pill(key, label, icon, shape)}</div>"
+        for index, (key, label, icon, shape) in enumerate(_SPECIMEN_STATES, start=1)
     )
     bands = "".join(
         f'<section class="lrh-band" style="--band-bg: var(--lrh-color-band-{key}-bg);'
@@ -1126,7 +1151,11 @@ def render_style_specimen() -> str:
         ("edge", "solid", "Depends on"),
         ("edge", "dashed", "Blocked by"),
         ("edge-strong", "solid", "Selected"),
-    ] + [(f"status-{key}-line", "solid", label) for key, label, _ in _SPECIMEN_STATES]
+    ] + [
+        (f"status-{key}-line", "solid", label)
+        for key, label, _icon, shape in _SPECIMEN_STATES
+        if shape != "struck"
+    ]
     lines = "".join(
         f'<svg width="260" height="24" role="img" aria-label="{label} line">'
         f'<line x1="4" y1="12" x2="140" y2="12"'

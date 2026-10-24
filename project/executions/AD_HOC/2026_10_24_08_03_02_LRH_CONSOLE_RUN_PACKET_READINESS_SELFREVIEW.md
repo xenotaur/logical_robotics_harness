@@ -2,10 +2,10 @@
 execution_id: 2026_10_24_08_03_02_LRH_CONSOLE_RUN_PACKET_READINESS_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_RUN_PACKET_READINESS_SELFREVIEW)[2026-10-24T08:03:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_24_08_03_01_LRH_CONSOLE_RUN_PACKET_READINESS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/855
-commit:
+commit: 8976c8b70d220909003e5d0128add696cc131d09
 created_at: 2026-10-24T08:03:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/855

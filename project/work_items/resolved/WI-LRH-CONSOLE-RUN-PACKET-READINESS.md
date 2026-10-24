@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-RUN-PACKET-READINESS"
 title: "Show the validated run-packet result on the work-item page and fix its blocked handling"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #855 (commit 8976c8b7). The work-item page adds a Run packet (validated) row from the validation run-packet generation runs itself (run_packet.validate_work_item, now shared with generation): Passes, Fails with its errors, or Not declared. It adds a Blocked flag row from the item''s blocked setting, replacing a check for a ''blocked'' status work items cannot have. Copy generated prompt is enabled exactly when the run packet passes; at the owner''s choice, a blocked item with a passing packet keeps it enabled. Because a failing run-packet declaration makes the whole project load empty, Fails cannot appear on a loadable project today; that and the unwired Copy button are filed as WI-LRH-CONSOLE-INVALID-PROJECT-STILL-LOADS and WI-LRH-CONSOLE-COPY-PROMPT-BUTTON. The owner checked the page.'
 owner: "anthony"
 contributors:
 - "anthony"

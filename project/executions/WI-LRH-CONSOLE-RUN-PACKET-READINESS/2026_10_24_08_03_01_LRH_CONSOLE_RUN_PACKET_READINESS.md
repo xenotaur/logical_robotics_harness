@@ -2,10 +2,10 @@
 execution_id: 2026_10_24_08_03_01_LRH_CONSOLE_RUN_PACKET_READINESS
 prompt_id: PROMPT(WI-LRH-CONSOLE-RUN-PACKET-READINESS:LRH_CONSOLE_RUN_PACKET_READINESS)[2026-10-23T05:31:50+00:00]
 work_item: WI-LRH-CONSOLE-RUN-PACKET-READINESS
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/855
-commit:
+commit: 8976c8b70d220909003e5d0128add696cc131d09
 created_at: 2026-10-24T08:03:01+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/855

@@ -31,14 +31,7 @@ def render_run_packet_from_work_item(
 
     path = pathlib.Path(work_item_path)
     parsed = control_parser.parse_markdown_file(path)
-    diagnostics = (
-        *_validate_required_work_item_fields(path, parsed.frontmatter),
-        *execution_readiness.validate_frontmatter(
-            path,
-            parsed.frontmatter,
-            require_ready=True,
-        ),
-    )
+    diagnostics = _validate_frontmatter(path, parsed.frontmatter)
     if diagnostics:
         return RunPacketResult(
             markdown=_render_diagnostic_packet(
@@ -79,6 +72,37 @@ def format_readiness_diagnostics(
     for issue in diagnostics:
         lines.append(f"- {issue.code}: {issue.message} ({issue.path})")
     return "\n".join(lines)
+
+
+def validate_work_item(
+    work_item_path: pathlib.Path | str,
+) -> tuple[execution_readiness.ExecutionReadinessIssue, ...]:
+    """The diagnostics that stop run-packet generation for one work item.
+
+    Empty exactly when ``render_run_packet_from_work_item`` renders a ready
+    packet, without rendering one.
+    """
+
+    path = pathlib.Path(work_item_path)
+    parsed = control_parser.parse_markdown_file(path)
+    return _validate_frontmatter(path, parsed.frontmatter)
+
+
+def _validate_frontmatter(
+    path: pathlib.Path,
+    frontmatter: dict[str, Any],
+) -> tuple[execution_readiness.ExecutionReadinessIssue, ...]:
+    """Run-packet validation of parsed frontmatter: the required work-item
+    fields, then execution readiness as an executable leaf."""
+
+    return (
+        *_validate_required_work_item_fields(path, frontmatter),
+        *execution_readiness.validate_frontmatter(
+            path,
+            frontmatter,
+            require_ready=True,
+        ),
+    )
 
 
 def _validate_required_work_item_fields(

@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 
 from lrh import serve
-from lrh.assist import work_item_prompt_core
+from lrh.assist import run_packet, work_item_prompt_core
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
 from lrh.dependency_maps import snapshot as dependency_map_snapshot
@@ -1975,6 +1975,8 @@ class TestLrhServeRoutes(unittest.TestCase):
             "<dt>Authorization</dt><dd>Not derived: needs your approval", body
         )
         self.assertIn("Validation commands: scripts/test", body)
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Passes</dd>", body)
+        self.assertIn("<dt>Blocked flag</dt><dd>No</dd>", body)
         self.assertIn("<button >Copy generated prompt</button></li>", body)
         self.assertNotIn("Readiness state", body)
         self.assertIn("Preview generated prompt", body)
@@ -2005,9 +2007,11 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn(
             "<dt>Prompt-ready</dt><dd>No<ul><li>missing Scope section</li>", body
         )
+        # Generation would reject an undeclared item, so Copy stays off.
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Not declared</dd>", body)
         self.assertIn(
             "<button disabled>Copy generated prompt</button> (available once the "
-            "work item&#x27;s execution-ready flag is set)",
+            "run packet passes)",
             body,
         )
 
@@ -2075,6 +2079,74 @@ Body.
         self.assertIn("<p>Required evidence: test_output</p>", evidence)
         self.assertIn("<p>Validation commands: not declared</p>", evidence)
         self.assertNotIn("Evidence <only>", evidence)
+
+    def test_project_work_item_page_validates_the_run_packet_like_generation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            work_items = root / "project" / "work_items"
+            ready = (work_items / "active" / "WI-A.md").read_text(encoding="utf-8")
+            # Valid run-packet fields, flagged blocked: generation ignores the
+            # flag, so the packet passes and the page reports the flag itself.
+            _write(
+                work_items / "active" / "WI-HELD.md",
+                ready.replace("id: WI-A", "id: WI-HELD", 1).replace(
+                    "blocked: false\nblocked_reason: null",
+                    "blocked: true\nblocked_reason: waiting on <ops>",
+                    1,
+                ),
+            )
+            _httpd, base_url = self._start_server(root)
+
+            pages = {
+                item: self._read(base_url + f"/project/main/work-items/{item}")[2]
+                for item in ("WI-A", "WI-B", "WI-HELD")
+            }
+            generation = {
+                item: run_packet.render_run_packet_from_work_item(
+                    next(work_items.glob(f"*/{item}.md"))
+                ).diagnostics
+                for item in pages
+            }
+
+        # Copy is enabled exactly when generation succeeds.
+        for item, page in pages.items():
+            with self.subTest(item=item):
+                enabled = "<button >Copy generated prompt</button>" in page
+                self.assertEqual(enabled, generation[item] == ())
+
+        held = pages["WI-HELD"]
+        self.assertIn("<dt>Blocked flag</dt><dd>Yes: waiting on &lt;ops&gt;</dd>", held)
+        # A set blocked flag never reads as the execution-ready flag being off.
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", held)
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Passes</dd>", held)
+        self.assertNotIn("the work item is blocked", held)
+
+    def test_run_packet_row_lists_generation_errors_when_it_fails(self) -> None:
+        # lrh validate rejects a project whose run-packet fields fail, and such
+        # a project loads with no work items, so the page cannot reach this
+        # case today; the row still reports generation's own errors.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = pathlib.Path(tmp_dir) / "WI-FLAG.md"
+            _write(
+                path,
+                "---\nid: WI-FLAG\ntitle: Flag only\ntype: deliverable\n"
+                "status: proposed\nexecution_ready: true\n---\nBody.\n",
+            )
+            text, passes = serve._run_packet_validation_text(path, declared=True)
+            diagnostics = run_packet.render_run_packet_from_work_item(path).diagnostics
+
+        self.assertFalse(passes)
+        self.assertNotEqual(diagnostics, ())
+        self.assertTrue(text.startswith("Fails<ul>"))
+        for diagnostic in diagnostics:
+            self.assertIn(f"<li>{html.escape(diagnostic.message)}</li>", text)
+        self.assertEqual(
+            serve._run_packet_validation_text(path, declared=False),
+            ("Not declared", False),
+        )
 
     def test_project_work_item_prompt_route_renders_escaped_prompt_preview(
         self,

@@ -172,7 +172,14 @@ The dependency-map routes and the
   - For a custom `project_dir`: `lrh meta set <name> --project-dir DIR`, or
     `lrh project init --project-root <repo>` followed by `lrh meta set
     <name> --project-dir project`. `lrh project init` always creates
-    `<repo>/project`, so on its own it does not fix a custom directory.
+    `<repo>/project`, so on its own it does not fix a custom directory. If
+    `<repo>/project` already exists as a directory, the second command is
+    just `lrh meta set <name> --project-dir project`.
+  - If a file sits at `<repo>/project`, `lrh project init` cannot create the
+    directory, so only `lrh meta set <name> --project-dir DIR` is offered.
+    The message says to move the file aside before initializing. When the
+    project directory itself is that file, the message says it exists but
+    is not a directory.
 
   The JSON route returns an object whose `error` is `no_project_directory`.
   Its `next_action` is the first command, and `next_actions` lists them all.

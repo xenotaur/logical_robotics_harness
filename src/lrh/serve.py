@@ -2630,7 +2630,7 @@ class ProjectSelectorError(Exception):
         }
         if self.next_action is not None:
             payload["next_action"] = self.next_action
-        if len(self.next_actions) > 1:
+        if self._next_actions is not None:
             payload["next_actions"] = list(self.next_actions)
         return payload
 
@@ -2746,19 +2746,40 @@ def _no_project_directory_error(
 ) -> ProjectSelectorError:
     """Build the 409 for a checkout that has no LRH project directory.
 
-    ``lrh project init`` always creates ``<repo>/project``, so it is offered on
-    its own only when that is the directory the record resolves to; a custom
-    ``project_dir`` gets a repoint, or init followed by a repoint to
-    ``project``.
+    ``lrh project init`` always creates ``<repo>/project``, so it is offered
+    only when that path is free: on its own when the record resolves to it,
+    or followed by a repoint to ``project`` for a custom ``project_dir``. A
+    file at ``<repo>/project`` blocks init, which then cannot create the
+    templates beneath it, so only a repoint is offered and the message says
+    to move the file aside.
     """
 
     name = shlex.quote(registry_name)
     repoint = f"lrh meta set {name} --project-dir DIR"
     repo = repo_path if repo_path is not None else project_path.parent
+    default_path = repo / "project"
     init = f"lrh project init --project-root {shlex.quote(str(repo))}"
-    default_dir = os.path.normpath(repo / "project")
-    if os.path.normpath(project_path) == default_dir:
-        next_actions: tuple[str, ...] = (init, repoint)
+    is_default = os.path.normpath(project_path) == os.path.normpath(default_path)
+    if project_path.exists():
+        problem = f'is "{project_path}", which exists but is not a directory'
+    else:
+        problem = f'is "{project_path}", which does not exist'
+    message = (
+        f"Project {registry_name!r} has a local checkout, but its LRH project "
+        f"directory {problem}."
+    )
+    default_blocked = default_path.exists() and not default_path.is_dir()
+    if default_blocked:
+        message += (
+            f' "lrh project init" cannot create "{default_path}" while a file '
+            "is there; move the file aside first, or point the project at an "
+            "existing project directory."
+        )
+        next_actions: tuple[str, ...] = (repoint,)
+    elif is_default:
+        next_actions = (init, repoint)
+    elif default_path.is_dir():
+        next_actions = (repoint, f"lrh meta set {name} --project-dir project")
     else:
         next_actions = (
             repoint,
@@ -2768,10 +2789,7 @@ def _no_project_directory_error(
         project_selector,
         status=409,
         error="no_project_directory",
-        message=(
-            f"Project {registry_name!r} has a local checkout, but its LRH "
-            f'project directory "{project_path}" does not exist.'
-        ),
+        message=message,
         registry_name=registry_name,
         next_actions=next_actions,
     )

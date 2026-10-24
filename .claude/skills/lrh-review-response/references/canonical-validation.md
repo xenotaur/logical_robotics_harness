@@ -83,8 +83,9 @@ lrh skills install --local --target all --source current-repo --force
 ```
 
 If the preview lists skills the fixes did not touch, regenerate only the
-edited skills with the one-skill scratch-source recipe in CONTRIBUTING.md's
-"Claude Code skills" section instead. Then verify all three targets still
+edited skills with the scratch-source recipe in CONTRIBUTING.md's "Claude Code
+skills" section instead, copying each edited skill into the same scratch
+directory (one `cp -R` per skill). Then verify all three targets still
 match `src/lrh/skills/` with the test above.
 
 ---

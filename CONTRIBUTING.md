@@ -261,6 +261,10 @@ lrh skills install --local --target all --source "$tmp" --force --diff
 lrh skills install --local --target all --source "$tmp" --force
 ```
 
+To regenerate several skills this way, copy each one into the same scratch
+directory (one `cp -R src/lrh/skills/<name> "$tmp"/` per skill) before
+installing.
+
 To delete or rename a skill, remove its directory from all four locations by
 hand; the installer never removes skills from a target.
 

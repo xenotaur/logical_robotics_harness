@@ -180,15 +180,16 @@ name.
   phases, and links to the detail and prompt pages. A roadmap section lists
   the phases from `project/roadmap/*.md` in `order`. The parentless
   `roadmap.md` is the roadmap root, not a phase. If the project does not
-  validate, the page says so instead of showing an empty list.
+  validate, the page says so, and says whether its work items could be loaded.
 - Query filters narrow the list and combine with AND: `status`, `type`,
   `workstream` (a workstream ID, or `Unparented`), `roadmap` (a phase ID),
   `ready` (`yes` or `no`, whether the work item sets its `execution_ready`
   flag; a blocked item can set it and still show a Blocked pill), and `active` (`yes` or
   `no`, the active-leaf flag). A work item matches a phase when it lists the
   phase in `related_roadmap` itself or its parent workstream does; the row
-  says which. A value that matches nothing returns an empty list with a note,
-  not an error. Unknown query keys are ignored.
+  says which. A value that no work item can have, including a `ready` or `active`
+  value other than `yes` or `no`, returns an empty list with a note, not an
+  error. Unknown query keys are ignored.
 - The filters are links, not a form, because the CSP sets
   `form-action 'none'`. The page needs no script.
 - `/api/project/<project_id>/work-items`: the same data as JSON, with the

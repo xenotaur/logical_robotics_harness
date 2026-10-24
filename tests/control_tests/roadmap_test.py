@@ -77,6 +77,9 @@ class TestLoadRoadmap(unittest.TestCase):
             _write(directory / "good.md", _phase("PHASE-01", "1"))
             _write(directory / "no_order.md", _phase("PHASE-X", "soon"))
             _write(directory / "bool_order.md", _phase("PHASE-Y", "true"))
+            _write(directory / "nan_order.md", _phase("PHASE-N", ".nan"))
+            _write(directory / "inf_order.md", _phase("PHASE-I", "-.inf"))
+            _write(directory / "huge_order.md", _phase("PHASE-H", "9" * 400))
             _write(directory / "no_frontmatter.md", "# Just a heading\n")
             _write(directory / "no_id.md", "---\ntitle: Nameless\n---\n")
             _write(directory / "second_root.md", ROOT.replace("CORE", "OTHER"))
@@ -91,6 +94,9 @@ class TestLoadRoadmap(unittest.TestCase):
             codes,
             [
                 ("bool_order.md", "ROADMAP_PHASE_ORDER"),
+                ("huge_order.md", "ROADMAP_PHASE_ORDER"),
+                ("inf_order.md", "ROADMAP_PHASE_ORDER"),
+                ("nan_order.md", "ROADMAP_PHASE_ORDER"),
                 ("no_frontmatter.md", "ROADMAP_UNREADABLE"),
                 ("no_id.md", "ROADMAP_MISSING_ID"),
                 ("no_order.md", "ROADMAP_PHASE_ORDER"),

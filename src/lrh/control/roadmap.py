@@ -8,6 +8,7 @@ diagnostics; loading never raises for a malformed or missing file.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -139,4 +140,9 @@ def _order(value: object) -> float | None:
     # bool is an int subclass; "order: true" is not a position.
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value)
+    try:
+        order = float(value)
+    except OverflowError:
+        return None
+    # NaN and infinities cannot be ordered and are not valid JSON.
+    return order if math.isfinite(order) else None

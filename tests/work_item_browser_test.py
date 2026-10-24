@@ -232,6 +232,28 @@ class TestWorkItemBrowserPayload(unittest.TestCase):
         # Every type stays offered even when other filters hide it.
         self.assertIn(">deliverable</a>", page)
 
+    def test_unknown_flag_values_match_nothing(self) -> None:
+        for key in ("ready", "active"):
+            with self.subTest(key=key):
+                payload = self._payload(**{key: "maybe"})
+
+                self.assertEqual(payload["groups"], [])
+                self.assertEqual(payload["shown"], 0)
+                self.assertEqual(
+                    payload["diagnostics"], [f"No work item matches {key} 'maybe'."]
+                )
+
+    def test_validation_note_matches_what_loaded(self) -> None:
+        payload = dict(self._payload())
+        payload["validation"] = {"is_valid": False, "error_count": 1}
+
+        page = work_item_browser.render_page(payload, "")
+
+        # Work items still loaded (as for dependency-map view errors).
+        self.assertIn("the list below may be incomplete", page)
+        self.assertNotIn("cannot be listed", page)
+        self.assertIn("WI-A", page)
+
     def test_unknown_value_gives_empty_result_and_diagnostic(self) -> None:
         payload = self._payload(type="spaceship", other="ignored")
 

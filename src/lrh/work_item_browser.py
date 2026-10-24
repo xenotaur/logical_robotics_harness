@@ -80,7 +80,9 @@ def browser_payload(
         for key, value in filters.items()
         if value not in known[key]
     ]
-    shown = [row for row in rows if _matches(row, filters)]
+    # A value no work item can have matches nothing, rather than being
+    # read as some other value (e.g. "ready=maybe" as "no").
+    shown = [] if diagnostics else [row for row in rows if _matches(row, filters)]
 
     groups: list[dict[str, object]] = []
     for workstream, parent in _tree_order(state.workstreams):
@@ -171,10 +173,16 @@ def render_page(payload: Mapping[str, object], styles: str) -> str:
     validation = payload["validation"]
     assert isinstance(validation, dict)
     if not validation["is_valid"]:
+        # Some errors (dependency-map views) leave the work items loaded.
+        consequence = (
+            ", so its work items cannot be listed"
+            if payload["total"] == 0
+            else "; the list below may be incomplete"
+        )
         notes += (
             '<p role="status"><strong>The project does not validate</strong> '
-            f"({validation['error_count']} errors), so its work items cannot be "
-            "listed. Run <code>lrh validate</code> to see the errors.</p>"
+            f"({validation['error_count']} errors){consequence}. Run "
+            "<code>lrh validate</code> to see the errors.</p>"
         )
     if groups:
         body = "".join(_group_html(group, base, filters, project) for group in groups)

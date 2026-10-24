@@ -136,7 +136,7 @@ lrh serve --desktop-protocol
 
 ## Project selectors
 
-The dependency-map routes and the
+The dependency-map routes, the work-item browser, and the
 `/project/<project_id>/work-items/<work_item_id>` and
 `.../work-items/<work_item_id>/prompt` pages read the project that
 `<project_id>` names:
@@ -170,6 +170,30 @@ name.
 
 ## Work-item routes
 
+- `/project/<project_id>/work-items`: the work-item browser. It lists every
+  work item in the named project, grouped under its parent workstream, with an
+  `Unparented` group last. Workstream groups follow the planning tree: a
+  workstream comes before its child workstreams, which say what they are part
+  of. Within a group, active work items come first, then
+  proposed, resolved, and abandoned ones. Each row shows the status (with a glyph as well as
+  a color), the type, the active-leaf and execution-ready flags, the roadmap
+  phases, and links to the detail and prompt pages. A roadmap section lists
+  the phases from `project/roadmap/*.md` in `order`. The parentless
+  `roadmap.md` is the roadmap root, not a phase. If the project does not
+  validate, the page says so, and says whether its work items could be loaded.
+- Query filters narrow the list and combine with AND: `status`, `type`,
+  `workstream` (a workstream ID, or `Unparented`), `roadmap` (a phase ID),
+  `ready` (`yes` or `no`, whether the work item sets its `execution_ready`
+  flag; a blocked item can set it and still show a Blocked pill), and `active` (`yes` or
+  `no`, the active-leaf flag). A work item matches a phase when it lists the
+  phase in `related_roadmap` itself or its parent workstream does; the row
+  says which. A value that no work item can have, including a `ready` or `active`
+  value other than `yes` or `no`, returns an empty list with a note, not an
+  error. Unknown query keys are ignored.
+- The filters are links, not a form, because the CSP sets
+  `form-action 'none'`. The page needs no script.
+- `/api/project/<project_id>/work-items`: the same data as JSON, with the
+  same filters.
 - `/project/<project_id>/work-items/<work_item_id>`: the work item's
   readiness detail page in the named project.
 - `/project/<project_id>/work-items/<work_item_id>/prompt`: a preview of the
@@ -178,9 +202,10 @@ name.
 - `/project/<project_id>/work-items/<work_item_id>/prompt?download=1`: the
   same prompt as a Markdown attachment. Both pages' download links use this
   route, so the download always comes from the named project.
-- Both routes return 404 for an unknown work item, and the
-  [Project selectors](#project-selectors) statuses for a selector that names
-  no readable project. HEAD returns the same status and content type as GET.
+- The detail and prompt routes return 404 for an unknown work item. Every
+  work-item route returns the [Project selectors](#project-selectors) statuses
+  for a selector that names no readable project. HEAD returns the same status
+  and content type as GET.
 - The served project's `/workbench/prompt?work_item=<id>` routes are
   unchanged.
 

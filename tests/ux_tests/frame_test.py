@@ -66,6 +66,7 @@ class FrameTest(unittest.TestCase):
         self.assertIn('<span class="lrh-scopename">Lcats</span>', page)
         self.assertIn('<a href="/project/lcats" aria-current="true">Lcats</a>', page)
         self.assertIn('<span class="lrh-label">Overview</span>', page)
+        self.assertIn('href="/project/lcats/work-items"', page)
         self.assertEqual(
             frame.scope_selector("/meta/project", {"project": "lcats"}), "lcats"
         )

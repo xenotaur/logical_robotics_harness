@@ -175,7 +175,8 @@ The dependency-map routes and the
     `<repo>/project`, so on its own it does not fix a custom directory. If
     `<repo>/project` already exists as a directory, the second command is
     just `lrh meta set <name> --project-dir project`.
-  - If a file sits at `<repo>/project`, `lrh project init` cannot create the
+  - If a file or a broken symlink sits at `<repo>/project`, `lrh project
+    init` cannot create the
     directory, so only `lrh meta set <name> --project-dir DIR` is offered.
     The message says to move the file aside before initializing. When the
     project directory itself is that file, the message says it exists but

@@ -1257,6 +1257,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(
             payload["next_action"], "lrh meta set gone --local-repo-path PATH"
         )
+        self.assertNotIn("next_actions", payload)
 
     def test_project_routes_explain_a_checkout_without_a_project_directory(
         self,
@@ -1337,11 +1338,14 @@ class TestLrhServeRoutes(unittest.TestCase):
             ("occupied", None, "file"),
             ("blocked", "control", "file"),
             ("ready", "control", "dir"),
+            ("dangling", "control", "symlink"),
         ):
             repo = root / "repos" / name
             repo.mkdir(parents=True)
             if occupant == "file":
                 (repo / "project").write_text("not a directory\n", encoding="utf-8")
+            elif occupant == "symlink":
+                (repo / "project").symlink_to(repo / "nowhere")
             else:
                 (repo / "project").mkdir()
             _write_project_record(
@@ -1357,6 +1361,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "occupied": [repoint],
                 "blocked": [repoint],
                 "ready": [repoint, f"lrh meta set {name} --project-dir project"],
+                "dangling": [repoint],
             }[name]
             with self.subTest(project=name, api=True):
                 status, _content_type, body = self._read_error(
@@ -1370,7 +1375,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                     self.assertIn("exists but is not a directory", payload["message"])
                 else:
                     self.assertIn("does not exist", payload["message"])
-                if name in ("occupied", "blocked"):
+                if name in ("occupied", "blocked", "dangling"):
                     self.assertIn("move the file aside", payload["message"])
             with self.subTest(project=name, page=True):
                 status, _content_type, body = self._read_error(

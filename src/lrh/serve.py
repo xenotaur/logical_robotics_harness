@@ -2760,7 +2760,7 @@ def _no_project_directory_error(
     default_path = repo / "project"
     init = f"lrh project init --project-root {shlex.quote(str(repo))}"
     is_default = os.path.normpath(project_path) == os.path.normpath(default_path)
-    if project_path.exists():
+    if project_path.exists() or project_path.is_symlink():
         problem = f'is "{project_path}", which exists but is not a directory'
     else:
         problem = f'is "{project_path}", which does not exist'
@@ -2768,7 +2768,11 @@ def _no_project_directory_error(
         f"Project {registry_name!r} has a local checkout, but its LRH project "
         f"directory {problem}."
     )
-    default_blocked = default_path.exists() and not default_path.is_dir()
+    # A dangling symlink also blocks init: exists() is False, but the
+    # templates still cannot be created beneath it.
+    default_blocked = (
+        default_path.exists() or default_path.is_symlink()
+    ) and not default_path.is_dir()
     if default_blocked:
         message += (
             f' "lrh project init" cannot create "{default_path}" while a file '

@@ -152,14 +152,33 @@ The dependency-map routes and the
 - A registered project with no local checkout returns 409 Conflict. That
   covers a project registered with only a `repo_locator`, and a project whose
   bound checkout path no longer exists, for example because the checkout was
-  moved or deleted. Only the bound repository path is checked, so a checkout
-  that exists without its `project/` directory is not reported this way. The
+  moved or deleted. Only the bound repository path is checked here; a
+  checkout that exists without its project directory is the next case. The
   HTML routes render a "No local checkout" page in the frame. It gives the
   reason, including the missing path when there is one, and the command
   that binds a checkout: `lrh meta set <name> --local-repo-path PATH`. The
   JSON route returns an object whose `error` is `no_local_checkout`, with
   `project`, `message`, and `next_action` fields. HEAD returns the same
   status as GET.
+- A registered project whose local checkout exists, but whose LRH project
+  directory does not, also returns 409 Conflict. This happens when the
+  repository was never set up with `lrh project init`, or when the record's
+  `project_dir` names the wrong directory. The HTML routes render a "No LRH
+  project directory" page that names the missing directory and lists the
+  commands that fix it:
+  - For the default `<repo>/project` directory: `lrh project init
+    --project-root <repo>` to create it, or `lrh meta set <name>
+    --project-dir DIR` to point the record at an existing one.
+  - For a custom `project_dir`: `lrh meta set <name> --project-dir DIR`, or
+    `lrh project init --project-root <repo>` followed by `lrh meta set
+    <name> --project-dir project`. `lrh project init` always creates
+    `<repo>/project`, so on its own it does not fix a custom directory.
+
+  The JSON route returns an object whose `error` is `no_project_directory`.
+  Its `next_action` is the first command, and `next_actions` lists them all.
+  HEAD returns the same status as GET. A project directory that exists but
+  declares no views is not an error: its dependency-map index returns 200
+  with "No dependency-map views".
 - Any other `project_id` returns 404, including an ambiguous selector or a
   registry that cannot be read: a "Project not found" page from the HTML
   routes, or an object whose `error` is `project_not_found` from the JSON

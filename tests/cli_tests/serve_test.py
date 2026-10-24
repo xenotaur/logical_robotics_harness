@@ -1265,6 +1265,90 @@ class TestLrhServeRoutes(unittest.TestCase):
             payload["next_action"], "lrh meta set gone --local-repo-path PATH"
         )
 
+    def test_project_routes_explain_a_checkout_without_a_project_directory(
+        self,
+    ) -> None:
+        root, _base_url = self._registered_selector_server()
+        cases = {}
+        for name, project_dir in (
+            ("bare", None),
+            ("explicit", "project"),
+            ("custom", "control"),
+        ):
+            repo = root / "repos" / name
+            repo.mkdir(parents=True)
+            _write_project_record(
+                root, name, str(repo), display_name=name, project_dir=project_dir
+            )
+            # The registry reports resolved paths (/var is /private/var on macOS).
+            cases[name] = repo.resolve()
+        _httpd, base_url = self._start_server(root)
+
+        for name, repo in cases.items():
+            init = f"lrh project init --project-root {repo}"
+            repoint = f"lrh meta set {name} --project-dir DIR"
+            directory = repo / ("control" if name == "custom" else "project")
+            for route in (
+                f"/project/{name}/dependency-maps",
+                f"/project/{name}/dependency-maps/main",
+                f"/project/{name}/work-items/WI-A",
+                f"/project/{name}/work-items/WI-A/prompt",
+            ):
+                with self.subTest(project=name, route=route):
+                    status, content_type, body = self._read_error(base_url + route)
+                    self.assertEqual(status, 409)
+                    self.assertIn("text/html", content_type)
+                    self.assertIn("No LRH project directory", body)
+                    self.assertIn(html.escape(str(directory)), body)
+                    self.assertIn(f"<code>{repoint}</code>", body)
+                    if name == "custom":
+                        # init alone would still leave <repo>/control missing.
+                        self.assertNotIn(f"<code>{init}</code>", body)
+                        self.assertIn(
+                            html.escape(
+                                f"{init} && lrh meta set {name} --project-dir project"
+                            ),
+                            body,
+                        )
+                    else:
+                        self.assertIn(f"<code>{init}</code>", body)
+                    head_status, head_type, _ = self._read_error(
+                        base_url + route, head=True
+                    )
+                    self.assertEqual(head_status, 409)
+                    self.assertIn("text/html", head_type)
+
+            with self.subTest(project=name, api=True):
+                status, content_type, body = self._read_error(
+                    base_url + f"/api/project/{name}/dependency-maps/main"
+                )
+                payload = json.loads(body)
+                self.assertEqual(status, 409)
+                self.assertIn("application/json", content_type)
+                self.assertEqual(payload["error"], "no_project_directory")
+                self.assertIn(str(directory), payload["message"])
+                expected = (
+                    [repoint, f"{init} && lrh meta set {name} --project-dir project"]
+                    if name == "custom"
+                    else [init, repoint]
+                )
+                self.assertEqual(payload["next_actions"], expected)
+                self.assertEqual(payload["next_action"], expected[0])
+
+    def test_project_directory_without_views_still_lists_no_views(self) -> None:
+        root, _base_url = self._registered_selector_server()
+        repo = root / "repos" / "plain"
+        _write_minimal_project(repo)
+        _write_project_record(root, "plain", str(repo), display_name="Plain")
+        _httpd, base_url = self._start_server(root)
+
+        status, _content_type, body = self._read(
+            base_url + "/project/plain/dependency-maps"
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("No dependency-map views", body)
+        self.assertNotIn("No LRH project directory", body)
+
     def test_project_work_item_routes_answer_head_like_get(self) -> None:
         _root, base_url = self._alpha_selector_server()
 

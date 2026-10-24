@@ -9,6 +9,7 @@ import hashlib
 import html
 import http.server
 import json
+import os
 import shlex
 import socket
 import socketserver
@@ -174,8 +175,8 @@ def dependency_map_payload(
 
     Returns the versioned snapshot JSON, 404 for a malformed path, an unknown
     project, or an unknown view, 409 for a registered project with no local
-    checkout, 422 for an invalid view declaration, or 500 if the project's
-    control files cannot be loaded.
+    checkout or no LRH project directory, 422 for an invalid view declaration,
+    or 500 if the project's control files cannot be loaded.
     """
 
     parts = [urllib.parse.unquote(part) for part in remainder.split("/") if part]
@@ -209,7 +210,8 @@ def render_dependency_map_page(
 
     Returns 404 for an unknown view, 422 for an invalid declaration, and 500
     if the sources cannot be read; the last two render an explanatory page, as
-    do an unknown project (404) and a project with no local checkout (409).
+    do an unknown project (404) and a project with no local checkout or no LRH
+    project directory (409).
     """
 
     try:
@@ -2637,7 +2639,8 @@ class ProjectSelectorError(Exception):
     """A ``/project/<project_id>/`` selector names no locally readable project.
 
     ``status`` is 404 when nothing matches the selector, and 409 when it names
-    a registered project that has no local checkout to read.
+    a registered project with no local checkout, or whose checkout has no LRH
+    project directory.
     """
 
     def __init__(
@@ -2648,6 +2651,7 @@ class ProjectSelectorError(Exception):
         error: str,
         message: str,
         registry_name: str | None = None,
+        next_actions: tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(message)
         self.selector = selector
@@ -2655,14 +2659,25 @@ class ProjectSelectorError(Exception):
         self.error = error
         self.message = message
         self.registry_name = registry_name
+        self._next_actions = next_actions
+
+    @property
+    def next_actions(self) -> tuple[str, ...]:
+        """The commands that fix the error, most direct first."""
+
+        if self._next_actions is not None:
+            return self._next_actions
+        if self.registry_name is None:
+            return ()
+        return (
+            f"lrh meta set {shlex.quote(self.registry_name)} --local-repo-path PATH",
+        )
 
     @property
     def next_action(self) -> str | None:
-        """The command that binds a local checkout, for a no-checkout error."""
+        """The first command in ``next_actions``, or None."""
 
-        if self.registry_name is None:
-            return None
-        return f"lrh meta set {shlex.quote(self.registry_name)} --local-repo-path PATH"
+        return self.next_actions[0] if self.next_actions else None
 
     def to_payload(self) -> dict[str, object]:
         """Return the JSON error body the API routes send."""
@@ -2674,6 +2689,8 @@ class ProjectSelectorError(Exception):
         }
         if self.next_action is not None:
             payload["next_action"] = self.next_action
+        if len(self.next_actions) > 1:
+            payload["next_actions"] = list(self.next_actions)
         return payload
 
 
@@ -2686,7 +2703,8 @@ def _config_for_project_selector(
     checkout. ``main``, the served project's own selector, falls back to the
     served project only when no Meta workspace exists or the registry reads
     cleanly and no record matches it. A registered project without a local
-    checkout raises a 409 ``ProjectSelectorError`` and anything else,
+    checkout, or whose checkout has no LRH project directory, raises a 409
+    ``ProjectSelectorError`` and anything else,
     including an ambiguous selector or an unreadable registry, a 404, so a
     page never shows the served project's data under another project's name.
     """
@@ -2762,11 +2780,59 @@ def _config_for_project_selector(
             ),
             registry_name=registry_name,
         )
+    if not resolved_path.is_dir():
+        # is_dir, as /meta's missing_project check uses: a file is no project.
+        raise _no_project_directory_error(
+            project_selector,
+            registry_name=registry_name,
+            repo_path=selection.resolved_repo_path,
+            project_path=resolved_path,
+        )
     return ServeConfig(
         host=config.host,
         port=config.port,
         project_root=resolved_path,
         allow_nonlocal_host=config.allow_nonlocal_host,
+    )
+
+
+def _no_project_directory_error(
+    project_selector: str,
+    *,
+    registry_name: str,
+    repo_path: Path | None,
+    project_path: Path,
+) -> ProjectSelectorError:
+    """Build the 409 for a checkout that has no LRH project directory.
+
+    ``lrh project init`` always creates ``<repo>/project``, so it is offered on
+    its own only when that is the directory the record resolves to; a custom
+    ``project_dir`` gets a repoint, or init followed by a repoint to
+    ``project``.
+    """
+
+    name = shlex.quote(registry_name)
+    repoint = f"lrh meta set {name} --project-dir DIR"
+    repo = repo_path if repo_path is not None else project_path.parent
+    init = f"lrh project init --project-root {shlex.quote(str(repo))}"
+    default_dir = os.path.normpath(repo / "project")
+    if os.path.normpath(project_path) == default_dir:
+        next_actions: tuple[str, ...] = (init, repoint)
+    else:
+        next_actions = (
+            repoint,
+            f"{init} && lrh meta set {name} --project-dir project",
+        )
+    return ProjectSelectorError(
+        project_selector,
+        status=409,
+        error="no_project_directory",
+        message=(
+            f"Project {registry_name!r} has a local checkout, but its LRH "
+            f'project directory "{project_path}" does not exist.'
+        ),
+        registry_name=registry_name,
+        next_actions=next_actions,
     )
 
 
@@ -2789,7 +2855,19 @@ def render_project_selector_error_page(error: ProjectSelectorError) -> str:
     """Render the page for a selector that names no locally readable project."""
 
     selector = html.escape(error.selector)
-    if error.next_action is None:
+    if error.error == "no_project_directory":
+        title = "No LRH project directory"
+        commands = "".join(
+            f"<li><code>{html.escape(command)}</code></li>"
+            for command in error.next_actions
+        )
+        detail = (
+            f"<p>{html.escape(error.message)}</p>"
+            "<p>Point the project at its LRH project directory, or create one, "
+            "then reload this page:</p>"
+            f"<ul>{commands}</ul>"
+        )
+    elif error.next_action is None:
         title = "Project not found"
         detail = (
             f"<p>{html.escape(error.message)}</p>"

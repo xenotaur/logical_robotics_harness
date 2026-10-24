@@ -222,15 +222,23 @@ scripts/test tests/packaging_tests/skills_mirror_sync_test.py
 ```
 
 Without `--force`, the installer never overwrites a skill that differs from
-`src`; it prints `warning: <skill> has local modifications — skipped`. The new
-skill cannot trigger this warning: the existence check above confirmed it has
-no target directories, so the non-forced run installs it. Any such warning
-therefore names a *different*, pre-existing item — another skill, or the
-Antigravity `plugin.json` — that is already out of sync, either on your base
-branch or through an uncommitted edit in your working tree. Leave it alone and
-do not add `--force` — that would rewrite unrelated items into this PR. Report
-it (or revert your own stray edit) so it can be fixed separately; the mirror
-sync test fails until it is.
+`src`; it prints `warning: <skill> has local modifications — skipped`. Read
+which item the warning names:
+
+- **Your own skill.** On a first install of a brand-new skill this cannot
+  happen — the existence check above confirmed it had no target directories,
+  so the non-forced run installs it. It does happen when the user chose to
+  overwrite or extend an existing skill, or when you edit
+  `src/lrh/skills/<name>/` again after installing (for example, a Step 7
+  frontmatter fix). Regenerate just that skill with the scratch-source recipe
+  in CONTRIBUTING.md's "Claude Code skills" section.
+- **Anything else** — another skill, or the Antigravity `plugin.json`. That
+  item is already out of sync, either on your base branch or through an
+  uncommitted edit in your working tree. Leave it alone and do not add
+  `--force` to the repo-wide command — that would rewrite unrelated items
+  into this PR. Revert your own stray edit if that is the cause; otherwise
+  report the out-of-sync item so it can be fixed separately. The mirror sync
+  test fails until that item is back in sync.
 
 If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
 or no `lrh skills install` (an older or client checkout), fall back to

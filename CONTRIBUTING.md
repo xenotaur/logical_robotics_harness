@@ -252,7 +252,9 @@ lrh skills install --local --target all --source current-repo --force
 Run these from the repository root. If the preview shows unrelated skills as
 stale, regenerate only your skill instead. Copy the skill directory (no
 trailing slash, so the directory itself is copied rather than its contents)
-into an empty scratch directory and install from there:
+into an empty scratch directory and install from there. To regenerate several
+skills this way, repeat the `cp -R` line once per skill, into the same scratch
+directory, before installing:
 
 ```bash
 tmp=$(mktemp -d)
@@ -260,10 +262,6 @@ cp -R src/lrh/skills/<name> "$tmp"/
 lrh skills install --local --target all --source "$tmp" --force --diff
 lrh skills install --local --target all --source "$tmp" --force
 ```
-
-To regenerate several skills this way, copy each one into the same scratch
-directory (one `cp -R src/lrh/skills/<name> "$tmp"/` per skill) before
-installing.
 
 To delete or rename a skill, remove its directory from all four locations by
 hand; the installer never removes skills from a target.

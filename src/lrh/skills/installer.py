@@ -929,7 +929,10 @@ def install_skills(
 
     for name in _skill_names(skill_source):
         dest = target_dir / name
-        if not dest.exists():
+        # exists() follows symlinks, so a dangling symlinked skill root would
+        # look missing and be silently replaced; treat any symlink as present
+        # so it is protected as a local modification (as plugin.json is).
+        if not dest.exists() and not dest.is_symlink():
             if not dry_run:
                 target_dir.mkdir(parents=True, exist_ok=True)
                 _copy_skill_from_source(name, target_dir, skill_source, skill_target)
@@ -1027,7 +1030,7 @@ def inspect_skills(
             continue
 
         dest = target_dir / name
-        if not dest.exists():
+        if not dest.exists() and not dest.is_symlink():
             status = SkillInspectionStatus.MISSING
         elif _skill_differs_from_rendered(dest, source_files):
             status = SkillInspectionStatus.MODIFIED

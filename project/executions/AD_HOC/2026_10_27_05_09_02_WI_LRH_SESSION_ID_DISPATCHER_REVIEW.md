@@ -2,14 +2,14 @@
 execution_id: 2026_10_27_05_09_02_WI_LRH_SESSION_ID_DISPATCHER_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_SESSION_ID_DISPATCHER_REVIEW)[2026-10-27T05:09:00+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_11_02_34_02_WI_LRH_SESSION_ID_DISPATCHER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/824
-commit:
+commit: d741b4b40c22c564758734d39850f9b535fe1524
 created_at: 2026-10-27T05:09:02+00:00
 agent: claude_app
 instruction_source: "PR #824 review threads (lrh-land review-response)"
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

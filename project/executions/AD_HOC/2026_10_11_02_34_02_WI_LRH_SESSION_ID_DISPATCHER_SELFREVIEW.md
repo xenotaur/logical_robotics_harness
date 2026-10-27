@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_02_34_02_WI_LRH_SESSION_ID_DISPATCHER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_SESSION_ID_DISPATCHER_SELFREVIEW)[2026-10-11T02:34:02+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/824
-commit:
+commit: d741b4b40c22c564758734d39850f9b535fe1524
 created_at: 2026-10-11T02:34:02+00:00
 agent: claude_app
 instruction_source: "PR #824 pre-push diff (git diff origin/main...HEAD at 0848381d)"
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

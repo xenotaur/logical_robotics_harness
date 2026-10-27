@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #824 (commit d741b4b4): added the metadata-only /lrh-session-id dispatcher. It selects the vendor from an explicit argument, then the single environment signal set (CLAUDE_CODE_SESSION_ID, CODEX_THREAD_ID or ANTIGRAVITY_CONVERSATION_ID), then by asking; runs the matching lrh-session-id-<vendor> skill inline; and reports a variant that is not installed as unsupported with session_transcript: pending, checked at run time. Installed to all three targets and listed in CLAUDE.md.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-SESSION-ID-DISPATCHER
 title: "Add the /lrh-session-id dispatcher skill over the lrh-session-id-<vendor> variants"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

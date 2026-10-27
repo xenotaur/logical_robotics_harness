@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_02_34_02_WI_LRH_SESSION_ID_DISPATCHER
 prompt_id: PROMPT(WI-LRH-SESSION-ID-DISPATCHER:WI_LRH_SESSION_ID_DISPATCHER)[2026-10-10T05:43:02+00:00]
 work_item: WI-LRH-SESSION-ID-DISPATCHER
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/824
-commit:
+commit: d741b4b40c22c564758734d39850f9b535fe1524
 created_at: 2026-10-11T02:34:02+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-SESSION-ID-DISPATCHER.md
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

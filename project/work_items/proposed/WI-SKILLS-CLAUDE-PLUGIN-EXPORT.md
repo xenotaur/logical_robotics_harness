@@ -36,6 +36,7 @@ acceptance:
   - '`lrh skills export --target claude-plugin --out <dir>` writes a Claude plugin marketplace tree: `.claude-plugin/marketplace.json` listing one plugin at `./plugins/lrh`, plus `plugins/lrh/.claude-plugin/plugin.json` and `plugins/lrh/skills/<name>/` for every canonical skill, including manual-only skills'
   - 'Exported SKILL.md files keep the canonical Claude frontmatter unchanged (including `disable-model-invocation`, `argument-hint`, and `when_to_use`); Codex `agents/` metadata and `_shared/` are excluded; no top-level `bin/` is emitted; `plugin.json` sets no `version`'
   - 'Export is deterministic, never modifies canonical sources or local installs, and fails before writing on unsafe paths or on exceeding the claude.ai plugin limits (5,000 files, 200 MB)'
+  - 'Re-exporting after a canonical skill is deleted or renamed removes its stale folder from `plugins/lrh/skills/`'
   - 'The generated marketplace tree is committed at the LRH repo root, and an automated test fails when it drifts from `src/lrh/skills/`'
   - '`claude plugin validate` passes on the repo root (marketplace) and on `plugins/lrh` (plugin); output recorded in the implementation execution record'
   - 'Documentation covers adding the LRH repo as a claude.ai marketplace, Sync automatically, what reaches cloud sessions, and the lrh CLI requirement'
@@ -99,11 +100,17 @@ which this target must not do.
 ### Duplication search
 - In-repo: No Claude plugin or marketplace export exists. Related:
   `src/lrh/skills/exporter.py` (ChatGPT per-skill ZIPs) and
-  `src/lrh/skills/installer.py` (filesystem installs).
+  `src/lrh/skills/installer.py` (filesystem installs). The closest prior
+  art is the Antigravity plugin install path in `installer.py`
+  (`_antigravity_plugin_manifest` and its install/drift helpers, from
+  line 619). It already renders a skills tree with a generated
+  `plugin.json` and reports manifest drift through `lrh skills check`.
 - Sibling repos: None identified.
 - External libraries: None identified. claude.ai's marketplace sync is the
   hosting mechanism; LRH only packages for it.
-- Recommendation: Proceed by extending `exporter.py` with a second target.
+- Recommendation: Proceed by extending `exporter.py` with a second target,
+  modeling the manifest generation and drift detection on the Antigravity
+  plugin path rather than inventing a parallel mechanism.
 
 ### Demand search
 - Work items: None found.
@@ -132,9 +139,16 @@ which this target must not do.
    - emit `.claude-plugin/marketplace.json` (plugin source `./plugins/lrh`)
      and `plugins/lrh/.claude-plugin/plugin.json` with name and description
      and no `version`.
-3. Reuse `exporter.py`'s path-safety checks and atomic publish. Apply the
-   claude.ai plugin limits (5,000 files, 200 MB per plugin) instead of the
-   ChatGPT limits, and reject any top-level `bin/`.
+3. Reuse `exporter.py`'s path-safety checks. Apply the claude.ai plugin
+   limits (5,000 files, 200 MB per plugin) instead of the ChatGPT limits,
+   and reject any top-level `bin/`. Publishing is a tree replacement, not
+   the per-file `os.replace` that `_publish_archives`
+   (`exporter.py:743`) does:
+   - stage the complete tree first;
+   - remove `plugins/lrh/skills/<name>/` folders whose canonical skill was
+     deleted or renamed, and files dropped from a skill;
+   - promote the tree so a failed export never leaves a partial or mixed
+     tree behind.
 4. Run the export with `--source current-repo` into the repo root, and commit
    `.claude-plugin/marketplace.json` and `plugins/lrh/`.
 5. Add a test that regenerates the tree in memory and fails on any difference
@@ -169,6 +183,8 @@ which this target must not do.
   `_shared/`, and `bin/` are absent, and `plugin.json` has no `version`.
 - Output is deterministic. Canonical sources and installs are untouched, and
   unsafe paths or over-limit output fail before anything is written.
+- Re-exporting after a canonical skill is deleted or renamed removes its
+  stale folder from `plugins/lrh/skills/`.
 - The committed tree is at the repo root, and the drift test fails when a
   skill changes without regeneration.
 - `claude plugin validate` passes for the marketplace and the plugin.
@@ -192,9 +208,16 @@ which this target must not do.
 
 ## Open Questions
 
-- Naming: plugin `lrh` makes commands like `/lrh:lrh-land`, while 426
-  references in skill bodies say `/lrh-*`. Does the short form still resolve
-  in a cloud session? A short `/probe` resolved in Cowork.
+- Naming: plugin `lrh` makes commands like `/lrh:lrh-land`, while skill
+  text says `/lrh-*`: 426 times across the `SKILL.md` files, and several
+  hundred more once `references/` files are counted. Does the short form
+  still resolve in a cloud session? A short `/probe` resolved in Cowork.
+- About 13 skills cite `src/lrh/skills/_shared/*.md` by repo path (for
+  example `github-network-execution.md` and `chain-defaults.md`). Those
+  paths don't exist in a cloud session on a non-LRH repo. Does that
+  matter in practice, given the installed skills are written to stand
+  alone? If it does, which is better: bundling `_shared/` into the plugin,
+  or rewording the citations?
 - In LRH-repo sessions, the committed `.claude/skills/lrh-*` and the plugin's
   `lrh:*` copies will both load. Is the duplication harmful or just noisy?
 - Does a personally added marketplace with Sync automatically re-sync on push

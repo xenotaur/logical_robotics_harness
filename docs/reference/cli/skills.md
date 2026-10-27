@@ -78,7 +78,9 @@ name starts with `.`.
 
 Without `--force`, locally modified target files are preserved and reported as
 warnings. This protection also applies to Antigravity's generated
-`plugin.json`.
+`plugin.json`. A skill directory replaced by a symlink, including one whose
+target no longer exists, counts as a local modification: it is never followed,
+and only `--force` replaces it.
 
 ## Status Values
 

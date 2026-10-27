@@ -26,6 +26,7 @@ AFFECTED_SKILLS = (
     "lrh-doc-audit",
     "lrh-export-claude",
     "lrh-session-id-claude",
+    "lrh-session-id",
 )
 
 

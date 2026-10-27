@@ -92,8 +92,10 @@ Follow these rules for every run:
    as a fallback for a missing variant.
 5. Do not print environment variable values while detecting the vendor;
    check only whether each one is set.
-6. Add no gate, write step, or report field of its own, other than the
-   vendor line in Step 3. The variant's own safety rules apply in full.
+6. Add no gate or write step of its own. When a variant runs, add only the
+   `Vendor:` line in Step 3; the two stop reports (Step 1 undetermined,
+   Step 2 unsupported) contain only `Vendor:` and `session_transcript:
+   pending`. The variant's own safety rules apply in full.
 
 ---
 
@@ -141,8 +143,7 @@ dispatcher.
 If it is not installed, stop and report:
 
 ```text
-Vendor: <vendor> (selected via <argument | environment | user>)
-Status: unsupported -- lrh-session-id-<vendor> is not installed
+Vendor: <vendor> (selected via <argument | environment | user>; unsupported: lrh-session-id-<vendor> is not installed)
 session_transcript: pending
 ```
 

@@ -1,4 +1,5 @@
 import datetime
+import html
 import http.client
 import io
 import json
@@ -19,6 +20,7 @@ import urllib.parse
 import urllib.request
 
 from lrh import serve
+from lrh.assist import run_packet, work_item_prompt_core
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
 from lrh.dependency_maps import snapshot as dependency_map_snapshot
@@ -431,10 +433,17 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(head_status, 200)
         self.assertIn("text/html", head_type)
         self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
-        for key, label, _icon in serve._SPECIMEN_STATES:
-            self.assertIn(f"</span> {label}</span>", body)
-            for part in ("fg", "bg", "line"):
+        for key, label, _icon, shape in serve._SPECIMEN_STATES:
+            if shape == "struck":
+                self.assertIn(f'<span class="lrh-pill-struck">{label}</span>', body)
+            else:
+                self.assertIn(f"</span> {label}</span>", body)
+            self.assertIn(f"lrh-pill--{shape}", body)
+            for part in ("fg", "line") if shape == "outlined" else ("fg", "bg", "line"):
                 self.assertIn(f"var(--lrh-color-status-{key}-{part})", body)
+        # Outlined pills show the surface beneath them, never a fill.
+        self.assertNotIn("var(--lrh-color-status-unblocked-bg)", body)
+        self.assertIn('<div class="lrh-card lrh-card--abandoned"', body)
         for key, label in serve._SPECIMEN_BANDS:
             self.assertIn(f"<h3>{label} ", body)
             for part in ("fg", "bg", "line"):
@@ -873,7 +882,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("text/html", content_type)
         self.assertIn('<nav class="lrh-sidebar"', body)
         self.assertIn('class="lrh-map"', body)
-        self.assertIn("Layout: layered-grid.", body)
+        self.assertIn("Layout: outline.", body)
         self.assertIn("Dependency maps</span>", body)
         self.assertNotIn("<script", body.lower())
         self.assertEqual(selected.count('<aside class="lrh-drawer"'), 1)
@@ -883,6 +892,46 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("Not modeled yet", selected)
         self.assertIn('class="lrh-map-table"', table)
         self.assertIn("Nothing in this view is waiting or blocked.", blockers)
+
+    def test_dependency_map_hide_query_collapses_the_server_page(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        every = "done,blocked,in_progress,waiting,unblocked,abandoned,unknown"
+        _s, _t, full = self._read(url)
+        status, _t, hidden = self._read(url + "?hide=" + every)
+        _s, _t, bogus = self._read(url + "?hide=nope")
+        _s, _t, table = self._read(url + "?tab=table&hide=done")
+
+        self.assertEqual(status, 200)
+        self.assertIn('class="lrh-card', full)
+        self.assertNotIn('class="lrh-card', hidden)
+        self.assertIn("The filters hide every item in this view.", hidden)
+        self.assertIn('<nav class="lrh-filters"', hidden)
+
+        def map_section(page: str) -> str:
+            return page.split('<section class="lrh-map-scroll"', 1)[1].split(
+                "</section>", 1
+            )[0]
+
+        # An unknown state hides nothing.
+        self.assertEqual(map_section(bogus), map_section(full))
+        self.assertIn('href="?tab=table&amp;item=WI-A&amp;hide=done"', table)
+
+    def test_dependency_map_layout_query_chooses_the_layout(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/project/main/dependency-maps/main"
+
+        _s, _t, grid = self._read(url + "?layout=layered-grid")
+        _s, _t, unknown = self._read(url + "?layout=nope")
+        _s, _t, table = self._read(url + "?tab=table&layout=layered-grid")
+
+        self.assertIn("Layout: layered-grid.", grid)
+        self.assertIn('<span aria-current="true">Grid</span>', grid)
+        # An unknown name falls back to the default, the outline.
+        self.assertIn("Layout: outline.", unknown)
+        # The table's Map tab link keeps the layout.
+        self.assertIn('<a href="?layout=layered-grid">Map</a>', table)
 
     def test_dependency_map_head_agrees_with_get_on_source_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
@@ -1119,21 +1168,151 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("No dependency-map views", body)
 
+    def _alpha_selector_server(self) -> tuple[pathlib.Path, str]:
+        """Serve a project whose registry also binds a distinct ``alpha``."""
+
+        root, _base_url = self._registered_selector_server()
+        alpha = root / "repos" / "alpha"
+        _write_viewer_project(alpha)
+        work_item = alpha / "project" / "work_items" / "active" / "WI-A.md"
+        work_item.write_text(
+            work_item.read_text(encoding="utf-8").replace(
+                "- Render prompt previews.", "- Render the alpha-only marker."
+            ),
+            encoding="utf-8",
+        )
+        _write_project_record(root, "alpha", str(alpha), display_name="Alpha")
+        _httpd, base_url = self._start_server(root)
+        return root, base_url
+
+    def test_project_work_item_pages_link_and_download_within_the_project(
+        self,
+    ) -> None:
+        _root, base_url = self._alpha_selector_server()
+
+        _status, _type, detail = self._read(base_url + "/project/alpha/work-items/WI-A")
+        self.assertIn('href="/project/alpha/work-items/WI-A/prompt?download=1"', detail)
+        self.assertNotIn("/workbench/prompt?work_item=", detail)
+
+        _status, _type, preview = self._read(
+            base_url + "/project/alpha/work-items/WI-A/prompt"
+        )
+        self.assertIn(
+            'href="/project/alpha/work-items/WI-A">Back to workbench', preview
+        )
+        self.assertIn('href="/project/alpha">Back to viewer context', preview)
+        self.assertIn(
+            'href="/project/alpha/work-items/WI-A/prompt?download=1"', preview
+        )
+        self.assertNotIn('href="/workbench', preview)
+
+        url = base_url + "/project/alpha/work-items/WI-A/prompt?download=1"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            body = response.read().decode("utf-8")
+            self.assertEqual(response.status, 200)
+            self.assertIn("text/markdown", response.headers["Content-Type"])
+            self.assertIn("attachment;", response.headers["Content-Disposition"])
+        self.assertIn("alpha-only marker", body)
+        status, content_type = self._head(url)
+        self.assertEqual(status, 200)
+        self.assertIn("text/markdown", content_type)
+
+        # The served project's own workbench page keeps its existing links.
+        _status, _type, workbench = self._read(
+            base_url + "/workbench/prompt?work_item=WI-A"
+        )
+        self.assertIn('href="/workbench">Back to workbench', workbench)
+        self.assertIn('href="/#work-item-WI-A">Back to viewer context', workbench)
+        self.assertIn(
+            'href="/workbench/prompt?work_item=WI-A&amp;download=1"', workbench
+        )
+        self.assertNotIn("alpha-only marker", workbench)
+
+    def test_project_routes_refuse_a_missing_bound_checkout(self) -> None:
+        root, base_url = self._registered_selector_server()
+        missing = root / "repos" / "moved-away"
+        _write_project_record(root, "gone", str(missing), display_name="Gone")
+
+        for route in (
+            "/project/gone/dependency-maps",
+            "/project/gone/dependency-maps/main",
+            "/project/gone/work-items/WI-A",
+            "/project/gone/work-items/WI-A/prompt",
+        ):
+            with self.subTest(route=route):
+                status, content_type, body = self._read_error(base_url + route)
+                self.assertEqual(status, 409)
+                self.assertIn("text/html", content_type)
+                self.assertIn("No local checkout", body)
+                self.assertIn(html.escape(str(missing)), body)
+                self.assertIn("no longer exists", body)
+                self.assertIn("lrh meta set gone --local-repo-path PATH", body)
+                head_status, head_type, _ = self._read_error(
+                    base_url + route, head=True
+                )
+                self.assertEqual(head_status, 409)
+                self.assertIn("text/html", head_type)
+
+        status, content_type, body = self._read_error(
+            base_url + "/api/project/gone/dependency-maps/main"
+        )
+        payload = json.loads(body)
+        self.assertEqual(status, 409)
+        self.assertIn("application/json", content_type)
+        self.assertEqual(payload["error"], "no_local_checkout")
+        self.assertIn(str(missing), payload["message"])
+        self.assertEqual(
+            payload["next_action"], "lrh meta set gone --local-repo-path PATH"
+        )
+
+    def test_project_work_item_routes_answer_head_like_get(self) -> None:
+        _root, base_url = self._alpha_selector_server()
+
+        for route, expected_status, expected_type in (
+            ("/project/alpha/work-items/WI-A", 200, "text/html"),
+            ("/project/alpha/work-items/WI-A/prompt", 200, "text/html"),
+            ("/project/alpha/work-items/WI-NOPE", 404, "application/json"),
+            ("/project/alpha/work-items/WI-NOPE/prompt", 404, "application/json"),
+            ("/project/nope/work-items/WI-A", 404, "text/html"),
+            ("/project/nope/work-items/WI-A/prompt", 404, "text/html"),
+            ("/project/remote-only/work-items/WI-A", 409, "text/html"),
+            ("/project/remote-only/work-items/WI-A/prompt", 409, "text/html"),
+        ):
+            with self.subTest(route=route):
+                if expected_status == 200:
+                    get_status, get_type, _ = self._read(base_url + route)
+                    head_status, head_type = self._head(base_url + route)
+                else:
+                    get_status, get_type, _ = self._read_error(base_url + route)
+                    head_status, head_type, _ = self._read_error(
+                        base_url + route, head=True
+                    )
+                self.assertEqual(get_status, expected_status)
+                self.assertEqual(head_status, expected_status)
+                self.assertIn(expected_type, get_type)
+                self.assertEqual(head_type, get_type)
+
     def test_project_routes_serve_the_served_projects_own_selectors(self) -> None:
         _root, base_url = self._registered_selector_server()
 
         for selector in ("served", "proj-served", "main"):
-            for route in (
-                f"/project/{selector}/dependency-maps",
-                f"/project/{selector}/dependency-maps/main",
-                f"/project/{selector}/work-items/WI-A",
-                f"/project/{selector}/work-items/WI-A/prompt",
-                f"/api/project/{selector}/dependency-maps/main",
+            for route, expected in (
+                (
+                    f"/project/{selector}/dependency-maps",
+                    f'href="/project/{selector}/dependency-maps/main"',
+                ),
+                (f"/project/{selector}/dependency-maps/main", "<title>Main</title>"),
+                (f"/project/{selector}/work-items/WI-A", f"Project: {selector}"),
+                (f"/project/{selector}/work-items/WI-A/prompt", "prompt: WI-A"),
+                (
+                    f"/api/project/{selector}/dependency-maps/main",
+                    '"view_id": "main"',
+                ),
             ):
                 with self.subTest(route=route):
                     status, _content_type, body = self._read(base_url + route)
                     self.assertEqual(status, 200)
-                    self.assertTrue("WI-A" in body or "dependency-maps/main" in body)
+                    self.assertIn(expected, body)
             with self.subTest(head=selector):
                 status, _content_type = self._head(
                     base_url + f"/project/{selector}/dependency-maps/main"
@@ -1165,7 +1344,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn('class="lrh-status-badge lrh-status-badge--stable"', index_body)
         self.assertIn("Evidence summary", index_body)
         self.assertIn("Observed run/test evidence is not yet available", index_body)
-        self.assertIn("Execution-ready leaves", index_body)
+        self.assertIn("Leaves flagged execution-ready", index_body)
         self.assertIn("does not", index_body)
         self.assertEqual(health_status, 200)
         self.assertIn("application/json", health_type)
@@ -1790,9 +1969,184 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("Readiness state: <strong>ready</strong>", body)
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", body)
+        self.assertIn("<dt>Prompt-ready</dt><dd>", body)
+        self.assertIn(
+            "<dt>Authorization</dt><dd>Not derived: needs your approval", body
+        )
+        self.assertIn("Validation commands: scripts/test", body)
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Passes</dd>", body)
+        self.assertIn("<dt>Blocked flag</dt><dd>No</dd>", body)
+        self.assertIn("<button >Copy generated prompt</button></li>", body)
+        self.assertNotIn("Readiness state", body)
         self.assertIn("Preview generated prompt", body)
         self.assertIn("Equivalent CLI:", body)
+
+    def test_project_work_item_route_names_each_readiness_check(self) -> None:
+        # WI-B declares no run-packet fields: it is not "not ready", its
+        # execution readiness is simply not declared.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(
+                base_url + "/project/main/work-items/WI-B"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn(
+            "<dt>Execution-ready flag (run packets)</dt><dd>Not declared</dd>", body
+        )
+        for field in ("Validation commands", "Allowed paths", "Forbidden paths"):
+            self.assertIn(f"<p>{field}: not declared</p>", body)
+        # An ordinary work-item field, so WI-B's empty list reads "none".
+        self.assertIn("<p>Required evidence: none</p>", body)
+        self.assertNotIn("not ready", body.lower())
+        # Prompt readiness is the map's check, with its reasons when No.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>No<ul><li>missing Scope section</li>", body
+        )
+        # Generation would reject an undeclared item, so Copy stays off.
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Not declared</dd>", body)
+        self.assertIn(
+            "<button disabled>Copy generated prompt</button> (available once the "
+            "run packet passes)",
+            body,
+        )
+
+    def test_project_work_item_page_matches_each_check(self) -> None:
+        resolved = """---
+id: WI-DONE
+title: Done
+type: deliverable
+status: resolved
+blocked: false
+blocked_reason: null
+resolution: "Finished."
+related_focus:
+  - FOCUS-1
+---
+Body.
+"""
+        evidence_only = """---
+id: WI-EVIDENCE
+title: Evidence <only>
+type: deliverable
+status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
+related_focus:
+  - FOCUS-1
+required_evidence:
+  - test_output
+---
+Body.
+"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            work_items = root / "project" / "work_items"
+            _write(work_items / "resolved" / "WI-DONE.md", resolved)
+            _write(work_items / "proposed" / "WI-EVIDENCE.md", evidence_only)
+            _httpd, base_url = self._start_server(root)
+
+            pages = {
+                item: self._read(base_url + f"/project/main/work-items/{item}")[2]
+                for item in ("WI-A", "WI-DONE", "WI-EVIDENCE")
+            }
+            expected = work_item_prompt_core.evaluate_prompt_readiness(
+                work_item_prompt_core.parse_work_item_markdown(
+                    root / "project" / "work_items" / "active" / "WI-A.md"
+                )
+            )
+
+        # The same check as lrh work-items readiness and the map.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>" + ("Yes" if expected.is_ready else "No"),
+            pages["WI-A"],
+        )
+        # Closed work, as the map's drawer says.
+        self.assertIn(
+            "<dt>Prompt-ready</dt><dd>Not applicable (closed)</dd>", pages["WI-DONE"]
+        )
+        # required_evidence is an ordinary field, not a run-packet opt-in.
+        evidence = pages["WI-EVIDENCE"]
+        self.assertIn(
+            "<dt>Execution-ready flag (run packets)</dt><dd>Not declared</dd>", evidence
+        )
+        self.assertIn("<p>Required evidence: test_output</p>", evidence)
+        self.assertIn("<p>Validation commands: not declared</p>", evidence)
+        self.assertNotIn("Evidence <only>", evidence)
+
+    def test_project_work_item_page_validates_the_run_packet_like_generation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            work_items = root / "project" / "work_items"
+            ready = (work_items / "active" / "WI-A.md").read_text(encoding="utf-8")
+            # Valid run-packet fields, flagged blocked: generation ignores the
+            # flag, so the packet passes and the page reports the flag itself.
+            _write(
+                work_items / "active" / "WI-HELD.md",
+                ready.replace("id: WI-A", "id: WI-HELD", 1).replace(
+                    "blocked: false\nblocked_reason: null",
+                    "blocked: true\nblocked_reason: waiting on <ops>",
+                    1,
+                ),
+            )
+            _httpd, base_url = self._start_server(root)
+
+            pages = {
+                item: self._read(base_url + f"/project/main/work-items/{item}")[2]
+                for item in ("WI-A", "WI-B", "WI-HELD")
+            }
+            generation = {
+                item: run_packet.render_run_packet_from_work_item(
+                    next(work_items.glob(f"*/{item}.md"))
+                ).diagnostics
+                for item in pages
+            }
+
+        # Copy is enabled exactly when generation succeeds.
+        for item, page in pages.items():
+            with self.subTest(item=item):
+                enabled = "<button >Copy generated prompt</button>" in page
+                self.assertEqual(enabled, generation[item] == ())
+
+        held = pages["WI-HELD"]
+        self.assertIn("<dt>Blocked flag</dt><dd>Yes: waiting on &lt;ops&gt;</dd>", held)
+        # A set blocked flag never reads as the execution-ready flag being off.
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", held)
+        self.assertIn("<dt>Run packet (validated)</dt><dd>Passes</dd>", held)
+        self.assertNotIn("the work item is blocked", held)
+
+    def test_run_packet_row_lists_generation_errors_when_it_fails(self) -> None:
+        # lrh validate rejects a project whose run-packet fields fail, and such
+        # a project loads with no work items, so the page cannot reach this
+        # case today; the row still reports generation's own errors.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = pathlib.Path(tmp_dir) / "WI-FLAG.md"
+            _write(
+                path,
+                "---\nid: WI-FLAG\ntitle: Flag only\ntype: deliverable\n"
+                "status: proposed\nexecution_ready: true\n---\nBody.\n",
+            )
+            text, passes = serve._run_packet_validation_text(path, declared=True)
+            diagnostics = run_packet.render_run_packet_from_work_item(path).diagnostics
+
+        self.assertFalse(passes)
+        self.assertNotEqual(diagnostics, ())
+        self.assertTrue(text.startswith("Fails<ul>"))
+        for diagnostic in diagnostics:
+            self.assertIn(f"<li>{html.escape(diagnostic.message)}</li>", text)
+        self.assertEqual(
+            serve._run_packet_validation_text(path, declared=False),
+            ("Not declared", False),
+        )
 
     def test_project_work_item_prompt_route_renders_escaped_prompt_preview(
         self,
@@ -1827,7 +2181,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
         self.assertIn("Project: alpha", body)
-        self.assertIn("Readiness state: <strong>ready</strong>", body)
+        self.assertIn("<dt>Execution-ready flag (run packets)</dt><dd>Yes</dd>", body)
 
     def test_project_work_item_prompt_route_uses_selected_registered_project(
         self,

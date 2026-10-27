@@ -3,8 +3,8 @@ name: lrh-create-skill
 description: 'Create a new project-local Claude Code skill following the LRH pattern.
   Use when the user wants to add a skill to this project, automate a recurring workflow,
   capture domain knowledge for reuse, or asks "can we make a skill for X?" Produces
-  SKILL.md and references/ under .claude/skills/<name>/ and adds an index entry to
-  CLAUDE.md.
+  SKILL.md and references/ under src/lrh/skills/<name>/, renders it into the .claude/,
+  .agents/, and .gemini/ install targets, and adds an index entry to CLAUDE.md.
 
   '
 when_to_use: 'Invoke when the user wants to add a project-local skill, automate a
@@ -187,10 +187,11 @@ Re-check that the skill does not already exist on the freshly pulled main —
 the Step 1 check may be stale if main advanced since the session started:
 
 ```bash
-ls src/lrh/skills/<name>/ .claude/skills/<name>/ 2>&1
+ls -d src/lrh/skills/<name>/ .claude/skills/<name>/ .agents/skills/<name>/ \
+  .gemini/plugins/lrh/skills/<name>/ 2>&1
 ```
 
-If either path exists, stop and report — ask the user to overwrite, extend,
+If any path exists, stop and report — ask the user to overwrite, extend,
 or abort before proceeding.
 
 Create files under `src/lrh/skills/<name>/` first — this is the authoritative
@@ -207,12 +208,37 @@ location per CONTRIBUTING.md:
 
 If `src/lrh/skills/<name>/` does not exist, create it.
 
-Then copy to the self-hosted location `.claude/skills/<name>/`. Both
-locations must be byte-for-byte identical. Verify with:
+Then render the new skill into the three committed install targets —
+`.claude/skills/<name>/` (byte-identical), `.agents/skills/<name>/` (Codex),
+and `.gemini/plugins/lrh/skills/<name>/` (Antigravity) — with the installer.
+Do not hand-copy: the Codex and Antigravity renderers rewrite frontmatter.
+Run these from the repository root (`--local` and `current-repo` both resolve
+from the current directory). Preview first; only the new skill should show as
+`would install`:
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+lrh skills install --local --target all --source current-repo --dry-run
+lrh skills install --local --target all --source current-repo
 ```
+
+Verify all three targets match `src` with the mirror sync test (CI runs it
+too, so a skill missing from any target fails the PR):
+
+```bash
+scripts/test tests/packaging_tests/skills_mirror_sync_test.py
+```
+
+Without `--force`, the installer never overwrites a skill that differs from
+`src`; it prints `warning: <skill> has local modifications — skipped`. If the
+preview shows any such warning, do not add `--force` to the repo-wide command —
+that would sweep unrelated stale skills into this PR. Regenerate only the
+affected skill instead, as described in CONTRIBUTING.md's "Claude Code
+skills" section.
+
+If this repository has no `tests/packaging_tests/skills_mirror_sync_test.py`
+or no `lrh skills install` (an older or client checkout), fall back to
+copying into `.claude/skills/<name>/` and verifying with
+`diff -r src/lrh/skills/<name>/ .claude/skills/<name>/`.
 
 ### 7. Validate frontmatter
 
@@ -242,7 +268,8 @@ After writing, check these conditions. Fix any failure before proceeding.
 Stage and commit all skill files and the CLAUDE.md update:
 
 ```bash
-git add .claude/skills/<name>/ src/lrh/skills/<name>/ CLAUDE.md
+git add src/lrh/skills/<name>/ .claude/skills/<name>/ .agents/skills/<name>/ \
+  .gemini/plugins/lrh/skills/<name>/ CLAUDE.md
 git commit -m "Add /<name> skill"
 git push -u origin <branch-name>
 gh pr create --title "Add /<name> skill" --body "..."
@@ -281,6 +308,10 @@ Before reporting completion, verify:
 - [ ] Branch created from a fresh `git pull` of main
 - [ ] `.claude/skills/<name>/SKILL.md` exists with valid YAML frontmatter
 - [ ] `src/lrh/skills/<name>/SKILL.md` exists and is byte-for-byte identical
+      to the `.claude/skills/<name>/` copy
+- [ ] The skill was rendered into `.agents/skills/<name>/` and
+      `.gemini/plugins/lrh/skills/<name>/` by the installer, and
+      `scripts/test tests/packaging_tests/skills_mirror_sync_test.py` passes
 - [ ] `name` is kebab-case and matches the directory name
 - [ ] `description` is ≤ 1024 characters
 - [ ] `when_to_use` reflects the intended invocation mode;

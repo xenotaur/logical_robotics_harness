@@ -148,6 +148,23 @@ Promotes a child id to a host-keyed `claude-app:<host-id>` pointer on one
 execution record once the index has made that mapping authoritative. The command
 fails cleanly if the child id is unknown or ambiguous.
 
+## `lrh sessions deeplink`
+
+```bash
+lrh sessions deeplink POINTER
+```
+
+Prints the deep link that opens a session pointer in its desktop app and exits
+`0`, for example `claude://claude.ai/epitaxy/local_<uuid>` for
+`claude-app:<host-uuid-stem>` and `codex://threads/<uuid>` for
+`codex-app:<thread-uuid>`. When no link is known (`pending`, `none`,
+`antigravity-app:`, an unknown scheme, or an id that is not a UUID) it prints a
+message to stderr and exits `1`. It reads only the pointer: no session lookup,
+transcript read, or network access. The routes come from
+`src/lrh/conversations/session_links.json`; see
+[Open an agent session from a pointer](../../conversations/session_deep_links.md)
+for which routes are verified.
+
 ## `lrh sessions report`
 
 ```bash

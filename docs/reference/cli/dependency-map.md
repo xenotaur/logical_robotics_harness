@@ -30,11 +30,20 @@ at `/project/<project_id>/dependency-maps/<view>`; see the
 
 The map is drawn through a named, swappable layout interface,
 `lrh.dependency_maps.layout.Layout`: a snapshot in, positioned cards and routed
-lines out. The default, `layered-grid`, keeps each card in its lane and phase
-cell, orders cards within a cell by the position of the cards they link to
-(barycenter sweeps), and routes lines at right angles through the gaps between
-lanes and phases. Items outside the view are not placed; their cards count
-them.
+lines out. Two layouts exist, chosen with `?layout=` on the served page:
+
+- `outline`, the default, keeps the lane columns and phase rows but lists each
+  cell's cards in dependency order (a prerequisite above what needs it),
+  indented by depth within the cell, capped at four levels. Cards keep their
+  width and a lane widens by the deepest indent it uses. Lines inside a cell
+  run down a rail at its left edge; lines between cells route at right angles
+  through the gaps. A cycle is broken inside a cycle that needs nothing
+  outside itself, and its diagnostic stays visible.
+- `layered-grid` keeps each card in its lane and phase cell, orders cards
+  within a cell by the position of the cards they link to (barycenter sweeps),
+  and routes lines at right angles through the gaps between lanes and phases.
+
+In both, items outside the view are not placed; their cards count them.
 
 ## View declarations
 

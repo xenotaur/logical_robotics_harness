@@ -8,6 +8,7 @@ import argparse
 import json
 import subprocess
 import sys
+import typing
 from pathlib import Path
 
 from lrh import (
@@ -282,8 +283,9 @@ def main() -> None:
         "--diff",
         action="store_true",
         help=(
-            "preview without writing files (implies --dry-run) and print a"
-            " unified diff for each locally modified skill"
+            "preview without writing files (implies --dry-run) and report how"
+            " each installed item differs from source (a unified diff for"
+            " changed text files)"
         ),
     )
     skills_status_parser = skills_subparsers.add_parser(
@@ -527,6 +529,14 @@ def main() -> None:
     chain_defaults_subparsers = chain_defaults_parser.add_subparsers(
         dest="chain_defaults_command"
     )
+    _plain_chain_defaults_error = chain_defaults_parser.error
+
+    def _chain_defaults_error(message: str) -> typing.NoReturn:
+        if "invalid choice" in message:
+            message = f"{message}\n{chain_defaults_status.capability_mismatch_hint()}"
+        _plain_chain_defaults_error(message)
+
+    chain_defaults_parser.error = _chain_defaults_error  # type: ignore[method-assign]
     chain_defaults_staleness_parser = chain_defaults_subparsers.add_parser(
         "check-staleness",
         help=(

@@ -343,6 +343,28 @@ in URLs.
   or a browser page on the same machine can reach the loopback port, exactly
   as with foreground `lrh serve`. The L0 shell's navigation and capability
   policy, and any future Host/Origin validation, are separate work.
+- **Agent-session deep links are a separate, allowlisted handoff.** The
+  shell's web-link handoff still opens only `http(s)` links, and a link in a
+  page can never load in the window. A link that matches an entry in
+  [`src/lrh/conversations/session_links.json`](../../src/lrh/conversations/session_links.json)
+  (today a Claude or Codex desktop-app session link) is instead opened in that
+  app by a fixed per-platform opener (`/usr/bin/open` on macOS,
+  `/usr/bin/xdg-open` on other unix), under the same one-per-second limit as
+  web links. The link must match exactly: the entry's scheme, host and path
+  shape, a UUID id, and no credentials, port, query, fragment or extra path
+  segments. The same file is the Python builder's route definition
+  (`lrh sessions deeplink`), so both sides share one set of route shapes and
+  test vectors; the Rust side embeds it at compile time, which is why it lives
+  under `src/lrh/` (the Python sdist excludes `apps/`). They are separate
+  implementations and can still differ at the edges: this shell compares a
+  case-normalized scheme (`CLAUDE://` is accepted and opened as `claude://`)
+  where the Python helper rejects the raw uppercase form, and it validates the
+  definition more strictly (schema version, a single `{id}`). The window gains
+  no capability, the content security
+  policy is unchanged, and the result is recorded as the last handoff in Server
+  Details. The Claude `epitaxy` route is undocumented by Anthropic and may
+  change, so treat session links as best-effort. See
+  [Open an agent session from a pointer](../conversations/session_deep_links.md).
 
 ## Design choices
 

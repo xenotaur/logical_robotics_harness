@@ -249,10 +249,11 @@ def render_dependency_map_page(
     selector = _url_quote(project_selector)
     body = dependency_map_render.render_view(
         snapshot,
-        dependency_map_layout.DEFAULT_LAYOUT,
+        dependency_map_layout.layout_named(query.get("layout")),
         tab=query.get("tab", "map"),
         item=query.get("item"),
         since=query.get("since"),
+        hide=dependency_map_render.parse_hide(query.get("hide")),
         interactive=config.interactive,
         full_page_href=lambda item_id: (
             f"/project/{selector}/work-items/{_url_quote(item_id)}"
@@ -531,7 +532,7 @@ def render_index(
         </section>
         <section class=\"lrh-console-region\"
           aria-labelledby=\"execution-ready-heading\">
-          <h3 id=\"execution-ready-heading\">Execution-ready leaves</h3>
+          <h3 id=\"execution-ready-heading\">Leaves flagged execution-ready</h3>
           <p>Workbench packet and report previews are local in-memory renderings;
           they are not execution evidence and do not imply work has run.</p>
           {ready_items}
@@ -1019,14 +1020,17 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 """.format(styles=_base_styles(), selector=selector)
 
 
+# (token key, label, icon, shape). Shapes match the dependency map's pills
+# (dependency_map_render.PILL_SHAPES); Abandoned shares Unknown's hue.
 _SPECIMEN_STATES = (
-    ("done", "Done", "\u2713"),
-    ("progress", "In progress", "\u25b6"),
-    ("unblocked", "Unblocked", "\u25cb"),
-    ("waiting", "Waiting", "\u29d7"),
-    ("blocked", "Blocked", "\u2715"),
-    ("review", "Awaiting review", "\u25ce"),
-    ("unknown", "Unknown", "?"),
+    ("done", "Done", "\u2713", "filled"),
+    ("progress", "In progress", "\u25b6", "filled"),
+    ("unblocked", "Unblocked", "\u25cb", "outlined"),
+    ("waiting", "Waiting", "\u29d7", "filled"),
+    ("blocked", "Blocked", "\u2715", "filled"),
+    ("review", "Awaiting review", "\u25ce", "filled"),
+    ("unknown", "Unknown", "?", "filled"),
+    ("unknown", "Abandoned", "\u2298", "struck"),
 )
 _SPECIMEN_BANDS = (
     ("needs-attention", "Needs attention"),
@@ -1061,7 +1065,14 @@ _SPECIMEN_STYLES = """<style>
     min-width: 12rem;
     padding: var(--lrh-space-3);
   }
-  .lrh-card--blocked { border-style: dashed; border-inline-start-style: solid; }
+  .lrh-card--blocked {
+    border: 2px dashed var(--lrh-color-status-blocked-line);
+    border-inline-start: 4px solid var(--card-line);
+  }
+  .lrh-pill--outlined { box-shadow: inset 0 0 0 1px currentColor; }
+  .lrh-card--abandoned { background: var(--lrh-color-surface-sunken); }
+  .lrh-card--abandoned .lrh-specimen-title { text-decoration: line-through; }
+  .lrh-pill-struck { text-decoration: line-through; }
   .lrh-band {
     border-inline-start: 6px solid var(--band-line);
     border-radius: var(--lrh-radius-sm);
@@ -1085,6 +1096,21 @@ _SPECIMEN_STYLES = """<style>
 </style>"""
 
 
+def _specimen_pill(key: str, label: str, icon: str, shape: str) -> str:
+    """One status pill: outlined pills show the surface beneath them."""
+
+    background = (
+        "" if shape == "outlined" else f"background: var(--lrh-color-status-{key}-bg); "
+    )
+    if shape == "struck":
+        label = f'<span class="lrh-pill-struck">{label}</span>'
+    return (
+        f'<span class="lrh-pill lrh-pill--{shape}" style="{background}'
+        f'color: var(--lrh-color-status-{key}-fg)">'
+        f'<span aria-hidden="true">{icon}</span> {label}</span>'
+    )
+
+
 def render_style_specimen() -> str:
     """Render a read-only specimen of the shared tokens in the current theme.
 
@@ -1098,20 +1124,20 @@ def render_style_specimen() -> str:
         for name in ("page", "panel", "sunken", "overlay")
     )
     pills = "".join(
-        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
-        f' color: var(--lrh-color-status-{key}-fg)">'
-        f'<span aria-hidden="true">{icon}</span> {label}</span>'
-        for key, label, icon in _SPECIMEN_STATES
+        _specimen_pill(key, label, icon, shape)
+        for key, label, icon, shape in _SPECIMEN_STATES
     )
+    card_classes = {
+        "Blocked": " lrh-card--blocked",
+        "Abandoned": " lrh-card--abandoned",
+    }
     cards = "".join(
-        f'<div class="lrh-card{" lrh-card--blocked" if key == "blocked" else ""}"'
+        f'<div class="lrh-card{card_classes.get(label, "")}"'
         f' style="--card-line: var(--lrh-color-status-{key}-line)">'
         f'<span class="lrh-specimen-id">WI-EXAMPLE-{index}</span><br>'
-        f"Example work item<br>"
-        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
-        f' color: var(--lrh-color-status-{key}-fg)">'
-        f'<span aria-hidden="true">{icon}</span> {label}</span></div>'
-        for index, (key, label, icon) in enumerate(_SPECIMEN_STATES, start=1)
+        f'<span class="lrh-specimen-title">Example work item</span><br>'
+        f"{_specimen_pill(key, label, icon, shape)}</div>"
+        for index, (key, label, icon, shape) in enumerate(_SPECIMEN_STATES, start=1)
     )
     bands = "".join(
         f'<section class="lrh-band" style="--band-bg: var(--lrh-color-band-{key}-bg);'
@@ -1124,7 +1150,11 @@ def render_style_specimen() -> str:
         ("edge", "solid", "Depends on"),
         ("edge", "dashed", "Blocked by"),
         ("edge-strong", "solid", "Selected"),
-    ] + [(f"status-{key}-line", "solid", label) for key, label, _ in _SPECIMEN_STATES]
+    ] + [
+        (f"status-{key}-line", "solid", label)
+        for key, label, _icon, shape in _SPECIMEN_STATES
+        if shape != "struck"
+    ]
     lines = "".join(
         f'<svg width="260" height="24" role="img" aria-label="{label} line">'
         f'<line x1="4" y1="12" x2="140" y2="12"'
@@ -1259,7 +1289,7 @@ def render_project_operational_dashboard(
     <section class=\"lrh-console-region\"><h2>Primary operational summary</h2>
       <p>Validation status: {validation_status}. Active workstreams:
       {active_workstream_count}. Active work items: {active_work_item_count}.</p>
-      <p>Ready leaves: {ready_leaf_count}. Readiness-deficient leaves:
+      <p>Leaves flagged execution-ready: {ready_leaf_count}. Leaves not flagged:
       {readiness_deficient_leaf_count}.</p>
       <p>Current focus: {current_focus}.</p>
     </section>
@@ -1280,9 +1310,10 @@ def render_project_operational_dashboard(
       <h3>Workstream detail pages</h3>{workstream_links}
     </section>
     <section class=\"lrh-console-region\"><h2>Work item summary</h2>
-      <p>Active: {active_work_item_count}; ready leaves: {ready_leaf_count};
-      readiness-deficient leaves: {readiness_deficient_leaf_count}; blocked
-      leaves: unknown / not implemented.</p>
+      <p>Active: {active_work_item_count}; leaves flagged execution-ready:
+      {ready_leaf_count}; leaves not flagged:
+      {readiness_deficient_leaf_count}; blocked leaves: unknown / not
+      implemented.</p>
     </section>
     <section class=\"lrh-console-region\"><h2>Capability gaps</h2>{gaps}</section>
     <section class=\"lrh-console-region\"><h2>Diagnostics and details</h2>
@@ -2116,7 +2147,11 @@ def _meta_next_action(card: dict[str, object]) -> str:
         return next_action.strip()
     ready = card.get("ready_leaf_count")
     if isinstance(ready, int) and ready > 0:
-        return f"{ready} work item" + (" is" if ready == 1 else "s are") + " ready"
+        return (
+            f"{ready} work item"
+            + (" is" if ready == 1 else "s are")
+            + " flagged execution-ready"
+        )
     return ""
 
 
@@ -2156,8 +2191,8 @@ def _meta_card_html(card: dict[str, object], read_at: str = "") -> str:
         ("Control-plane validation", "validation_status"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
-        ("Ready leaves", "ready_leaf_count"),
-        ("Readiness-deficient leaves", "readiness_deficient_leaf_count"),
+        ("Leaves flagged execution-ready", "ready_leaf_count"),
+        ("Leaves not flagged execution-ready", "readiness_deficient_leaf_count"),
         (
             "Adopted designs not implemented",
             "adopted_not_implemented_design_count",
@@ -2355,14 +2390,30 @@ def render_workbench_index(config: ServeConfig) -> str:
 """.format(styles=_base_styles(), item_rows=item_rows, diagnostics=diagnostics)
 
 
-def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
-    """Render a copy-friendly HTML page for one workbench artifact."""
+def render_workbench_artifact_page(
+    artifact: WorkbenchArtifact, *, project_selector: str | None = None
+) -> str:
+    """Render a copy-friendly HTML page for one workbench artifact.
+
+    With ``project_selector``, the page is the project-scoped prompt preview
+    and its links stay under ``/project/<project_id>/``; without it they
+    point at the served project's workbench.
+    """
 
     diagnostics = _html_list(_diagnostic_label(item) for item in artifact.diagnostics)
     title = html.escape(f"{artifact.kind}: {artifact.work_item_id}")
     markdown = html.escape(artifact.markdown)
     work_item = _url_quote(artifact.work_item_id)
-    kind = _url_quote(artifact.kind)
+    if project_selector is None:
+        kind = _url_quote(artifact.kind)
+        back_href = "/workbench"
+        context_href = f"/#work-item-{work_item}"
+        download_href = f"/workbench/{kind}?work_item={work_item}&download=1"
+    else:
+        project = f"/project/{_url_quote(project_selector)}"
+        back_href = f"{project}/work-items/{work_item}"
+        context_href = project
+        download_href = f"{back_href}/prompt?download=1"
     return """<!doctype html>
 <html lang=\"en\">
 <head>
@@ -2376,9 +2427,9 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
       <p class=\"lrh-eyebrow\">LRH Console preview</p>
       <h1>{title}</h1>
       <nav class=\"lrh-control-spine\" aria-label=\"Artifact preview navigation\">
-        <a href=\"/workbench\">Back to workbench</a>
-        <a href=\"/#work-item-{work_item}\">Back to viewer context</a>
-        <a href=\"/workbench/{kind}?work_item={work_item}&amp;download=1\">
+        <a href=\"{back_href}\">Back to workbench</a>
+        <a href=\"{context_href}\">Back to viewer context</a>
+        <a href=\"{download_href}\">
           Download Markdown</a>
       </nav>
       <aside class=\"lrh-guardrail-callout\" aria-label=\"Artifact preview guardrails\">
@@ -2405,8 +2456,9 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
 """.format(
         styles=_base_styles(),
         title=title,
-        work_item=work_item,
-        kind=kind,
+        back_href=html.escape(back_href, quote=True),
+        context_href=html.escape(context_href, quote=True),
+        download_href=html.escape(download_href, quote=True),
         diagnostics=diagnostics,
         markdown=markdown,
     )
@@ -2430,34 +2482,62 @@ def render_project_work_item_page(
         item = _resolve_workbench_item(state, work_item_id)
     except (FileNotFoundError, OSError, ValueError) as error:
         return 404, json.dumps({"error": "not_found", "message": str(error)})
+    # "Ready" is never shown unqualified (visual-language proposal, Q3): each
+    # value names the check that produced it.
     readiness = item.execution_readiness
-    readiness_state = "unknown"
-    if item.status == "blocked":
-        readiness_state = "blocked"
-    elif readiness is None:
-        readiness_state = "not ready"
+    if readiness is None:
+        execution_ready = "Not declared"
     elif readiness.execution_ready:
-        readiness_state = "ready"
+        execution_ready = "Yes"
     else:
-        readiness_state = "not ready"
-    disabled = "disabled" if readiness_state != "ready" else ""
+        execution_ready = "No"
+    # The validation run-packet generation itself runs, so the page and the
+    # Copy button agree with generation. The blocked flag is reported on its
+    # own: generation does not consider it.
+    run_packet_text, run_packet_passes = _run_packet_validation_text(
+        item.path, declared=readiness is not None
+    )
+    if item.blocked:
+        reason = item.blocked_reason or "no reason given"
+        blocked = f"Yes: {reason}"
+    else:
+        blocked = "No"
+    copy_enabled = run_packet_passes
+    disabled = "" if copy_enabled else "disabled"
+    copy_note = "" if copy_enabled else " (available once the run packet passes)"
+    # Prompt-readiness applies only to open work, as on the map's drawer.
+    prompt_ready = (
+        "Not applicable (closed)"
+        if item.status in ("resolved", "abandoned")
+        else _prompt_readiness_text(item.path)
+    )
     source_path = _relative_repo_path(scoped_config.resolved_project_root(), item.path)
-    validation_commands = (
-        ", ".join(readiness.validation_commands) if readiness is not None else "missing"
+
+    def declared(values: tuple[str, ...] | None) -> str:
+        # An item with no run-packet fields at all is "not declared"; an
+        # opted-in item that leaves one field out (or empty) shows "none".
+        if values is None:
+            return "not declared"
+        return ", ".join(values) or "none"
+
+    validation_commands = declared(
+        readiness.validation_commands if readiness is not None else None
     )
-    required_evidence = (
-        ", ".join(readiness.required_evidence) if readiness is not None else "missing"
+    # required_evidence is an ordinary work-item field, not a run-packet
+    # opt-in (execution_readiness.OPT_IN_FIELDS), so it is shown either way.
+    required_evidence = declared(
+        readiness.required_evidence
+        if readiness is not None
+        else tuple(item.required_evidence)
     )
-    allowed_paths = (
-        ", ".join(readiness.allowed_paths) if readiness is not None else "missing"
-    )
-    forbidden_paths = (
-        ", ".join(readiness.forbidden_paths) if readiness is not None else "missing"
+    allowed_paths = declared(readiness.allowed_paths if readiness is not None else None)
+    forbidden_paths = declared(
+        readiness.forbidden_paths if readiness is not None else None
     )
     prompt_preview = (
         f"/project/{_url_quote(project_id)}/work-items/{_url_quote(item.id)}/prompt"
     )
-    prompt_download = f"/workbench/prompt?work_item={_url_quote(item.id)}&download=1"
+    prompt_download = f"{prompt_preview}?download=1"
     cli_command = (
         "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
     )
@@ -2469,19 +2549,34 @@ def render_project_work_item_page(
 <p>Project: {html.escape(project_id)} | Status: {html.escape(item.status)}
 | Type: {html.escape(item.type)}</p>
 <p>Source path: <code>{html.escape(source_path)}</code></p>
-<p>Readiness state: <strong>{html.escape(readiness_state)}</strong></p>
-<p>Required changes summary: work item content is the source of truth; use prompt
-preview for a bounded implementation request.</p>
-<p>Acceptance criteria summary: see the approved work item and linked criteria in
-source markdown.</p>
+<h2>Readiness</h2>
+<dl class="lrh-readiness">
+<dt>Prompt-ready</dt><dd>{prompt_ready}</dd>
+<dt>Execution-ready flag (run packets)</dt><dd>{html.escape(execution_ready)}</dd>
+<dt>Run packet (validated)</dt><dd>{run_packet_text}</dd>
+<dt>Blocked flag</dt><dd>{html.escape(blocked)}</dd>
+<dt>Authorization</dt><dd>Not derived: needs your approval</dd>
+</dl>
+<p>Prompt-ready is the result of <code>lrh work-items readiness</code>, as on
+the dependency map. The execution-ready flag is the work item's own
+<code>execution_ready</code> setting among the optional run-packet fields below.
+The run packet passes when run-packet generation's own validation passes: the
+flag, plus the required fields being present and valid. The blocked flag is the
+work item's <code>blocked</code> setting; run-packet generation does not check
+it.</p>
+<h3>Run-packet fields</h3>
 <p>Validation commands: {html.escape(validation_commands)}</p>
 <p>Required evidence: {html.escape(required_evidence)}</p>
 <p>Allowed paths: {html.escape(allowed_paths)}</p>
 <p>Forbidden paths: {html.escape(forbidden_paths)}</p>
+<p>Required changes summary: work item content is the source of truth; use prompt
+preview for a bounded implementation request.</p>
+<p>Acceptance criteria summary: see the approved work item and linked criteria in
+source markdown.</p>
 <h2>Prompt affordances</h2>
 <ul>
 <li><a href="{prompt_preview}">Preview generated prompt</a></li>
-<li><button {disabled}>Copy generated prompt</button></li>
+<li><button {disabled}>Copy generated prompt</button>{html.escape(copy_note)}</li>
 <li><a href="{prompt_download}">Download generated prompt Markdown</a></li>
 <li>Equivalent CLI: <code>{cli_command}</code></li>
 </ul>
@@ -2489,6 +2584,50 @@ source markdown.</p>
 renderer.</p>
 </div></body></html>"""
     return 200, page
+
+
+def _run_packet_validation_text(path: Path, *, declared: bool) -> tuple[str, bool]:
+    """Whether run-packet generation would succeed for one work item, as HTML,
+    with its errors when it would not, and that result as a boolean.
+
+    Uses the validation generation runs (``run_packet.validate_work_item``)
+    without rendering a packet. An item with no run-packet fields is "Not
+    declared"; generation would reject it too.
+    """
+
+    if not declared:
+        return "Not declared", False
+    try:
+        diagnostics = run_packet.validate_work_item(path)
+    except (ValueError, OSError):
+        return "Fails<ul><li>the work item could not be read</li></ul>", False
+    if not diagnostics:
+        return "Passes", True
+    errors = "".join(
+        f"<li>{html.escape(diagnostic.message)}</li>" for diagnostic in diagnostics
+    )
+    return f"Fails<ul>{errors}</ul>", False
+
+
+def _prompt_readiness_text(path: Path) -> str:
+    """Prompt-readiness for one work item, as HTML: the check behind
+    ``lrh work-items readiness`` and the dependency map, run on this item's
+    file only, with its blocking reasons when the item is not ready."""
+
+    try:
+        parsed = work_item_prompt_core.parse_work_item_markdown(path)
+    except (ValueError, OSError, UnicodeDecodeError):
+        return (
+            "No<ul><li>work item is malformed or missing required frontmatter "
+            "fields</li></ul>"
+        )
+    result = work_item_prompt_core.evaluate_prompt_readiness(parsed)
+    if result.is_ready:
+        return "Yes"
+    reasons = "".join(
+        f"<li>{html.escape(reason)}</li>" for reason in result.blocking_reasons
+    )
+    return f"No<ul>{reasons}</ul>" if reasons else "No"
 
 
 SERVED_PROJECT_SELECTOR = "main"
@@ -2598,8 +2737,8 @@ def _config_for_project_selector(
         # conventional project/ directory, as _registered_project_control_root
         # assumes for the dashboard.
         resolved_path = selection.resolved_repo_path / "project"
+    registry_name = selection.record.registry_name
     if resolved_path is None:
-        registry_name = selection.record.registry_name
         raise ProjectSelectorError(
             project_selector,
             status=409,
@@ -2607,6 +2746,19 @@ def _config_for_project_selector(
             message=(
                 f"Project {registry_name!r} is registered but has no local "
                 "checkout, so its project files cannot be read."
+            ),
+            registry_name=registry_name,
+        )
+    if selection.repo_path_exists is False:
+        # Test the bound repo, not resolved_path: a repo that exists without
+        # its project/ directory is not a missing checkout.
+        raise ProjectSelectorError(
+            project_selector,
+            status=409,
+            error="no_local_checkout",
+            message=(
+                f"Project {registry_name!r} is bound to the local checkout "
+                f'"{selection.resolved_repo_path}", which no longer exists.'
             ),
             registry_name=registry_name,
         )
@@ -2646,10 +2798,8 @@ def render_project_selector_error_page(error: ProjectSelectorError) -> str:
         )
     else:
         title = "No local checkout"
-        name = html.escape(error.registry_name or error.selector)
         detail = (
-            f"<p>Project <code>{name}</code> is registered, but it has no local "
-            "checkout, so LRH cannot read its project files.</p>"
+            f"<p>{html.escape(error.message)}</p>"
             "<p>Bind a local checkout, then reload this page:</p>"
             f"<p><code>{html.escape(error.next_action)}</code></p>"
         )
@@ -3543,7 +3693,7 @@ def _workbench_item_row(item: object) -> str:
     return (
         f'<article id="workbench-item-{html.escape(work_item_id, quote=True)}">'
         f"<h3>{html.escape(work_item_id)} — {title}</h3>"
-        f"<p>Status: {status}; Type: {item_type}; Execution-ready: {ready}</p>"
+        f"<p>Status: {status}; Type: {item_type}; Execution-ready flag: {ready}</p>"
         "<ul>"
         f'<li><a href="{prompt_url}">Preview prompt</a></li>'
         f'<li><a href="{packet_url}">Preview run packet</a></li>'
@@ -3791,42 +3941,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                         self._write_json(status_code, json.loads(body))
                     return
                 if len(parts) == 3 and parts[1] == "work-items":
-                    status_code, body = render_project_work_item_page(
-                        config, parts[0], parts[2]
-                    )
-                    if status_code == 200 or body.startswith("<!doctype html>"):
-                        self._write_text(status_code, "text/html; charset=utf-8", body)
-                    else:
-                        self._write_json(status_code, json.loads(body))
+                    self._write_project_work_item(parts[0], parts[2])
                     return
                 if (
                     len(parts) == 4
                     and parts[1] == "work-items"
                     and parts[3] == "prompt"
                 ):
-                    try:
-                        scoped_config = _config_for_project_selector(config, parts[0])
-                    except ProjectSelectorError as error:
-                        self._write_text(
-                            error.status,
-                            "text/html; charset=utf-8",
-                            render_project_selector_error_page(error),
-                        )
-                        return
-                    try:
-                        artifact = render_workbench_artifact(
-                            scoped_config, "prompt", parts[2]
-                        )
-                    except (FileNotFoundError, OSError, ValueError) as error:
-                        self._write_json(
-                            404, {"error": "not_found", "message": str(error)}
-                        )
-                        return
-                    self._write_text(
-                        200,
-                        "text/html; charset=utf-8",
-                        render_workbench_artifact_page(artifact),
-                    )
+                    self._write_project_prompt(parts[0], parts[2])
                     return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, body = render_project_operational_dashboard(
@@ -3914,6 +4036,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                             else "text/html; charset=utf-8"
                         ),
                     )
+                    return
+                if len(parts) == 3 and parts[1] == "work-items":
+                    self._write_project_work_item(parts[0], parts[2], head=True)
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[1] == "work-items"
+                    and parts[3] == "prompt"
+                ):
+                    self._write_project_prompt(parts[0], parts[2], head=True)
                     return
                 if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
                     if parts[1] == "designs":
@@ -4034,6 +4166,64 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def log_message(self, format: str, *args: object) -> None:
             return
+
+        def _write_project_work_item(
+            self, project_selector: str, work_item_id: str, *, head: bool = False
+        ) -> None:
+            status_code, body = render_project_work_item_page(
+                config, project_selector, work_item_id
+            )
+            if status_code == 200 or body.startswith("<!doctype html>"):
+                if head:
+                    self._write_head(status_code, "text/html; charset=utf-8")
+                else:
+                    self._write_text(status_code, "text/html; charset=utf-8", body)
+            elif head:
+                self._write_head(status_code, "application/json; charset=utf-8")
+            else:
+                self._write_json(status_code, json.loads(body))
+
+        def _write_project_prompt(
+            self, project_selector: str, work_item_id: str, *, head: bool = False
+        ) -> None:
+            try:
+                scoped_config = _config_for_project_selector(config, project_selector)
+            except ProjectSelectorError as error:
+                if head:
+                    self._write_head(error.status, "text/html; charset=utf-8")
+                else:
+                    self._write_text(
+                        error.status,
+                        "text/html; charset=utf-8",
+                        render_project_selector_error_page(error),
+                    )
+                return
+            try:
+                artifact = render_workbench_artifact(
+                    scoped_config, "prompt", work_item_id
+                )
+            except (FileNotFoundError, OSError, ValueError) as error:
+                if head:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_json(404, {"error": "not_found", "message": str(error)})
+                return
+            if self._query_values().get("download") == "1":
+                if head:
+                    self._write_download_head(artifact)
+                else:
+                    self._write_download(artifact)
+                return
+            if head:
+                self._write_head(200, "text/html; charset=utf-8")
+                return
+            self._write_text(
+                200,
+                "text/html; charset=utf-8",
+                render_workbench_artifact_page(
+                    artifact, project_selector=project_selector
+                ),
+            )
 
         def _write_workbench_artifact(self, route: str) -> None:
             kind = _kind_from_workbench_route(route)

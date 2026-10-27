@@ -37,8 +37,8 @@ lrh serve --desktop-protocol
     dependency-map card previews its upstream and downstream. Clicking selects
     it without a reload, opens its drawer, and updates `?item=` and the page's
     tab links. Escape closes it.
-  - **Filters:** checkboxes by state on the map and table. A filter never hides
-    an unfinished item that a shown item still needs.
+  - **Selection after a reload:** when the page opens with `?item=`, for
+    example after a filter change, the selected card is scrolled into view.
   - **Loading:** when a same-origin page takes longer than about 300 ms to
     load, the page dims and a "Loading…" status appears. Links that open
     elsewhere, downloads, and in-page selections never trigger it.
@@ -149,12 +149,17 @@ The dependency-map routes and the
   the registry reads cleanly and no registered project matches `main`. It is
   the served project's own selector, for a checkout served outside a Meta
   workspace.
-- A registered project with no local checkout, such as one registered with
-  only a `repo_locator`, returns 409 Conflict. The HTML routes render a page
-  in the frame that says the project has no local checkout and gives the
-  command that binds one: `lrh meta set <name> --local-repo-path PATH`. The
+- A registered project with no local checkout returns 409 Conflict. That
+  covers a project registered with only a `repo_locator`, and a project whose
+  bound checkout path no longer exists, for example because the checkout was
+  moved or deleted. Only the bound repository path is checked, so a checkout
+  that exists without its `project/` directory is not reported this way. The
+  HTML routes render a "No local checkout" page in the frame. It gives the
+  reason, including the missing path when there is one, and the command
+  that binds a checkout: `lrh meta set <name> --local-repo-path PATH`. The
   JSON route returns an object whose `error` is `no_local_checkout`, with
-  `project`, `message`, and `next_action` fields.
+  `project`, `message`, and `next_action` fields. HEAD returns the same
+  status as GET.
 - Any other `project_id` returns 404, including an ambiguous selector or a
   registry that cannot be read: a "Project not found" page from the HTML
   routes, or an object whose `error` is `project_not_found` from the JSON
@@ -163,13 +168,33 @@ The dependency-map routes and the
 These routes never show the served project's data under another project's
 name.
 
+## Work-item routes
+
+- `/project/<project_id>/work-items/<work_item_id>`: the work item's
+  readiness detail page in the named project: prompt-readiness, the
+  execution-ready flag, whether its run packet passes generation's own
+  validation (with the errors when it does not), and its blocked flag.
+- `/project/<project_id>/work-items/<work_item_id>/prompt`: a preview of the
+  work item's generated prompt. Its Back links lead to the work item's
+  detail page and to `/project/<project_id>`.
+- `/project/<project_id>/work-items/<work_item_id>/prompt?download=1`: the
+  same prompt as a Markdown attachment. Both pages' download links use this
+  route, so the download always comes from the named project.
+- Both routes return 404 for an unknown work item, and the
+  [Project selectors](#project-selectors) statuses for a selector that names
+  no readable project. HEAD returns the same status and content type as GET.
+- The served project's `/workbench/prompt?work_item=<id>` routes are
+  unchanged.
+
 ## Dependency-map routes
 
 - `/project/<project_id>/dependency-maps`: the project's declared views, or an
   explanation of how to declare one.
 - `/project/<project_id>/dependency-maps/<view>`: the view as a script-free map
   in the frame. Lanes are columns and phases are rows. Each card shows the
-  item's ID, title, structural state (icon, text, and color), a "Not
+  item's ID, title, structural state (icon, text, color, and shape: Unblocked
+  pills are outlined, and abandoned cards are sunken with a struck-through
+  title), a "Not
   prompt-ready" flag when relevant, and why it is waiting or blocked. Solid
   lines are "depends on" and dashed lines are "blocked by"; they run from the
   prerequisite to the item that needs it.
@@ -179,6 +204,25 @@ name.
     modeled yet).
   - `?tab=table` shows every item as a table, and `?tab=blockers` lists each
     waiting or blocked item with what it needs.
+  - `?hide=<state>[,<state>...]` filters the map, list, and table by
+    structural state (`done`, `blocked`, `in_progress`, `waiting`, `unblocked`,
+    `abandoned`, `unknown`; unknown names are ignored). Hidden cards are
+    dropped before layout, so the map collapses: lanes and phases left empty
+    disappear and lines are re-routed. A filter never hides the selected item,
+    or an unfinished item that a shown item still needs; a note counts what is
+    hidden and offers **Show all**. The **Show** toggles above the map are
+    plain links that set `?hide=`, and every in-page link keeps it. The
+    Blockers tab has no filters.
+  - The map's default layout is the outline: lanes and phases stay as
+    columns and rows, but each cell lists its cards in dependency order (a
+    prerequisite above what needs it), indented by depth within the cell
+    (capped at four levels; cards keep their width and the lane widens).
+    Lines inside a cell run down a rail at its left edge; lines between cells
+    route through the gaps. `?layout=layered-grid` switches to the grid,
+    which orders cards in fixed cells to reduce crossings. The **Layout**
+    toggle beside the filters switches between Outline and Grid, every
+    in-page link keeps the choice, and an unknown name falls back to the
+    outline.
   - **Check for changes** reloads with `?since=<fingerprint>` and says whether
     the control files changed since the snapshot you were viewing.
   - Narrow screens show the map as a list grouped by phase.

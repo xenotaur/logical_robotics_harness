@@ -222,28 +222,53 @@ Key expectations:
 
 ## Claude Code skills
 
-LRH distributes project-local Claude Code skills through two locations:
+LRH keeps one canonical skill source and three committed, generated install
+targets:
 
 - **`src/lrh/skills/<name>/`** — canonical source, distributed as Python
   package data via `pyproject.toml`. This is the authoritative version.
-- **`.claude/skills/<name>/`** — self-hosted copy, auto-discovered by Claude
-  Code when working in the LRH repository. No installation step required.
+- **`.claude/skills/<name>/`** — self-hosted Claude Code copy (byte-identical
+  to the source), auto-discovered when working in the LRH repository.
+- **`.agents/skills/<name>/`** — self-hosted Codex copy, rendered by the
+  installer.
+- **`.gemini/plugins/lrh/skills/<name>/`** — self-hosted Antigravity copy,
+  rendered by the installer (plus `.gemini/plugins/lrh/plugin.json`).
 
 **Sync requirement:** When adding or modifying a skill, update
-`src/lrh/skills/<name>/` first and copy the result to `.claude/skills/<name>/`
-in the same PR. Both locations must be byte-for-byte identical at commit time.
+`src/lrh/skills/<name>/` first, then regenerate all three targets in the same
+PR with the installer. Do not hand-copy: the Codex and Antigravity renderers
+rewrite frontmatter.
 
-Verify for a given skill with:
+`--force` deletes each differing target skill directory and rewrites it from
+`src`, so any local-only file inside it is lost. Always preview the exact
+forced operation first with `--force --diff`, which is read-only and prints a
+unified diff for every skill it would overwrite, then rerun without `--diff`:
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+lrh skills install --local --target all --source current-repo --force --diff
+lrh skills install --local --target all --source current-repo --force
 ```
 
-Note: `src/lrh/skills/` also contains `__init__.py` (Python packaging) and
-`__pycache__/` (build artefacts). These are not copied to `.claude/skills/`
-and should be excluded from any top-level diff.
+Run these from the repository root. If the preview shows unrelated skills as
+stale, regenerate only your skill instead. Copy the skill directory (no
+trailing slash, so the directory itself is copied rather than its contents)
+into an empty scratch directory and install from there:
 
-Future CI enforcement is tracked as a Stage 3 item in `WS-SKILLS`.
+```bash
+tmp=$(mktemp -d)
+cp -R src/lrh/skills/<name> "$tmp"/
+lrh skills install --local --target all --source "$tmp" --force --diff
+lrh skills install --local --target all --source "$tmp" --force
+```
+
+To delete or rename a skill, remove its directory from all four locations by
+hand; the installer never removes skills from a target.
+
+CI enforces this: `tests/packaging_tests/skills_mirror_sync_test.py` fails
+unless every committed target matches the installer's render of `src`, file
+by file, with the same set of skills. It reads the working tree, so a
+personal, uncommitted skill directory in one of these targets also fails it
+locally.
 
 To install LRH skills globally (making them available in any project on
 your machine), run `lrh skills install`.

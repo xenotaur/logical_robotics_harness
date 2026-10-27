@@ -66,11 +66,26 @@ On failure: the error message names the specific file and field. Fix, re-run.
 ## For skills work items, also run
 
 ```bash
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+scripts/test tests/packaging_tests/skills_mirror_sync_test.py
 ```
 
 This is not needed for review response commits unless the fixes touch skill
-files. If they do, verify both copies remain in sync.
+files. If they do, regenerate the `.claude/`, `.agents/`, and `.gemini/`
+install targets from the edited source. An edited skill differs from its
+targets, and without `--force` the installer skips it with a "local
+modifications" warning instead of regenerating it, so use the forced path.
+Preview it first; the preview is read-only and shows every skill it would
+overwrite:
+
+```bash
+lrh skills install --local --target all --source current-repo --force --diff
+lrh skills install --local --target all --source current-repo --force
+```
+
+If the preview lists skills the fixes did not touch, regenerate only the
+edited skills with the one-skill scratch-source recipe in CONTRIBUTING.md's
+"Claude Code skills" section instead. Then verify all three targets still
+match `src/lrh/skills/` with the test above.
 
 ---
 

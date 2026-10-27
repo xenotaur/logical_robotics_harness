@@ -327,6 +327,28 @@ class CliAskTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("PATH=CATEGORY", err)
 
+    def test_log_filters_and_rejects_a_bad_date(self) -> None:
+        code, out, _ = self._main("log", "--kind", "brief")
+        self.assertEqual(code, 0)
+        self.assertIn("no runs", out)
+        for bad in ("yesterday", "20261009", "2026-W41-1"):
+            code, _, err = self._main("log", "--since", bad)
+            self.assertEqual(code, 2, bad)
+            self.assertIn("YYYY-MM-DD", err)
+
+    def test_log_passes_the_filters_through(self) -> None:
+        store = recorder.Store(self.store)
+        store.start_run({"kind": "ask", "outcome": "completed"})
+        store.start_run({"kind": "brief", "outcome": "completed"})
+        store.start_run({"outcome": "completed"})
+        code, out, _ = self._main("log", "--kind", "ask", "--kind", "brief")
+        self.assertEqual(code, 0)
+        self.assertIn("runs: 2", out)
+        self.assertNotIn("pilot", out.split("\n")[0])
+        code, out, _ = self._main("log", "--since", "2030-01-01")
+        self.assertEqual(code, 0)
+        self.assertIn("no runs match", out)
+
     def test_rate_and_prune_report_bad_input(self) -> None:
         self.assertEqual(self._main("rate", "nope", "g")[0], 2)
         code, _, err = self._main("prune", "--before", "yesterday")

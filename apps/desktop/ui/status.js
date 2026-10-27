@@ -18,11 +18,11 @@ const STATES = {
   stopping: { title: "Stopping LRH server…", detail: "" },
   stopped: {
     title: "Server stopped",
-    detail: "Choose Server > Start Server to start it.",
+    detail: "Choose Server > Start Server (⌘⇧I) to start it.",
   },
   failed: {
     title: "Server failed",
-    detail: "Choose Server > Start Server to try again. " + DETAILS_HINT,
+    detail: "Choose Server > Start Server (⌘⇧I) to try again. " + DETAILS_HINT,
   },
   incompatible: {
     title: "Incompatible server",

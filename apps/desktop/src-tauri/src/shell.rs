@@ -14,7 +14,7 @@
 
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
@@ -26,7 +26,10 @@ use tauri::webview::{NewWindowResponse, PageLoadEvent, WebviewWindowBuilder};
 use tauri::{AppHandle, Manager, Runtime, Theme, Url, WebviewUrl, WebviewWindow};
 
 use crate::browser::{self, Handoff, RateLimiter};
-use crate::settings::{self, Appearance, BrowserChoice, Config, ConfigStore, FieldError};
+use crate::settings::{
+    self, zoom_percent, zoom_step, Appearance, BrowserChoice, Config, ConfigStore, Display,
+    FieldError, SavedWindow, WindowFrame, WindowStateStore, ZoomStore,
+};
 use crate::supervisor::{ErrorKind, LaunchConfig, State, Status, Supervisor};
 
 /// Label of the one default content window.
@@ -50,13 +53,16 @@ pub const ENV_WORKSPACE: &str = "LRH_CONSOLE_WORKSPACE";
 pub mod menu_id {
     pub const SETTINGS: &str = "app-settings";
     pub const QUIT: &str = "app-quit";
-    pub const START: &str = "server-start";
+    /// One item that reads Start Server or Restart Server with the state.
+    pub const START_OR_RESTART: &str = "server-start-or-restart";
     pub const STOP: &str = "server-stop";
-    pub const RESTART: &str = "server-restart";
     pub const DETAILS: &str = "server-details";
     pub const STATUSBOARD: &str = "view-statusboard";
     pub const WORKSPACE: &str = "view-workspace";
     pub const RELOAD: &str = "view-reload";
+    pub const ACTUAL_SIZE: &str = "view-actual-size";
+    pub const ZOOM_IN: &str = "view-zoom-in";
+    pub const ZOOM_OUT: &str = "view-zoom-out";
     pub const BACK: &str = "view-back";
     pub const FORWARD: &str = "view-forward";
     pub const OPEN_CHROME: &str = "view-open-chrome";
@@ -209,11 +215,46 @@ impl NavigationPolicy {
     /// the running backend's origin. The shell opens native Settings for it
     /// instead of loading the page.
     pub fn is_settings_request(&self, url: &Url) -> bool {
-        url.path() == SETTINGS_PAGE_PATH
-            && lock(&self.backend)
-                .as_ref()
-                .is_some_and(|backend| backend.origin() == url.origin())
+        url.path() == SETTINGS_PAGE_PATH && self.is_backend_origin(url)
     }
+
+    /// `Some(true)` for the page's Back button, `Some(false)` for Forward,
+    /// on the current backend only.
+    pub fn history_request(&self, url: &Url) -> Option<bool> {
+        if !self.is_backend_origin(url) {
+            return None;
+        }
+        match url.path() {
+            HISTORY_BACK_PATH => Some(true),
+            HISTORY_FORWARD_PATH => Some(false),
+            _ => None,
+        }
+    }
+
+    fn is_backend_origin(&self, url: &Url) -> bool {
+        lock(&self.backend)
+            .as_ref()
+            .is_some_and(|backend| backend.origin() == url.origin())
+    }
+}
+
+/// The page's Back and Forward buttons link to these Serve paths
+/// (`lrh.ux.frame.HISTORY_BACK_PATH` and `HISTORY_FORWARD_PATH`). The app
+/// intercepts them, like the gear, and moves through its own history.
+pub const HISTORY_BACK_PATH: &str = "/desktop/back";
+pub const HISTORY_FORWARD_PATH: &str = "/desktop/forward";
+
+/// Marks every page in the main window as shown inside the app, so the
+/// frame's Back and Forward buttons appear (`lrh.ux.frame.HISTORY_APP_CLASS`).
+/// It runs natively before the page's own scripts and needs none of them.
+pub const IN_APP_SCRIPT: &str = "(function () {\n  var mark = function () {\n    if (document.documentElement) {\n      document.documentElement.classList.add('lrh-in-app');\n    }\n  };\n  mark();\n  document.addEventListener('DOMContentLoaded', mark);\n})();";
+
+/// The script that greys out the page's Back and Forward buttons to match
+/// the app's history. Only booleans are interpolated.
+pub fn history_buttons_script(back: bool, forward: bool) -> String {
+    format!(
+        "(function (state) {{\n  for (var name in state) {{\n    var button = document.querySelector('[data-lrh-history=\"' + name + '\"]');\n    if (!button) continue;\n    button.setAttribute('aria-disabled', state[name] ? 'false' : 'true');\n    if (state[name]) button.removeAttribute('tabindex');\n    else button.setAttribute('tabindex', '-1');\n  }}\n}})({{back: {back}, forward: {forward}}});"
+    )
 }
 
 /// The Serve path the frame's gear links to (`lrh.ux.frame.SETTINGS_PATH`).
@@ -477,7 +518,12 @@ pub fn new_window_response<R: Runtime>(_url: &Url) -> NewWindowResponse<R> {
     NewWindowResponse::Deny
 }
 
-/// Hands external links to the browser, at most one per second.
+/// Opens an allowlisted session link. The default is the real opener; unit
+/// tests substitute one so that no test ever launches an application.
+type SessionOpener = fn(&Url) -> Result<Handoff, String>;
+
+/// Hands external links to the browser, and allowlisted agent-session deep
+/// links to their desktop app, at most one per second in total.
 #[derive(Default)]
 pub struct LinkHandoff {
     /// Limits handoffs that page content triggers.
@@ -487,16 +533,38 @@ pub struct LinkHandoff {
     menu_limiter: RateLimiter,
     browser: Mutex<BrowserChoice>,
     last: Mutex<Option<Result<Handoff, String>>>,
+    /// `None` means [`browser::open_session_link`].
+    session_opener: Mutex<Option<SessionOpener>>,
 }
 
 impl LinkHandoff {
-    /// Opens `url` in the chosen browser on a background thread, if it is an
-    /// external link and the rate limit allows.
+    /// Opens `url` on a background thread if the rate limit allows: in the
+    /// chosen browser when it is an external web link, or in its vendor's
+    /// desktop app when it is an allowlisted session deep link. Anything else
+    /// is ignored.
     pub fn offer(self: &Arc<Self>, url: &Url) {
-        if !is_external_link(url) || !self.limiter.try_acquire() {
+        if is_external_link(url) {
+            if self.limiter.try_acquire() {
+                self.open_now(url.clone());
+            }
             return;
         }
-        self.open_now(url.clone());
+        if browser::validate_session_link(url).is_ok() && self.limiter.try_acquire() {
+            self.open_session_now(url.clone());
+        }
+    }
+
+    fn open_session_now(self: &Arc<Self>, url: Url) {
+        let opener = (*lock(&self.session_opener)).unwrap_or(browser::open_session_link);
+        let this = Arc::clone(self);
+        thread::spawn(move || {
+            *lock(&this.last) = Some(opener(&url));
+        });
+    }
+
+    #[cfg(test)]
+    fn set_session_opener(&self, opener: SessionOpener) {
+        *lock(&self.session_opener) = Some(opener);
     }
 
     /// Opens `url` without the external-link filter (menu actions on the
@@ -645,19 +713,115 @@ pub enum ConfigSource {
     Environment,
 }
 
+/// The shortcut of the one Start Server / Restart Server item. One item, so
+/// the shortcut never moves: on macOS, muda 0.20 cannot clear a menu item's
+/// key equivalent, so a shortcut moved between two items would stay on both
+/// and the disabled one would swallow it.
+pub const SERVER_SHORTCUT: &str = "CmdOrCtrl+Shift+I";
+
+/// Page zoom shortcuts, as in Claude and Chrome. Statusboard moved from ⌘0
+/// to ⌘⇧H ("home") so Actual Size can have ⌘0. One shortcut per item: Zoom
+/// In is ⌘=, the key beside Zoom Out's ⌘−.
+pub const ZOOM_IN_SHORTCUT: &str = "CmdOrCtrl+=";
+pub const ZOOM_OUT_SHORTCUT: &str = "CmdOrCtrl+-";
+pub const ACTUAL_SIZE_SHORTCUT: &str = "CmdOrCtrl+0";
+pub const STATUSBOARD_SHORTCUT: &str = "CmdOrCtrl+Shift+H";
+
+/// The Actual Size item's label, which shows the level when it is not 100%.
+pub fn actual_size_label(level: f64) -> String {
+    match zoom_percent(level) {
+        100 => "Actual Size".to_string(),
+        percent => format!("Actual Size ({percent}%)"),
+    }
+}
+
+/// The zoom menu item whose label shows the level.
+struct ZoomItems<R: Runtime> {
+    actual_size: MenuItem<R>,
+}
+
+/// The confirmation shown before a restart, which reloads the page.
+pub const RESTART_PROMPT: &str = "Restart the server? The current page will reload.";
+
+/// What the Start Server / Restart Server item does for an enablement:
+/// start a stopped server, restart (after asking) a running one, or nothing
+/// while the server is busy or there is nothing to start.
+pub fn server_item_action(enablement: MenuEnablement) -> Option<Action> {
+    if enablement.restart {
+        Some(Action::Restart)
+    } else if enablement.start {
+        Some(Action::Start)
+    } else {
+        None
+    }
+}
+
+/// The item's label for an action; while busy it keeps its last label.
+pub fn server_item_label(action: Action) -> &'static str {
+    match action {
+        Action::Restart => "Restart Server",
+        _ => "Start Server",
+    }
+}
+
+/// Keeps a restart from being asked for twice. It is held from the moment
+/// the confirmation opens until the worker claims the confirmed restart (and
+/// disables the menu item), so a second press in between does nothing. A
+/// restart from elsewhere (Settings) does not release an open prompt.
+#[derive(Debug, Default)]
+pub struct RestartGuard(AtomicU8);
+
+const GUARD_IDLE: u8 = 0;
+const GUARD_ASKING: u8 = 1;
+const GUARD_CONFIRMED: u8 = 2;
+
+impl RestartGuard {
+    /// Takes the guard to open a confirmation; false if one is already open
+    /// or a confirmed restart is not yet claimed.
+    pub fn begin(&self) -> bool {
+        self.0
+            .compare_exchange(GUARD_IDLE, GUARD_ASKING, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+    }
+
+    /// Records the answer and says whether to request the restart. A
+    /// confirmed restart keeps the guard until [`RestartGuard::claimed`];
+    /// anything else releases it now.
+    pub fn answered(&self, restart: bool, running: bool) -> bool {
+        let request = restart && running;
+        let next = if request { GUARD_CONFIRMED } else { GUARD_IDLE };
+        self.0.store(next, Ordering::SeqCst);
+        request
+    }
+
+    /// The worker has taken a restart. Releases only a confirmed one, so an
+    /// open prompt stays the only one.
+    pub fn claimed(&self) {
+        let _ = self.0.compare_exchange(
+            GUARD_CONFIRMED,
+            GUARD_IDLE,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        );
+    }
+}
+
 /// Handles to the menu items whose enablement follows state.
 struct StateItems<R: Runtime> {
-    start: MenuItem<R>,
+    /// Start Server or Restart Server, with [`SERVER_SHORTCUT`].
+    run: MenuItem<R>,
     stop: MenuItem<R>,
-    restart: MenuItem<R>,
     running_views: Vec<MenuItem<R>>,
 }
 
 impl<R: Runtime> StateItems<R> {
     fn apply(&self, enablement: MenuEnablement) {
-        let _ = self.start.set_enabled(enablement.start);
+        let action = server_item_action(enablement);
+        let _ = self.run.set_enabled(action.is_some());
+        if let Some(action) = action {
+            let _ = self.run.set_text(server_item_label(action));
+        }
         let _ = self.stop.set_enabled(enablement.stop);
-        let _ = self.restart.set_enabled(enablement.restart);
         for item in &self.running_views {
             let _ = item.set_enabled(enablement.running_views);
         }
@@ -678,8 +842,17 @@ pub struct ShellState {
     chrome_available: bool,
     actions: Mutex<Sender<Action>>,
     exiting: AtomicBool,
+    /// The main window's page zoom level, and where it is remembered.
+    zoom: Mutex<f64>,
+    zoom_store: Option<ZoomStore>,
+    /// Held while the restart confirmation is open or a confirmed restart is
+    /// not yet claimed by the worker.
+    confirming: RestartGuard,
     /// The main window's loading cue, so View > Reload can mark its load.
     cue: Arc<LoadingCue>,
+    /// Where the main window's frame is remembered, if there is a config dir.
+    window_state: Option<WindowStateStore>,
+    window_saver: Arc<WindowSaver>,
 }
 
 impl ShellState {
@@ -866,6 +1039,7 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     history: MainWindowHistory<R>,
     initial: &Url,
     cue: Arc<LoadingCue>,
+    frame: WindowFrame,
 ) -> tauri::Result<WebviewWindow<R>> {
     let path = initial
         .as_str()
@@ -883,7 +1057,8 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
     let cue_app = app.clone();
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
         .title(MAIN_TITLE)
-        .inner_size(1100.0, 760.0)
+        .inner_size(frame.width, frame.height)
+        .position(frame.x, frame.y)
         .on_navigation(move |url| {
             // The gear opens native Settings; the page never loads here and
             // the main window gains no capability. Rate-limited like links.
@@ -894,6 +1069,19 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
                         show_settings(&handle, SettingsSection::Settings);
                     });
                 }
+                return false;
+            }
+            // The page's Back and Forward buttons do what the View menu does.
+            if let Some(back) = policy.history_request(url) {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || {
+                    let id = if back {
+                        menu_id::BACK
+                    } else {
+                        menu_id::FORWARD
+                    };
+                    handle_menu(&handle, id);
+                });
                 return false;
             }
             if policy.allows(url) {
@@ -922,9 +1110,25 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         })
         // Downloads (Serve's `?download=1` prompt Markdown) open in the
         // browser, which saves them; the app never writes files itself.
+        .initialization_script(IN_APP_SCRIPT)
         .on_page_load(move |window, payload| {
-            if payload.event() == PageLoadEvent::Finished && load_cue.end() {
+            if payload.event() != PageLoadEvent::Finished {
+                return;
+            }
+            if load_cue.end() {
                 set_main_title(&window, false);
+            }
+            // Grey out the page's Back and Forward to match the menu.
+            if let Some(state) = window.try_state::<ShellState>() {
+                let backend = state.policy.backend();
+                let (back, forward) = {
+                    let pages = lock(&state.history);
+                    (
+                        pages.can_go_back(backend.as_ref()),
+                        pages.can_go_forward(backend.as_ref()),
+                    )
+                };
+                let _ = window.eval(history_buttons_script(back, forward));
             }
         })
         .on_download(move |webview, event| {
@@ -1014,11 +1218,15 @@ pub fn show_settings<R: Runtime>(app: &AppHandle<R>, section: SettingsSection) {
     }
 }
 
+/// The app menu and the items whose state follows the app.
+type BuiltMenu<R> = (Menu<R>, StateItems<R>, HistoryItems<R>, ZoomItems<R>);
+
 /// Builds the app menu: the platform app menu, Edit, Server, View, Window.
 fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
     chrome_available: bool,
-) -> tauri::Result<(Menu<R>, StateItems<R>, HistoryItems<R>)> {
+    zoom: f64,
+) -> tauri::Result<BuiltMenu<R>> {
     let item = |id: &str, text: &str, enabled: bool, accelerator: Option<&str>| {
         MenuItem::with_id(app, id, text, enabled, accelerator)
     };
@@ -1028,15 +1236,19 @@ fn build_menu<R: Runtime>(
         "Open in Chrome (not found: uses default browser)"
     };
     let items = StateItems {
-        start: item(menu_id::START, "Start Server", false, None)?,
+        run: item(
+            menu_id::START_OR_RESTART,
+            "Start Server",
+            false,
+            Some(SERVER_SHORTCUT),
+        )?,
         stop: item(menu_id::STOP, "Stop Server", false, None)?,
-        restart: item(menu_id::RESTART, "Restart Server", false, None)?,
         running_views: vec![
             item(
                 menu_id::STATUSBOARD,
                 "Statusboard",
                 false,
-                Some("CmdOrCtrl+0"),
+                Some(STATUSBOARD_SHORTCUT),
             )?,
             item(
                 menu_id::WORKSPACE,
@@ -1061,6 +1273,14 @@ fn build_menu<R: Runtime>(
         Some("CmdOrCtrl+I"),
     )?;
     let reload = item(menu_id::RELOAD, "Reload", true, Some("CmdOrCtrl+R"))?;
+    let actual_size = item(
+        menu_id::ACTUAL_SIZE,
+        &actual_size_label(zoom),
+        true,
+        Some(ACTUAL_SIZE_SHORTCUT),
+    )?;
+    let zoom_in = item(menu_id::ZOOM_IN, "Zoom In", true, Some(ZOOM_IN_SHORTCUT))?;
+    let zoom_out = item(menu_id::ZOOM_OUT, "Zoom Out", true, Some(ZOOM_OUT_SHORTCUT))?;
     // Enabled by the main window's history as pages are visited.
     let back = item(menu_id::BACK, "Back", false, Some("CmdOrCtrl+["))?;
     let forward = item(menu_id::FORWARD, "Forward", false, Some("CmdOrCtrl+]"))?;
@@ -1117,9 +1337,8 @@ fn build_menu<R: Runtime>(
         "Server",
         true,
         &[
-            &items.start,
+            &items.run,
             &items.stop,
-            &items.restart,
             &PredefinedMenuItem::separator(app)?,
             &details,
         ],
@@ -1139,6 +1358,10 @@ fn build_menu<R: Runtime>(
             meta,
             &reload,
             &PredefinedMenuItem::separator(app)?,
+            &actual_size,
+            &zoom_in,
+            &zoom_out,
+            &PredefinedMenuItem::separator(app)?,
             open_chrome,
             open_browser,
         ],
@@ -1155,7 +1378,7 @@ fn build_menu<R: Runtime>(
         ],
     )?;
     let menu = Menu::with_items(app, &[&app_menu, &edit, &server, &view, &window])?;
-    Ok((menu, items, [back, forward]))
+    Ok((menu, items, [back, forward], ZoomItems { actual_size }))
 }
 
 /// The configuration chosen at startup: the developer override if any
@@ -1244,13 +1467,261 @@ fn apply_appearance<R: Runtime>(app: &AppHandle<R>, appearance: Appearance) {
     app.set_theme(native_theme(appearance));
 }
 
+/// How long the main window must stay still before its frame is saved.
+const WINDOW_SAVE_DELAY: Duration = Duration::from_millis(500);
+
+/// A display's work area in logical (point) coordinates.
+fn work_area(monitor: &tauri::Monitor) -> WindowFrame {
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    WindowFrame {
+        x: f64::from(area.position.x) / scale,
+        y: f64::from(area.position.y) / scale,
+        width: f64::from(area.size.width) / scale,
+        height: f64::from(area.size.height) / scale,
+    }
+}
+
+/// Where the main window opens: its saved frame if still usable, otherwise
+/// the default on the primary display.
+fn initial_main_frame<R: Runtime>(
+    app: &AppHandle<R>,
+    store: Option<&WindowStateStore>,
+) -> WindowFrame {
+    let displays: Vec<Display> = app
+        .available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(display_of)
+        .filter(|display| display.area.is_plausible())
+        .collect();
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| work_area(&monitor))
+        .filter(WindowFrame::is_plausible)
+        .or_else(|| displays.first().map(|display| display.area))
+        .unwrap_or(WindowFrame {
+            x: 0.0,
+            y: 0.0,
+            width: settings::DEFAULT_WINDOW_WIDTH / 0.9,
+            height: settings::DEFAULT_WINDOW_HEIGHT / 0.9,
+        });
+    let saved = store.and_then(WindowStateStore::load);
+    settings::place_window(saved.as_ref(), &displays, &primary)
+}
+
+fn display_of(monitor: &tauri::Monitor) -> Display {
+    Display {
+        name: monitor.name().cloned(),
+        area: work_area(monitor),
+    }
+}
+
+/// The main window's current content frame (inner position and size), or
+/// None when it is minimized or full screen (those sizes must not be
+/// remembered as its normal frame). Inner, not outer: on macOS the window
+/// builder's position places the content area, so saving the outer corner
+/// would move the window up by the title bar on every launch.
+fn main_frame<R: Runtime>(window: &tauri::Window<R>) -> Option<WindowFrame> {
+    if window.is_minimized().unwrap_or(false) || window.is_fullscreen().unwrap_or(false) {
+        return None;
+    }
+    let scale = window.scale_factor().ok()?;
+    let position = window.inner_position().ok()?.to_logical::<f64>(scale);
+    let size = window.inner_size().ok()?.to_logical::<f64>(scale);
+    Some(WindowFrame {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+    })
+}
+
+fn same_frame(a: &WindowFrame, b: &WindowFrame) -> bool {
+    (a.x - b.x).abs() < 1.0
+        && (a.y - b.y).abs() < 1.0
+        && (a.width - b.width).abs() < 1.0
+        && (a.height - b.height).abs() < 1.0
+}
+
+/// Remembers where the main window is, once it has been still for
+/// [`WINDOW_SAVE_DELAY`]. One saver thread at a time coalesces a drag's
+/// events into a single write.
+#[derive(Debug, Default)]
+pub struct WindowSaver {
+    state: Mutex<SaverState>,
+    /// Held across "may this be saved?" and the write, and by Reset around
+    /// clearing the file, so a save in progress can never outlive a Reset.
+    /// Never held while waiting on the main thread.
+    write: Mutex<()>,
+    /// While Reset waits for macOS to finish leaving full screen, each
+    /// main-window resize is reported here.
+    resizes: Mutex<Option<Sender<()>>>,
+}
+
+#[derive(Debug, Default)]
+struct SaverState {
+    generation: u64,
+    pending: bool,
+    /// The frame Reset applied. Until the user moves the window off it,
+    /// nothing is saved, so the next launch really uses the default.
+    reset: Option<WindowFrame>,
+    /// Reset is in progress: nothing is saved, whatever the frame (leaving
+    /// full screen restores an old frame on the way).
+    resetting: bool,
+}
+
+impl WindowSaver {
+    /// Records a change; returns true if the caller should start a saver.
+    fn changed(&self) -> bool {
+        let mut state = lock(&self.state);
+        state.generation += 1;
+        !std::mem::replace(&mut state.pending, true)
+    }
+
+    fn generation(&self) -> u64 {
+        lock(&self.state).generation
+    }
+
+    /// Ends the saver if nothing changed since `seen`, in one step, so a
+    /// change arriving at that moment always waits its full delay: either
+    /// this saver keeps waiting, or the change starts a new one.
+    fn finish_if(&self, seen: u64) -> bool {
+        let mut state = lock(&self.state);
+        if state.generation != seen {
+            return false;
+        }
+        state.pending = false;
+        true
+    }
+
+    /// Starts (true) or ends (false) a Reset: cancels pending saves, holds
+    /// all saving while it runs, and afterwards holds saving while the
+    /// window sits on `frame`, the frame Reset applied.
+    /// Starts a Reset unless one is already running (a second click is
+    /// ignored rather than ending the first one's hold early).
+    fn try_begin_reset(&self) -> bool {
+        let mut state = lock(&self.state);
+        if state.resetting {
+            return false;
+        }
+        state.generation += 1;
+        state.resetting = true;
+        state.reset = None;
+        true
+    }
+
+    fn resetting(&self, active: bool, frame: Option<WindowFrame>) {
+        let mut state = lock(&self.state);
+        state.generation += 1;
+        state.resetting = active;
+        state.reset = frame;
+    }
+
+    /// Whether `frame` should be saved: false while it is still the frame
+    /// Reset applied; a frame the user chose clears that hold.
+    #[cfg(test)]
+    fn should_save(&self, frame: &WindowFrame) -> bool {
+        self.should_save_since(frame, None)
+    }
+
+    /// Like `should_save`, but also false if anything happened (a newer
+    /// move, or a Reset) since generation `seen`, when the frame was read:
+    /// a save that stalled must not write a frame Reset has replaced.
+    fn should_save_since(&self, frame: &WindowFrame, seen: Option<u64>) -> bool {
+        let mut state = lock(&self.state);
+        if state.resetting || seen.is_some_and(|seen| state.generation != seen) {
+            return false;
+        }
+        match &state.reset {
+            Some(reset) if same_frame(reset, frame) => false,
+            Some(_) => {
+                state.reset = None;
+                true
+            }
+            None => true,
+        }
+    }
+}
+
+/// Saves `frame` with the display the window is on, unless Reset holds it.
+fn save_frame<R: Runtime>(
+    window: &tauri::Window<R>,
+    saver: &WindowSaver,
+    store: &WindowStateStore,
+    frame: &WindowFrame,
+    seen: Option<u64>,
+) {
+    // Ask for the display first: it can wait on the main thread, which must
+    // never happen while holding the write lock (the main thread saves too).
+    let display = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| display_of(&m));
+    let _write = lock(&saver.write);
+    if saver.should_save_since(frame, seen) {
+        if let Err(error) = store.save(&SavedWindow::on(*frame, display.as_ref())) {
+            eprintln!("LRH Console: {error}");
+        }
+    }
+}
+
+/// Called on every main-window resize, before the save logic: wakes a Reset
+/// waiting for full screen to finish exiting.
+pub fn main_window_resized<R: Runtime>(window: &tauri::Window<R>) {
+    if let Some(state) = window.try_state::<ShellState>() {
+        if let Some(sender) = lock(&state.window_saver.resizes).as_ref() {
+            let _ = sender.send(());
+        }
+    }
+}
+
+/// Called on every main-window move or resize: saves the frame once the
+/// window has been still for a moment, so a drag writes the file once.
+pub fn main_window_changed<R: Runtime>(window: &tauri::Window<R>) {
+    let Some(state) = window.try_state::<ShellState>() else {
+        return;
+    };
+    let Some(store) = state.window_state.clone() else {
+        return;
+    };
+    if !state.window_saver.changed() {
+        return;
+    }
+    let saver = Arc::clone(&state.window_saver);
+    let window = window.clone();
+    thread::spawn(move || {
+        let seen = loop {
+            let seen = saver.generation();
+            thread::sleep(WINDOW_SAVE_DELAY);
+            if saver.finish_if(seen) {
+                break seen;
+            }
+        };
+        if let Some(frame) = main_frame(&window) {
+            save_frame(&window, &saver, &store, &frame, Some(seen));
+        }
+    });
+}
+
+/// Saves the main window's frame now (when it closes or the app quits).
+pub fn save_main_window<R: Runtime>(window: &tauri::Window<R>) {
+    let Some(state) = window.try_state::<ShellState>() else {
+        return;
+    };
+    if let (Some(store), Some(frame)) = (&state.window_state, main_frame(window)) {
+        save_frame(window, &state.window_saver, store, &frame, None);
+    }
+}
+
 /// Sets up the shell: configuration, menu, windows, and the action worker.
 pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let store = app
-        .path()
-        .app_config_dir()
-        .ok()
-        .map(|dir| ConfigStore::in_dir(&dir));
+    let config_dir = app.path().app_config_dir().ok();
+    let store = config_dir.as_deref().map(ConfigStore::in_dir);
+    let window_state = config_dir.as_deref().map(WindowStateStore::in_dir);
     let startup = startup_config(store.as_ref());
     if let Some(problem) = &startup.problem {
         eprintln!("LRH Console: {problem}");
@@ -1269,8 +1740,11 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .is_none_or(|config| config.start_on_open);
 
     let chrome_available = browser::chrome_available();
-    let (menu, items, history_items) = build_menu(app, chrome_available)?;
+    let zoom_store = config_dir.as_deref().map(ZoomStore::in_dir);
+    let zoom = zoom_store.as_ref().map_or(1.0, ZoomStore::load);
+    let (menu, items, history_items, zoom_items) = build_menu(app, chrome_available, zoom)?;
     app.set_menu(menu)?;
+    app.manage(zoom_items);
 
     let links = Arc::new(LinkHandoff::default());
     if let Some(config) = &startup.config {
@@ -1288,14 +1762,20 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     };
     let pages = Arc::clone(&history.pages);
     let cue = Arc::new(LoadingCue::default());
-    build_main_window(
+    let frame = initial_main_frame(app, window_state.as_ref());
+    let main = build_main_window(
         app,
         policy.clone(),
         Arc::clone(&links),
         history,
         &initial,
         Arc::clone(&cue),
+        frame,
     )?;
+    // The remembered zoom; the webview keeps it across navigations.
+    if zoom != 1.0 {
+        let _ = main.set_zoom(zoom);
+    }
 
     let (sender, receiver) = mpsc::channel();
     app.manage(ShellState {
@@ -1310,7 +1790,12 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         chrome_available,
         actions: Mutex::new(sender),
         exiting: AtomicBool::new(false),
+        confirming: RestartGuard::default(),
         cue,
+        window_state,
+        window_saver: Arc::default(),
+        zoom: Mutex::new(zoom),
+        zoom_store,
     });
 
     let worker_app = app.clone();
@@ -1325,7 +1810,14 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     Err(RecvTimeoutError::Disconnected) => return,
                 };
                 if let Some(action) = action {
+                    // The confirmed restart is claimed (or dropped) here.
+                    let release_guard = || {
+                        if action == Action::Restart {
+                            worker_app.state::<ShellState>().confirming.claimed();
+                        }
+                    };
                     if supervisor.is_shut_down() {
+                        release_guard();
                         continue;
                     }
                     if action == Action::Start && supervisor.state() == State::Running {
@@ -1333,6 +1825,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                         continue;
                     }
                     items.apply(MenuEnablement::BUSY);
+                    release_guard();
                     let transient = match action {
                         Action::Stop => State::Stopping,
                         Action::Start | Action::Restart => State::Starting,
@@ -1441,6 +1934,59 @@ fn current_backend_page<R: Runtime>(app: &AppHandle<R>, state: &ShellState) -> O
     (url.origin() == backend.origin()).then_some(url)
 }
 
+/// Asks before restarting, since a restart reloads the page; Cancel does
+/// nothing. The dialog is a sheet on the main window, only one can be open
+/// at a time, and the restart happens only if the server is still running
+/// when the user answers. It runs without blocking the main thread.
+fn confirm_restart<R: Runtime>(app: &AppHandle<R>) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+    let state = app.state::<ShellState>();
+    if !state.confirming.begin() {
+        return;
+    }
+    let mut dialog = app
+        .dialog()
+        .message(RESTART_PROMPT)
+        .title("Restart Server")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Restart".to_string(),
+            "Cancel".to_string(),
+        ));
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        dialog = dialog.parent(&window);
+    }
+    let handle = app.clone();
+    dialog.show(move |restart| {
+        let state = handle.state::<ShellState>();
+        let running = state.supervisor.state() == State::Running;
+        if state.confirming.answered(restart, running) {
+            state.request(Action::Restart);
+        }
+    });
+}
+
+/// Changes the main window's page zoom, updates the Actual Size label, and
+/// remembers the level. A failed save only means it is not remembered.
+fn set_zoom<R: Runtime>(app: &AppHandle<R>, change: impl FnOnce(f64) -> f64) {
+    let state = app.state::<ShellState>();
+    let level = {
+        let mut zoom = lock(&state.zoom);
+        *zoom = change(*zoom);
+        *zoom
+    };
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.set_zoom(level);
+    }
+    if let Some(items) = app.try_state::<ZoomItems<R>>() {
+        let _ = items.actual_size.set_text(actual_size_label(level));
+    }
+    if let Some(store) = &state.zoom_store {
+        let _ = store.save(level);
+    }
+}
+
 /// Handles a menu event by ID.
 pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     let state = app.state::<ShellState>();
@@ -1451,9 +1997,16 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             }
         }
         menu_id::QUIT => app.exit(0),
-        menu_id::START => state.request(Action::Start),
+        menu_id::START_OR_RESTART => {
+            let configured = state.supervisor.is_configured();
+            let enablement = MenuEnablement::for_state(state.supervisor.state(), configured);
+            match server_item_action(enablement) {
+                Some(Action::Restart) => confirm_restart(app),
+                Some(action) => state.request(action),
+                None => {}
+            }
+        }
         menu_id::STOP => state.request(Action::Stop),
-        menu_id::RESTART => state.request(Action::Restart),
         menu_id::STATUSBOARD => {
             if let Some(url) = backend_page(&state, HOME_PAGE) {
                 navigate_main(app, &url);
@@ -1473,6 +2026,9 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
                 navigate_main(app, &url);
             }
         }
+        menu_id::ACTUAL_SIZE => set_zoom(app, |_| 1.0),
+        menu_id::ZOOM_IN => set_zoom(app, |level| zoom_step(level, true)),
+        menu_id::ZOOM_OUT => set_zoom(app, |level| zoom_step(level, false)),
         menu_id::RELOAD => {
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
                 if let Ok(url) = window.url() {
@@ -1655,6 +2211,144 @@ pub fn same_directory(a: &std::path::Path, b: &std::path::Path) -> Option<bool> 
     Some(std::fs::canonicalize(a).ok()? == std::fs::canonicalize(b).ok()?)
 }
 
+/// How long Reset waits for the window to leave full screen.
+const FULL_SCREEN_EXIT_WAIT: Duration = Duration::from_secs(4);
+/// The exit is over once the window has not resized for this long.
+const FULL_SCREEN_SETTLE: Duration = Duration::from_millis(400);
+
+/// Forgets the main window's saved size and position and puts the window
+/// back at the default frame on its current display. Settings only.
+///
+/// Runs off the main thread (`async`), so it can wait for macOS to finish
+/// leaving full screen before it applies the frame; every step's error is
+/// reported to Settings rather than claiming success.
+#[tauri::command(async)]
+pub fn reset_window_state<R: Runtime>(
+    app: AppHandle<R>,
+    state: tauri::State<'_, ShellState>,
+) -> Result<(), String> {
+    let saver = &state.window_saver;
+    if !saver.try_begin_reset() {
+        return Err("a reset is already in progress".into());
+    }
+    let result = reset_main_window(&app, saver, state.window_state.as_ref());
+    match result {
+        Ok(frame) => {
+            saver.resetting(false, frame);
+            Ok(())
+        }
+        Err(error) => {
+            saver.resetting(false, None);
+            Err(error)
+        }
+    }
+}
+
+/// Clears the saved state, under the saver's write lock.
+fn clear_saved(saver: &WindowSaver, store: Option<&WindowStateStore>) -> Result<(), String> {
+    let _write = lock(&saver.write);
+    store.map_or(Ok(()), WindowStateStore::clear)
+}
+
+/// Leaves full screen and waits until macOS has finished: tao reports the
+/// window as not full screen as soon as the exit is requested, before the
+/// animation ends and AppKit restores the old frame, so this waits for the
+/// resizes the exit produces to go quiet instead.
+fn leave_full_screen<R: Runtime>(
+    window: &WebviewWindow<R>,
+    saver: &WindowSaver,
+) -> Result<(), String> {
+    let (sender, receiver) = mpsc::channel();
+    *lock(&saver.resizes) = Some(sender);
+    let result = (|| {
+        window
+            .set_fullscreen(false)
+            .map_err(|error| format!("could not leave full screen: {error}"))?;
+        let started = std::time::Instant::now();
+        // The first resize marks the exit under way; then wait for quiet.
+        receiver
+            .recv_timeout(FULL_SCREEN_EXIT_WAIT)
+            .map_err(|_| "the window did not leave full screen; try again".to_string())?;
+        while receiver.recv_timeout(FULL_SCREEN_SETTLE).is_ok() {
+            if started.elapsed() > FULL_SCREEN_EXIT_WAIT {
+                return Err(
+                    "the window did not settle after leaving full screen; try again".into(),
+                );
+            }
+        }
+        Ok(())
+    })();
+    *lock(&saver.resizes) = None;
+    result
+}
+
+/// Clears the saved state and applies the default frame; returns the frame
+/// applied (None when there is no main window or display to apply it to).
+fn reset_main_window<R: Runtime>(
+    app: &AppHandle<R>,
+    saver: &WindowSaver,
+    store: Option<&WindowStateStore>,
+) -> Result<Option<WindowFrame>, String> {
+    clear_saved(saver, store)?;
+    let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
+        return Ok(None);
+    };
+    let failed = |step: &str, error: tauri::Error| format!("could not {step}: {error}");
+    // AppKit ignores frame changes to a full-screen, zoomed, or minimized
+    // window.
+    if window
+        .is_fullscreen()
+        .map_err(|e| failed("check full screen", e))?
+    {
+        leave_full_screen(&window, saver)?;
+    }
+    window
+        .unminimize()
+        .map_err(|e| failed("restore the minimized window", e))?;
+    if window
+        .is_maximized()
+        .map_err(|e| failed("check the window zoom", e))?
+    {
+        window
+            .unmaximize()
+            .map_err(|e| failed("unzoom the window", e))?;
+    }
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        return Ok(None);
+    };
+    let frame = settings::default_window_frame(&work_area(&monitor));
+    // set_position places the outer frame; offset it by the title bar so the
+    // content lands where the builder would put it at launch.
+    let scale = window
+        .scale_factor()
+        .map_err(|e| failed("read the scale", e))?;
+    let inner = window
+        .inner_position()
+        .map_err(|e| failed("read the window position", e))?
+        .to_logical::<f64>(scale);
+    let outer = window
+        .outer_position()
+        .map_err(|e| failed("read the window position", e))?
+        .to_logical::<f64>(scale);
+    window
+        .set_size(tauri::LogicalSize::new(frame.width, frame.height))
+        .map_err(|e| failed("resize the window", e))?;
+    window
+        .set_position(tauri::LogicalPosition::new(
+            frame.x - (inner.x - outer.x),
+            frame.y - (inner.y - outer.y),
+        ))
+        .map_err(|e| failed("move the window", e))?;
+    // A save that slipped in before Reset began must not survive it.
+    clear_saved(saver, store)?;
+    Ok(Some(frame))
+}
+
 /// Restarts the owned backend (for example after a workspace change).
 #[tauri::command]
 pub fn restart_server(state: tauri::State<'_, ShellState>) {
@@ -1675,6 +2369,94 @@ mod tests {
 
     fn url(text: &str) -> Url {
         Url::parse(text).unwrap()
+    }
+
+    fn frame(x: f64, y: f64, width: f64, height: f64) -> WindowFrame {
+        WindowFrame {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    #[test]
+    fn a_drag_starts_one_saver_and_coalesces_its_events() {
+        let saver = WindowSaver::default();
+        assert!(saver.changed(), "the first event starts a saver");
+        let seen = saver.generation();
+        assert!(!saver.changed(), "later events reuse it");
+        assert!(
+            !saver.finish_if(seen),
+            "a change since the saver looked keeps it waiting"
+        );
+        let seen = saver.generation();
+        assert!(saver.finish_if(seen), "a quiet interval ends it");
+        assert!(
+            saver.changed(),
+            "after the save, a new event starts another"
+        );
+    }
+
+    #[test]
+    fn a_stalled_save_never_writes_a_frame_reset_replaced() {
+        let saver = WindowSaver::default();
+        saver.changed();
+        let seen = saver.generation();
+        let before_reset = frame(10.0, 20.0, 900.0, 700.0);
+        // Reset runs to completion while that save is stalled.
+        assert!(saver.try_begin_reset());
+        saver.resetting(false, Some(frame(510.0, 200.0, 1540.0, 1064.0)));
+        assert!(
+            !saver.should_save_since(&before_reset, Some(seen)),
+            "the frame read before Reset must not be saved after it"
+        );
+        assert!(saver.should_save_since(&before_reset, Some(saver.generation())));
+    }
+
+    #[test]
+    fn a_second_reset_is_refused_while_one_runs() {
+        let saver = WindowSaver::default();
+        assert!(saver.try_begin_reset());
+        assert!(
+            !saver.try_begin_reset(),
+            "a second click must not end the first reset's hold early"
+        );
+        saver.resetting(false, None);
+        assert!(
+            saver.try_begin_reset(),
+            "after it finishes, Reset works again"
+        );
+    }
+
+    #[test]
+    fn nothing_is_saved_while_a_reset_runs() {
+        let saver = WindowSaver::default();
+        saver.resetting(true, None);
+        assert!(
+            !saver.should_save(&frame(10.0, 20.0, 900.0, 700.0)),
+            "leaving full screen restores an old frame; it must not be saved"
+        );
+        saver.resetting(false, None);
+        assert!(saver.should_save(&frame(10.0, 20.0, 900.0, 700.0)));
+    }
+
+    #[test]
+    fn nothing_is_saved_while_the_window_sits_on_the_reset_frame() {
+        let saver = WindowSaver::default();
+        let default = frame(510.0, 200.0, 1540.0, 1064.0);
+        assert!(saver.should_save(&default), "no reset: save");
+        saver.resetting(false, Some(default));
+        assert!(
+            !saver.should_save(&frame(510.4, 200.2, 1540.0, 1064.0)),
+            "the reset frame (within a point) is not saved, so the next launch uses the default"
+        );
+        let moved = frame(600.0, 250.0, 1540.0, 1064.0);
+        assert!(saver.should_save(&moved), "a frame the user chose is saved");
+        assert!(
+            saver.should_save(&default),
+            "and the hold is gone after that"
+        );
     }
 
     #[test]
@@ -2122,6 +2904,43 @@ mod tests {
     }
 
     #[test]
+    fn only_the_backend_history_paths_are_history_requests() {
+        let policy = NavigationPolicy::default();
+        let back = Url::parse("http://127.0.0.1:49152/desktop/back").unwrap();
+        assert_eq!(policy.history_request(&back), None, "no backend yet");
+
+        policy.set_backend(Some(&Url::parse("http://127.0.0.1:49152/").unwrap()));
+        assert_eq!(policy.history_request(&back), Some(true));
+        assert_eq!(
+            policy.history_request(&Url::parse("http://127.0.0.1:49152/desktop/forward").unwrap()),
+            Some(false)
+        );
+        for other in [
+            "http://127.0.0.1:49153/desktop/back",
+            "http://127.0.0.1:49152/desktop/backx",
+            "http://127.0.0.1:49152/desktop",
+            "http://127.0.0.1:49152/meta",
+            "https://example.com/desktop/back",
+        ] {
+            assert_eq!(
+                policy.history_request(&Url::parse(other).unwrap()),
+                None,
+                "{other}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_page_buttons_are_marked_and_greyed_out_by_native_scripts() {
+        assert!(IN_APP_SCRIPT.contains("classList.add('lrh-in-app')"));
+        let script = history_buttons_script(true, false);
+        assert!(script.ends_with("({back: true, forward: false});"));
+        assert!(script.contains("[data-lrh-history=\"' + name + '\"]"));
+        assert!(script.contains("'aria-disabled'"));
+        assert!(history_buttons_script(false, true).ends_with("({back: false, forward: true});"));
+    }
+
+    #[test]
     fn only_the_backend_settings_path_is_a_settings_request() {
         let policy = NavigationPolicy::default();
         let settings = Url::parse("http://127.0.0.1:49152/settings").unwrap();
@@ -2200,6 +3019,63 @@ mod tests {
         let stopped = MenuEnablement::for_state(State::Stopped, true);
         assert!(stopped.start && !stopped.stop && !stopped.restart && !stopped.running_views);
         assert!(!MenuEnablement::for_state(State::Failed, false).start);
+    }
+
+    #[test]
+    fn zoom_has_chrome_shortcuts_and_the_label_shows_the_level() {
+        assert_eq!(ZOOM_IN_SHORTCUT, "CmdOrCtrl+=");
+        assert_eq!(ZOOM_OUT_SHORTCUT, "CmdOrCtrl+-");
+        assert_eq!(ACTUAL_SIZE_SHORTCUT, "CmdOrCtrl+0");
+        // Statusboard gave up ⌘0 to Actual Size.
+        assert_eq!(STATUSBOARD_SHORTCUT, "CmdOrCtrl+Shift+H");
+        assert_ne!(STATUSBOARD_SHORTCUT, ACTUAL_SIZE_SHORTCUT);
+        assert_eq!(actual_size_label(1.0), "Actual Size");
+        assert_eq!(actual_size_label(1.25), "Actual Size (125%)");
+        assert_eq!(actual_size_label(0.67), "Actual Size (67%)");
+    }
+
+    #[test]
+    fn a_confirmed_restart_holds_the_guard_until_the_worker_claims_it() {
+        let guard = RestartGuard::default();
+        assert!(guard.begin());
+        assert!(!guard.begin(), "a second press must not open another");
+
+        // Restart chosen while running: request it, and keep the guard.
+        assert!(guard.answered(true, true));
+        assert!(!guard.begin(), "still held until the worker claims it");
+        guard.claimed();
+        assert!(guard.begin());
+
+        // Cancel, or a server that stopped meanwhile: release at once.
+        assert!(!guard.answered(false, true));
+        assert!(guard.begin());
+        assert!(!guard.answered(true, false));
+        assert!(guard.begin());
+
+        // A restart from Settings while the prompt is open leaves it the
+        // only prompt.
+        guard.claimed();
+        assert!(!guard.begin());
+    }
+
+    #[test]
+    fn one_item_starts_a_stopped_server_and_restarts_a_running_one() {
+        let at =
+            |state, configured| server_item_action(MenuEnablement::for_state(state, configured));
+        assert_eq!(at(State::Stopped, true), Some(Action::Start));
+        assert_eq!(at(State::Failed, true), Some(Action::Start));
+        assert_eq!(at(State::Running, true), Some(Action::Restart));
+        // Busy, or nothing to start: the item is disabled.
+        assert_eq!(at(State::Starting, true), None);
+        assert_eq!(at(State::Stopping, true), None);
+        assert_eq!(at(State::Stopped, false), None);
+        assert_eq!(server_item_label(Action::Start), "Start Server");
+        assert_eq!(server_item_label(Action::Restart), "Restart Server");
+        assert_eq!(SERVER_SHORTCUT, "CmdOrCtrl+Shift+I");
+        assert_eq!(
+            RESTART_PROMPT,
+            "Restart the server? The current page will reload."
+        );
     }
 
     fn status(state: State, error: Option<SupervisorError>) -> Status {
@@ -2287,5 +3163,139 @@ mod tests {
         }
         assert!(!is_external_link(&url("file:///etc/passwd")));
         assert!(!is_external_link(&status_url("stopped", None)));
+    }
+
+    const CLAUDE_LINK: &str =
+        "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa";
+    const CODEX_LINK: &str = "codex://threads/01a032cd-cef2-73c0-9714-b61b36ae4513";
+
+    fn parse(text: &str) -> Url {
+        Url::parse(text).unwrap()
+    }
+
+    /// Waits for the background handoff thread to record a result.
+    fn wait_for_last(links: &LinkHandoff) -> Option<Result<Handoff, String>> {
+        for _ in 0..400 {
+            if let Some(result) = links.last() {
+                return Some(result);
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        None
+    }
+
+    fn opened_ok(note: &str) -> Result<Handoff, String> {
+        Ok(Handoff {
+            opened: browser::Opened::VendorApp,
+            note: Some(note.to_string()),
+        })
+    }
+
+    #[test]
+    fn session_links_are_not_external_links() {
+        assert!(!is_external_link(&parse(CLAUDE_LINK)));
+        assert!(!is_external_link(&parse(CODEX_LINK)));
+        assert!(browser::validate_session_link(&parse(CLAUDE_LINK)).is_ok());
+        assert!(browser::validate_session_link(&parse(CODEX_LINK)).is_ok());
+    }
+
+    static ALLOWED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn recording_opener(url: &Url) -> Result<Handoff, String> {
+        ALLOWED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("recorded")
+    }
+
+    #[test]
+    fn an_allowlisted_session_link_goes_to_the_session_opener() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(recording_opener);
+
+        links.offer(&parse(CLAUDE_LINK));
+
+        assert_eq!(wait_for_last(&links), Some(opened_ok("recorded")));
+        assert_eq!(
+            *ALLOWED_CALLS.lock().unwrap(),
+            vec![CLAUDE_LINK.to_string()]
+        );
+    }
+
+    fn failing_opener(_url: &Url) -> Result<Handoff, String> {
+        Err("the app opener failed (exit status: 1)".to_string())
+    }
+
+    #[test]
+    fn a_failed_session_handoff_is_recorded_in_the_last_result() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(failing_opener);
+
+        links.offer(&parse(CODEX_LINK));
+
+        assert_eq!(
+            wait_for_last(&links),
+            Some(Err("the app opener failed (exit status: 1)".to_string()))
+        );
+    }
+
+    static REFUSED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn refused_opener(url: &Url) -> Result<Handoff, String> {
+        REFUSED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("must not happen")
+    }
+
+    #[test]
+    fn links_outside_the_allowlist_never_reach_the_session_opener() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(refused_opener);
+
+        // None of these is an external web link either, so nothing at all may
+        // be launched for them (an external link would open the real browser,
+        // so none is offered here).
+        for refused in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "tauri://localhost/index.html",
+            "vscode://file/etc/passwd",
+            "http://127.0.0.1:50543/meta",
+            "claude://evil.example/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+            "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa/extra",
+            "claude://claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa?x=1",
+            "claude://user@claude.ai/epitaxy/local_a6e3e7d1-6dca-4a75-999f-73b646ceb1fa",
+            "codex://threads/not-a-uuid",
+            "codex://other/01a032cd-cef2-73c0-9714-b61b36ae4513",
+        ] {
+            links.offer(&parse(refused));
+        }
+        thread::sleep(Duration::from_millis(50));
+
+        assert!(REFUSED_CALLS.lock().unwrap().is_empty());
+        assert_eq!(links.last(), None);
+    }
+
+    static LIMITED_CALLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn limited_opener(url: &Url) -> Result<Handoff, String> {
+        LIMITED_CALLS.lock().unwrap().push(url.as_str().to_string());
+        opened_ok("limited")
+    }
+
+    #[test]
+    fn session_links_share_the_one_per_second_limit() {
+        let links = Arc::new(LinkHandoff::default());
+        links.set_session_opener(limited_opener);
+        let start = std::time::Instant::now();
+
+        links.offer(&parse(CLAUDE_LINK));
+        assert!(wait_for_last(&links).is_some());
+        links.offer(&parse(CODEX_LINK));
+        thread::sleep(Duration::from_millis(50));
+
+        if start.elapsed() < crate::browser::MIN_HANDOFF_INTERVAL {
+            assert_eq!(
+                *LIMITED_CALLS.lock().unwrap(),
+                vec![CLAUDE_LINK.to_string()]
+            );
+        }
     }
 }

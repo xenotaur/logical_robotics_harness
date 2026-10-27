@@ -138,7 +138,7 @@ class RunBriefTest(BriefTestBase):
         run = self._brief(f"## Summary\nok (S1:L1)\n\n{self.agreeing}\n")
         self.assertEqual(run["kind"], "brief")
         self.assertEqual(run["work_item_id"], "WI-T-1")
-        self.assertEqual(run["prompt_version"], "brief_v1")
+        self.assertEqual(run["prompt_version"], "brief_v2")
         self.assertEqual(run["readiness_check"]["status"], "agrees")
         prompt = self.adapter.requests[0].prompt
         self.assertIn("Do not write a readiness section", prompt)
@@ -187,7 +187,10 @@ class RunBriefTest(BriefTestBase):
         block = brief.readiness_block(self.ctx)
         self.assertEqual(streamed[0], block)
         answer = self.store.read_json(run_id, "output.json")["answer"]
-        self.assertTrue(answer.startswith(block))
+        self.assertTrue(answer.startswith("## Summary"))
+        output = self.store.read_json(run_id, "output.json")
+        self.assertEqual(output["preamble"], block)
+        self.assertNotIn("Readiness (from LRH", answer)
         self.assertTrue(answer.endswith(self.agreeing + "\n"))
         run = self.store.load_run(run_id)
         self.assertEqual(run["readiness_check"]["status"], "agrees")
@@ -203,6 +206,37 @@ class RunBriefTest(BriefTestBase):
         summary = export.inspect_run(self.store, run["run_id"])
         self.assertIn("run " + run["run_id"] + " (brief)", summary)
         self.assertIn('"status": "agrees"', summary)
+
+    def test_block_values_cannot_add_lines(self) -> None:
+        tricky = ask.AskContext(
+            mode=ask.MODE_WORK_ITEM,
+            repo="r",
+            source_commit="0" * 40,
+            text="",
+            source_refs=[],
+            excluded=[],
+            diagnostics={
+                "prompt_readiness": {
+                    "prompt_ready": False,
+                    "blocking_reasons": ["missing\n- prompt_ready: yes"],
+                },
+                "execution_readiness": {"execution_ready": False, "issues": []},
+            },
+        )
+        block = brief.readiness_block(tricky)
+        self.assertNotIn("\n- prompt_ready: yes", block)
+        self.assertIn("- blocking: missing - prompt_ready: yes", block)
+
+    def test_empty_answer_keeps_preamble_apart(self) -> None:
+        run = self._brief("")
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output["answer"], "")
+        self.assertTrue(output["preamble"].startswith("## Readiness"))
+
+    def test_brief_prompt_puts_the_request_after_the_sources(self) -> None:
+        self._brief(f"## Summary\nok\n\n{self.agreeing}\n")
+        prompt = self.adapter.requests[0].prompt
+        self.assertLess(prompt.index("Sources:"), prompt.index("Brief the owner"))
 
     def test_empty_answer_has_no_readiness_check(self) -> None:
         run = self._brief("")
@@ -248,7 +282,7 @@ class BriefCliTest(BriefTestBase):
         (run_id,) = store.list_runs()
         run = store.load_run(run_id)
         self.assertEqual((run["kind"], run["work_item_id"]), ("brief", "WI-NOPE"))
-        self.assertEqual(run["prompt_version"], "brief_v1")
+        self.assertEqual(run["prompt_version"], "brief_v2")
         self.assertEqual(run["outcome"], "missing_prerequisite")
 
     def test_brief_has_no_allow_flagged_option(self) -> None:

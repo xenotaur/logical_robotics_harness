@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Console Visual Language
 status: proposed
 created_on: 2026-05-16
-updated_on: 2026-10-09
+updated_on: 2026-10-14
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -555,6 +555,49 @@ A card can show, for example, "Unblocked · not prompt-ready". This follows
 `lrh-console-local-dogfood/mockups/README.md:38-40` and
 `lrh-console-local-dogfood/00_proposal.md:258-275`.
 
+#### Readiness vocabulary (`WI-LRH-CONSOLE-READINESS-VOCABULARY`, 2026-10-12)
+
+The L1 dogfood (`project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md`, Run Four) found two
+views showing a fourth, unnamed check as plain "ready" or "not ready". LRH Console now
+uses these terms, and each view names the check it shows. Run packet (validated) and
+Blocked flag were added later, as work-item page details:
+
+| Term | Check | Where it appears |
+| --- | --- | --- |
+| Unblocked | Structural state: every prerequisite is done | Map cards, list, table, and drawer, as a state pill |
+| Prompt-ready | `prompt_ready` from `lrh work-items readiness`; open items only, so closed items show "Not applicable (closed)" | Map card flag ("Not prompt-ready"), table column, drawer, and the work-item page, with its blocking reasons when No |
+| Execution-ready flag | The work item's own `execution_ready` setting, one of the optional run-packet fields read by `src/lrh/control/execution_readiness.py` (`required_evidence` is an ordinary work-item field, not one of them). It is a declaration, not a validation: generating a run packet also checks the required fields (`execution_readiness.validate_frontmatter(..., require_ready=True)`, through `run_packet.validate_work_item`). On the work-item page, an item that declares no run-packet field is **Not declared** | Work-item page ("Execution-ready flag (run packets)"); Statusboard ("Leaves flagged execution-ready", "Leaves not flagged execution-ready") and project pages ("Leaves flagged execution-ready", "Leaves not flagged"); workbench ("Execution-ready flag: yes/no", "Leaves flagged execution-ready"). The counts and the workbench treat an undeclared item as not flagged |
+| Run packet (validated) | Whether run-packet generation would succeed: the validation it runs itself (`run_packet.validate_work_item`), without rendering a packet. **Passes**, **Fails** with its errors, or **Not declared** for an item with no run-packet field. Added by `WI-LRH-CONSOLE-RUN-PACKET-READINESS` (2026-10-22); the Copy generated prompt button is enabled exactly when it passes. Because `lrh validate` already rejects declared run-packet fields that fail, and a failing project loads with no work items, Fails cannot appear on a loadable project today | Work-item page ("Run packet (validated)") |
+| Blocked flag | The work item's own `blocked` setting and reason. Work items have no `blocked` status; run-packet generation does not check the flag | Work-item page ("Blocked flag": "Yes: reason" or "No") |
+| Authorized | A human decision; never derived | Drawer and work-item page: "Not derived: needs your approval" |
+
+"Ready" and "not ready" are never shown alone. The Statusboard's counts still count
+leaves flagged execution-ready, which no LRH work item declares today. Whether a band or count
+should use prompt readiness instead is an open triage-rule question, like the
+Blocked-rule question `WI-LRH-PROJECT-UPDATE-SKILL` raises for
+`PROP-META-OPERATIONAL-TRIAGE-SEMANTICS`. It is not decided here.
+
+### Default map layout (`WI-LRH-CONSOLE-MAP-OUTLINE-LAYOUT`, 2026-10-14)
+
+Q7's pluggable `Layout` interface now has two implementations:
+
+- `layered-grid`: fixed lane-and-phase cells, ordered to reduce crossings.
+- `outline`:
+  - keeps the lane columns and phase rows;
+  - lists each cell's cards in dependency order, indented by depth (capped at four levels);
+  - widens a lane rather than shrinking indented cards;
+  - runs lines inside a cell down a rail at the cell's left edge.
+
+**Owner decision (2026-10-14):** after comparing both on `lrh-console-l1` and LCATS
+`worldcon-2026`, the owner judged the outline "more readable than the grid" and chose it
+as the default. The grid stays one click away through the Layout toggle or
+`?layout=layered-grid`.
+
+The owner also found both layouts hard to follow where lines overlap. Cards take
+inputs on both sides, and parallel right-angled lines are hard to tell apart even
+with highlighting. That is a separate question about how lines are drawn,
+including whether to revisit curved lines, tracked as `WI-LRH-CONSOLE-MAP-EDGE-READABILITY`.
+
 ### Effort and critical path (Q4)
 
 L1 shows no effort, duration, or critical-path figures. The data has no such fields, and
@@ -720,11 +763,21 @@ colorblind.
   | Blocked | vermillion |
   | Awaiting review | reddish purple |
   | Unknown | neutral gray |
+  | Abandoned | neutral gray (told apart from Unknown by shape) |
 
 - **Never red against green alone.** Where hues fall on the red-green axis, such as Done (bluish
   green) and Blocked (vermillion), they also differ in lightness and redundant cues.
 - **Redundant cues.** Every state also carries an icon, a text label, and a line or border style
-  (WCAG 2.2 SC 1.4.1). Blocked cards add a dashed edge.
+  (WCAG 2.2 SC 1.4.1). Blocked cards add a dashed edge, 2px wide in the Blocked line hue, so
+  it shows at any zoom; selection and hover recolor it but keep the dashes.
+- **Similar hues differ by shape.** The owner found In progress and Unblocked (both blue), and
+  Abandoned and Unknown (both gray), too alike. Each pair also differs in shape, in both themes:
+  - In progress pills are filled; Unblocked pills are outlined with a doubled (inset) ring,
+    showing the surface beneath them. Status text already meets contrast on every surface.
+  - Abandoned cards are sunken, with the title struck through, and the Abandoned pill strikes
+    its label. Unknown keeps a plain card and a filled pill.
+  - No new border style is used, so nothing resembles a blocked card's dashed edge. Dotted
+    borders are avoided for that reason.
 - **Contrast in both themes:** text meets SC 1.4.3 (4.5:1). Lines, icons, and focus rings meet
   SC 1.4.11 (3:1).
 - **Checking:** views are checked with color-vision emulation, and the owner's review is the

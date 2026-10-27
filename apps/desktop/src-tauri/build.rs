@@ -9,6 +9,7 @@ fn main() {
             "save_settings",
             "get_server_details",
             "restart_server",
+            "reset_window_state",
         ]));
     tauri_build::try_build(attributes).expect("failed to run tauri-build");
 }

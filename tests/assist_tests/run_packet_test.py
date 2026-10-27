@@ -137,6 +137,35 @@ Not opted in.
         )
         self.assertIn("execution_ready must be true", result.markdown)
 
+    def test_validate_work_item_matches_generation_without_rendering(self) -> None:
+        cases = {
+            "ready": _ready_work_item_text(),
+            "flag only": """---
+id: WI-FLAG
+title: Flag only
+type: deliverable
+status: proposed
+execution_ready: true
+---
+""",
+            "not opted in": """---
+id: WI-PLANNING
+title: Planning Item
+type: investigation
+status: proposed
+---
+""",
+        }
+        for name, text in cases.items():
+            with self.subTest(case=name), tempfile.TemporaryDirectory() as temp_dir:
+                work_item = _write_work_item(pathlib.Path(temp_dir), text)
+
+                diagnostics = run_packet.validate_work_item(work_item)
+                rendered = run_packet.render_run_packet_from_work_item(work_item)
+
+                self.assertEqual(diagnostics, rendered.diagnostics)
+                self.assertEqual(diagnostics == (), name == "ready")
+
 
 def _write_work_item(root: pathlib.Path, text: str) -> pathlib.Path:
     path = root / "project" / "work_items" / "proposed" / "WI-READY.md"

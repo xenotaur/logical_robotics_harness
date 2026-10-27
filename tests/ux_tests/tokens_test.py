@@ -180,8 +180,10 @@ class TokenFileTest(unittest.TestCase):
         }
         self.assertEqual(states, set(_STATES))
         self.assertEqual(bands, set(_BANDS))
+        # Every status token appears once, in order; Abandoned reuses Unknown's.
         self.assertEqual(
-            [key for key, _label, _icon in serve._SPECIMEN_STATES], list(_STATES)
+            list(dict.fromkeys(key for key, *_rest in serve._SPECIMEN_STATES)),
+            list(_STATES),
         )
         self.assertEqual([key for key, _label in serve._SPECIMEN_BANDS], list(_BANDS))
 

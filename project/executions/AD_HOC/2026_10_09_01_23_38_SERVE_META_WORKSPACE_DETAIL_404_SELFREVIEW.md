@@ -7,7 +7,7 @@ rerun_of: 2026_10_08_06_25_59_SERVE_META_WORKSPACE_DETAIL_404
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/793
 commit: a15e878c1a162fb1dc9ef37a40a269900687c12e
 created_at: 2026-10-09T01:23:38+00:00
-agent: claude-app
+agent: claude_app
 instruction_source: "ad-hoc: lrh-self-review PR-mode from lrh-confirm-fixes Step 8 for PR 793"
 session_transcript: claude-app:5a942286-523d-4024-a56b-96e1f2a712b6
 ---

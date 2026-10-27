@@ -19,7 +19,7 @@ from collections.abc import Callable
 
 from local_agent import briefing, context, model, recorder, settings, sources
 
-PROMPT_VERSION = "ask_v1"
+PROMPT_VERSION = "ask_v2"
 KIND_ASK = "ask"
 MODE_WORK_ITEM = "work_item"
 MODE_FILES = "files"
@@ -387,8 +387,9 @@ def run_ask(
     Presets such as T1 ``brief`` reuse this with their own ``kind``,
     ``prompt_version``, extra ``record`` fields, and a ``post_check`` whose
     fields are stored with any non-empty answer. A ``preamble`` (tool-written,
-    not model-written) is streamed before the model's text and stored at the
-    start of the answer; checks see only the model's text.
+    not model-written) is streamed before the model's text and stored as the
+    output's ``preamble``, apart from the answer; checks see only the model's
+    text.
     """
     prompt = render_prompt(question, ctx, prompt_version)
     template_hash = hashlib.sha256(
@@ -413,11 +414,21 @@ def run_ask(
     store.append_event(run_id, "attempt_started")
 
     streamed: list[str] = []
+    final_written = False
 
     def collect(chunk: str) -> None:
         streamed.append(chunk)
         if on_text is not None:
             on_text(chunk)
+
+    def _output(answer: str, partial: bool) -> dict[str, object]:
+        # The tool-written preamble is kept apart from the model's answer.
+        output: dict[str, object] = {"answer": answer}
+        if preamble:
+            output["preamble"] = preamble
+        if partial:
+            output["partial"] = True
+        return output
 
     def finish(outcome: str, detail: str, **extra: object) -> str:
         store.append_event(run_id, "outcome", outcome=outcome, detail=detail)
@@ -425,13 +436,10 @@ def run_ask(
         return run_id
 
     def keep_partial() -> None:
-        # The owner has already seen streamed text; keep it for review.
-        if streamed:
-            store.write_json(
-                run_id,
-                "output.json",
-                {"answer": preamble + "".join(streamed), "partial": True},
-            )
+        # The owner has already seen streamed text; keep it for review, but
+        # never overwrite a final answer that was already written.
+        if streamed and not final_written:
+            store.write_json(run_id, "output.json", _output("".join(streamed), True))
 
     try:
         reason = unsendable_reason(ctx)
@@ -478,11 +486,9 @@ def run_ask(
             response.output_tokens is not None
             and response.output_tokens > budgets.max_output_tokens
         )
-        output: dict[str, object] = {"answer": preamble + response.text}
-        if cut_off:
-            # Stopped by the output limit: as incomplete as a broken stream.
-            output["partial"] = True
-        store.write_json(run_id, "output.json", output)
+        # Stopped by the output limit: as incomplete as a broken stream.
+        store.write_json(run_id, "output.json", _output(response.text, cut_off))
+        final_written = True
         store.append_event(run_id, "model_response", **usage)
         citations = briefing.check_text_citations(response.text, ctx.source_refs)
         checked = (
@@ -625,19 +631,37 @@ def _counts(counter: dict[str, int]) -> str:
     return ", ".join(f"{key} {value}" for key, value in sorted(counter.items()))
 
 
-def summarize(store: recorder.Store, limit: int = 10) -> str:
-    """Recent runs plus statistics computed from every stored run."""
+def summarize(
+    store: recorder.Store,
+    limit: int = 10,
+    since: str | None = None,
+    kinds: frozenset[str] | None = None,
+) -> str:
+    """Recent runs plus statistics computed from the selected stored runs.
+
+    ``since`` (an ISO date) keeps runs created on or after that day; ``kinds``
+    keeps runs of those kinds (``ask``, ``brief``, ``pilot``).
+    """
     runs = []
     for run_id in store.list_runs():
         try:
-            runs.append(store.load_run(run_id))
+            run = store.load_run(run_id)
         except (recorder.StoreError, ValueError):
             continue
+        if since is not None and str(run.get("created_at", ""))[:10] < since:
+            continue
+        if kinds is not None and str(run.get("kind", "pilot")) not in kinds:
+            continue
+        runs.append(run)
     if not runs:
-        return "no runs recorded yet\n"
+        return (
+            "no runs recorded yet\n"
+            if since is None and kinds is None
+            else "no runs match the filters\n"
+        )
     outcomes = collections.Counter(str(run.get("outcome")) for run in runs)
     # Runs without a kind come from the superseded stage-0 pilot.
-    kinds = collections.Counter(str(run.get("kind", "pilot")) for run in runs)
+    kind_counts = collections.Counter(str(run.get("kind", "pilot")) for run in runs)
     ratings = collections.Counter(
         (
             str(run["rating"]["value"])
@@ -663,7 +687,7 @@ def summarize(store: recorder.Store, limit: int = 10) -> str:
             total += int(citations.get("citations_total") or 0)
 
     lines = [
-        f"runs: {len(runs)} ({_counts(kinds)})",
+        f"runs: {len(runs)} ({_counts(kind_counts)})",
         f"outcomes: {_counts(outcomes)}",
         f"ratings: {_counts(ratings)}",
     ]

@@ -45,6 +45,7 @@ pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         shell::save_settings,
         shell::get_server_details,
         shell::restart_server,
+        shell::reset_window_state,
     ])
 }
 
@@ -60,19 +61,40 @@ pub fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 /// Runs the desktop app.
 pub fn run() {
     let app = with_commands(tauri::Builder::default())
+        // Used from Rust only (the restart confirmation); no capability
+        // grants its page-facing commands, which a test pins. Note that the
+        // plugin's init script replaces window.alert and window.confirm in
+        // every page with calls to those denied commands, so a page must not
+        // rely on them (confirm() would return a Promise, which is truthy).
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             shell::setup(app.handle())?;
             Ok(())
         })
         .on_menu_event(|app, event| shell::handle_menu(app, event.id().as_ref()))
         .on_window_event(|window, event| {
-            // On macOS, closing the main window keeps the app and its server
-            // running; the Dock icon brings the window back.
-            if cfg!(target_os = "macos") && window.label() == shell::MAIN_WINDOW {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
+            if window.label() != shell::MAIN_WINDOW {
+                return;
+            }
+            match event {
+                // The main window remembers its size and position.
+                WindowEvent::Resized(_) => {
+                    shell::main_window_resized(window);
+                    shell::main_window_changed(window);
                 }
+                WindowEvent::Moved(_) => {
+                    shell::main_window_changed(window);
+                }
+                WindowEvent::CloseRequested { api, .. } => {
+                    shell::save_main_window(window);
+                    // On macOS, closing the main window keeps the app and its
+                    // server running; the Dock icon brings the window back.
+                    if cfg!(target_os = "macos") {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                _ => {}
             }
         })
         .build(context())
@@ -84,6 +106,10 @@ pub fn run() {
         // thread, then exits, so the UI never freezes during the stop. The
         // state is absent only if setup failed, and then nothing was started.
         RunEvent::ExitRequested { api, .. } => {
+            // Quitting never sends CloseRequested; save the frame now.
+            if let Some(window) = app.get_webview_window(shell::MAIN_WINDOW) {
+                shell::save_main_window(&window.as_ref().window());
+            }
             if let Some(state) = app.try_state::<shell::ShellState>() {
                 if state.begin_exit() {
                     api.prevent_exit();
@@ -101,6 +127,11 @@ pub fn run() {
         // in flight, the exiting process closes the child's stdin and the
         // child stops itself under the protocol's parent-loss rule.
         RunEvent::Exit => {
+            // Dock Quit, AppleScript, and logout skip ExitRequested; save the
+            // frame here too, so a move just before such a quit is kept.
+            if let Some(window) = app.get_webview_window(shell::MAIN_WINDOW) {
+                shell::save_main_window(&window.as_ref().window());
+            }
             if let Some(state) = app.try_state::<shell::ShellState>() {
                 state.supervisor.try_shutdown();
             }

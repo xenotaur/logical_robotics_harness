@@ -37,6 +37,7 @@ acceptance:
   - 'Exported SKILL.md files keep the canonical Claude frontmatter unchanged (including `disable-model-invocation`, `argument-hint`, and `when_to_use`); Codex `agents/` metadata and `_shared/` are excluded; no top-level `bin/` is emitted; `plugin.json` sets no `version`'
   - 'Export is deterministic, never modifies canonical sources or local installs, and fails before writing on unsafe paths or on exceeding the claude.ai plugin limits (5,000 files, 200 MB)'
   - 'Re-exporting after a canonical skill is deleted or renamed removes its stale folder from `plugins/lrh/skills/`'
+  - 'Export never creates, modifies, or deletes anything under `--out` other than `.claude-plugin/marketplace.json` and `plugins/lrh/`, verified by a test that exports into a directory with unrelated files'
   - 'The generated marketplace tree is committed at the LRH repo root, and an automated test fails when it drifts from `src/lrh/skills/`'
   - '`claude plugin validate` passes on the repo root (marketplace) and on `plugins/lrh` (plugin); output recorded in the implementation execution record'
   - 'Documentation covers adding the LRH repo as a claude.ai marketplace, Sync automatically, what reaches cloud sessions, and the lrh CLI requirement'
@@ -150,7 +151,11 @@ which this target must not do.
    - promote the tree so a failed export never leaves a partial or mixed
      tree behind.
 4. Run the export with `--source current-repo` into the repo root, and commit
-   `.claude-plugin/marketplace.json` and `plugins/lrh/`.
+   `.claude-plugin/marketplace.json` and `plugins/lrh/`. The exporter may
+   create, replace, or delete only those two paths under `--out`, and must
+   leave everything else in `--out` untouched. This matters because the
+   existing `_check_output_dir` (`exporter.py:716`) rejects only an output
+   *inside* the skill source, and the repo root *contains* it.
 5. Add a test that regenerates the tree in memory and fails on any difference
    from the committed tree.
 6. Add tests for the renderer, determinism, exclusions, limits, and CLI
@@ -185,6 +190,9 @@ which this target must not do.
   unsafe paths or over-limit output fail before anything is written.
 - Re-exporting after a canonical skill is deleted or renamed removes its
   stale folder from `plugins/lrh/skills/`.
+- Export never creates, modifies, or deletes anything under `--out` other
+  than `.claude-plugin/marketplace.json` and `plugins/lrh/`. A test exports
+  into a directory with unrelated files and checks they are unchanged.
 - The committed tree is at the repo root, and the drift test fails when a
   skill changes without regeneration.
 - `claude plugin validate` passes for the marketplace and the plugin.

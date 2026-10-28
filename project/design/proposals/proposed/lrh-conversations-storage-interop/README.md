@@ -21,12 +21,19 @@ provider integration, or run execution behavior.
    — focused design note and future command contract for converting ChatGPT
    browser Save as PDF exports into private-by-default, non-authoritative
    Markdown conversation transcripts.
+3. [`02_export_manifest_taxonomy.md`](02_export_manifest_taxonomy.md)
+   — three-family taxonomy for conversation-export/transcript metadata
+   shapes across Codex, Antigravity, Claude, ChatGPT-PDF, Codex's
+   archive-mirror pipeline, and planned Jules ingestion; resolves the
+   long-open backlog gate on generalizing `ConversationExportManifest`
+   beyond Codex.
 
 ## Reading order
 
 1. `README.md` (this file)
 2. `00_proposal.md`
 3. `01_chatgpt_pdf_import.md`
+4. `02_export_manifest_taxonomy.md`
 
 ## Canonical-document touchpoints
 

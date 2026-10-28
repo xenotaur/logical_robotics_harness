@@ -212,7 +212,8 @@ which this target must not do.
   text says `/lrh-*`: 426 times across the `SKILL.md` files, and several
   hundred more once `references/` files are counted. Does the short form
   still resolve in a cloud session? A short `/probe` resolved in Cowork.
-- About 13 skills cite `src/lrh/skills/_shared/*.md` by repo path (for
+- 17 skills cite `src/lrh/skills/_shared/*.md` by repo path in their
+  `SKILL.md`, 18 counting `references/` files (for
   example `github-network-execution.md` and `chain-defaults.md`). Those
   paths don't exist in a cloud session on a non-LRH repo. Does that
   matter in practice, given the installed skills are written to stand

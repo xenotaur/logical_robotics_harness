@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use this guide to set up and operate Logical Robotics Harness (LRH) skills across different AI agent assistants, including **Claude Code**, the **Codex App**, **Google Antigravity**, and **ChatGPT Online**.
+Use this guide to set up and operate Logical Robotics Harness (LRH) skills across different AI agent assistants, including **Claude Code**, the **Codex App**, **Google Antigravity**, **ChatGPT Online**, and **Claude Code cloud sessions** on claude.ai.
 
 LRH maintains a single canonical skill source (`src/lrh/skills/`) that can be rendered or discovered across multiple agent environments.
 
@@ -216,13 +216,87 @@ byte-identical ZIPs, so an unchanged file means an unchanged skill.
 
 ---
 
-### 5. Extending for Other Assistants
+### 5. Claude Code Cloud Sessions (claude.ai)
+
+Claude Code cloud sessions (claude.ai/code) do not read `~/.claude/skills/`,
+and they do not install plugins declared in a repository's
+`.claude/settings.json`. They load the skills committed to the cloned
+repository plus what is enabled on your claude.ai account. A cloud session on
+a repository without committed LRH skills has none, so LRH publishes its
+skills as a Claude plugin marketplace instead.
+
+#### The committed marketplace
+The LRH repository commits a marketplace at its root:
+`.claude-plugin/marketplace.json` lists one plugin, `lrh`, at `plugins/lrh/`.
+It is generated from `src/lrh/skills/` and regenerated whenever a skill
+changes:
+
+```bash
+lrh skills export --target claude-plugin --source current-repo --out .
+```
+
+A packaging test fails when the committed tree no longer matches the
+canonical source. The plugin carries every LRH skill, manual-only ones
+included, with their Claude frontmatter unchanged, so `/lrh-land` and the
+other manual-only skills stay manual-only. See the
+[`lrh skills` CLI reference](../reference/cli/skills.md#claude-plugin---target-claude-plugin)
+for exactly what the export writes.
+
+#### Add the marketplace on claude.ai
+1. In claude.ai, open **Customize > Plugins** and add a marketplace from
+   GitHub: `xenotaur/logical_robotics_harness`.
+2. Turn on **Sync automatically** so the plugin follows the repository's
+   default branch.
+3. Enable the `lrh` plugin.
+
+Menu names may change; Anthropic's plugin documentation is authoritative.
+claude.ai's own limits apply to the plugin (5,000 files and 200 MB), and the
+export checks them.
+
+#### Use it in a cloud session
+Start a new session at claude.ai/code. Plugin skills are namespaced by plugin,
+so LRH skills appear as `lrh:<skill-name>`, for example `/lrh:lrh-design`.
+
+What is known so far:
+
+- A probe on 2026-10-26 confirmed that a plugin added to a personal claude.ai
+  account loads in a cloud session with no repository attached. Anthropic's
+  documentation lists only the terminal, Desktop, IDE, and Cowork for synced
+  plugins, so this behavior is real but undocumented, and could change.
+- Repository-attached cloud sessions have not been tested yet.
+- Whether a personally added marketplace re-syncs on every push is untested.
+  If an update doesn't appear, re-sync the marketplace from the same screen.
+- In a session on the LRH repository itself, the committed
+  `.claude/skills/lrh-*` copies and the plugin's `lrh:*` copies both load.
+
+#### Install the `lrh` CLI in the cloud environment
+Skill instructions do not install tools. Most LRH workflows run the `lrh`
+CLI, and many also run `git` and the GitHub `gh` CLI. Install `lrh` in the
+cloud environment's setup script, for example:
+
+```bash
+pip install "git+https://github.com/xenotaur/logical_robotics_harness.git"
+```
+
+Without it, instruction-centric skills such as `lrh-design`, `lrh-proposal`,
+and `lrh-work-item` still help with planning and drafting, but steps that call
+`lrh` fail.
+
+#### Updating
+Every merge to `main` that changes a skill also changes the committed plugin,
+and the plugin has no `version`, so claude.ai treats each commit as an update.
+A broken skill therefore reaches cloud sessions as soon as it merges; the
+packaging test and `claude plugin validate` are the guard.
+
+---
+
+### 6. Extending for Other Assistants
 
 Because LRH decouples canonical skill sources (`src/lrh/skills/`) from
 target-rendered copies, new assistants can be added cleanly: local assistants
 that discover skills on disk get an `lrh skills install --target <name>`
-target, while hosted assistants that take uploads get an
-`lrh skills export --target <name>` target.
+target, while hosted assistants get an `lrh skills export --target <name>`
+target.
 
 ---
 

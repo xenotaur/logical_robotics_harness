@@ -1,10 +1,11 @@
-"""Export LRH skills as upload bundles for hosted assistants.
+"""Export LRH skills for hosted assistants.
 
-Hosted assistants such as ChatGPT online have no local skills directory to
-install into; skills are uploaded instead. This module renders canonical
-skills into one deterministic ZIP bundle per skill without modifying the
-canonical source tree or any local install. Bundles are generated outputs,
-never a new authoritative copy of the skill source.
+Hosted assistants have no local skills directory to install into. ChatGPT
+online takes uploads, so the `chatgpt` target renders one deterministic ZIP
+bundle per skill. claude.ai syncs plugins from a marketplace, so the
+`claude-plugin` target renders a Claude plugin marketplace tree. Neither
+modifies the canonical source tree or any local install. Exports are
+generated outputs, never a new authoritative copy of the skill source.
 """
 
 from __future__ import annotations
@@ -12,8 +13,11 @@ from __future__ import annotations
 import dataclasses
 import enum
 import io
+import json
 import os
 import re
+import shutil
+import tempfile
 import zipfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -81,6 +85,21 @@ _LRH_CLI_PATTERN = re.compile(r"(?:^|[\s`$(])lrh\s+[a-z][a-z-]*\b", re.M)
 _LOCAL_TOOLS_LIMIT = (
     "which ChatGPT online cannot run against your local repository or machine"
 )
+# The claude-plugin target writes one marketplace listing one plugin. It owns
+# only these two paths under the output directory and leaves the rest alone.
+CLAUDE_MARKETPLACE_PATH = ".claude-plugin/marketplace.json"
+CLAUDE_PLUGIN_DIR = "plugins/lrh"
+_CLAUDE_PLUGIN_NAME = "lrh"
+_CLAUDE_MARKETPLACE_NAME = "logical-robotics-harness"
+_CLAUDE_PLUGIN_DESCRIPTION = (
+    "Logical Robotics Harness (LRH) workflow skills, generated from canonical"
+    " SKILL.md sources."
+)
+_CLAUDE_PLUGIN_AUTHOR = {"name": "Logical Robotics Harness"}
+_CLAUDE_PLUGIN_MANIFEST = ".claude-plugin/plugin.json"
+# Per-plugin limits documented for claude.ai plugin uploads.
+MAX_PLUGIN_FILE_COUNT = 5000
+MAX_PLUGIN_BYTES = 200 * 1024 * 1024
 _CAPABILITY_LABELS = {
     "requires_git": "local `git`",
     "requires_gh": "the GitHub `gh` CLI",
@@ -91,6 +110,7 @@ _CAPABILITY_LABELS = {
 
 class ExportTarget(str, enum.Enum):
     CHATGPT = "chatgpt"
+    CLAUDE_PLUGIN = "claude-plugin"
 
 
 class ExportStatus(str, enum.Enum):
@@ -113,6 +133,7 @@ class ExportNotice:
 class SkillExportResult:
     name: str
     status: ExportStatus
+    # The written ZIP for `chatgpt`; the skill folder for `claude-plugin`.
     archive_path: Path | None = None
     notices: tuple[ExportNotice, ...] = ()
     errors: tuple[str, ...] = ()
@@ -124,6 +145,8 @@ class ExportReport:
     out_dir: Path
     source_label: str
     results: tuple[SkillExportResult, ...]
+    # claude-plugin only: entries removed from the previous plugin's skills/.
+    removed: tuple[str, ...] = ()
 
     @property
     def has_failures(self) -> bool:
@@ -134,6 +157,7 @@ class ExportReport:
 class _PreparedSkill:
     result: SkillExportResult
     archive: bytes | None = None
+    files: dict[str, bytes] | None = None
 
 
 class ChatGPTSkillRenderer:
@@ -160,6 +184,26 @@ class ChatGPTSkillRenderer:
         return rendered
 
 
+class ClaudePluginSkillRenderer:
+    """Render canonical skill files into a Claude plugin skill folder.
+
+    Keeps `SKILL.md` byte for byte, so its full Claude frontmatter
+    (including `disable-model-invocation`, `argument-hint`, and
+    `when_to_use`) is unchanged, plus the `references/`, `scripts/`, and
+    `assets/` directories. Codex `agents/` metadata and any other top-level
+    entry are left out.
+    """
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        return {
+            path: content
+            for path, content in source_files.items()
+            if _is_bundle_path(path)
+        }
+
+
 def export_skills(
     *,
     out_dir: Path,
@@ -170,15 +214,20 @@ def export_skills(
     target: str | ExportTarget = ExportTarget.CHATGPT,
     project_root: Path | None = None,
 ) -> ExportReport:
-    """Export skills from `source` as one upload bundle per skill.
+    """Export skills from `source` for the hosted assistant `target`.
 
-    Every selected skill is rendered and validated in memory first. Bundles
-    are written only when no selected skill failed validation, so a failed
-    run never leaves a partial set of archives behind.
+    Every selected skill is rendered and validated in memory first. Output
+    is written only when no selected skill failed validation, so a failed
+    run never leaves a partial export behind.
 
-    Without `skill_names`, all public skills are selected except manual-only
-    skills, which are reported as skipped. A manual-only skill is exported
-    only when explicitly named, and then carries a compatibility notice.
+    For `chatgpt`, each skill becomes one upload bundle. Without
+    `skill_names`, all public skills are selected except manual-only skills,
+    which are reported as skipped. A manual-only skill is exported only when
+    explicitly named, and then carries a compatibility notice.
+
+    For `claude-plugin`, every public skill, manual-only ones included, goes
+    into one plugin; see `render_claude_plugin_tree`. `skill_names` is not
+    accepted.
     """
     export_target = ExportTarget(target)
     skill_source = installer.resolve_skill_source(source, project_root=project_root)
@@ -187,6 +236,13 @@ def export_skills(
         raise TypeError(
             "skill_names must be a sequence of skill names, not a single string"
         )
+    if export_target is ExportTarget.CLAUDE_PLUGIN:
+        if skill_names is not None:
+            raise SkillExportError(
+                "skill selection is not supported for the claude-plugin target;"
+                " the plugin always contains every skill"
+            )
+        return _export_claude_plugin(out_dir, skill_source)
     explicit = skill_names is not None
     if explicit:
         selected = sorted(set(skill_names))
@@ -224,7 +280,36 @@ def export_skills(
     )
 
 
+def render_claude_plugin_tree(
+    source: str | Path | installer.SkillSource = (
+        installer.SkillSourceKind.PACKAGE.value
+    ),
+    *,
+    project_root: Path | None = None,
+) -> dict[str, bytes]:
+    """Return the `claude-plugin` export in memory, keyed by output path.
+
+    Paths are relative to the export's output directory: the marketplace
+    manifest at `CLAUDE_MARKETPLACE_PATH`, and the plugin under
+    `CLAUDE_PLUGIN_DIR`. Raises `SkillExportError` when any skill fails
+    validation or the plugin breaks a claude.ai plugin limit.
+    """
+    skill_source = installer.resolve_skill_source(source, project_root=project_root)
+    prepared = [
+        _prepare_plugin_skill(name, skill_source) for name in skill_source.skill_names()
+    ]
+    failures = [
+        f"{item.result.name}: {error}"
+        for item in prepared
+        for error in item.result.errors
+    ]
+    if failures:
+        raise SkillExportError("; ".join(failures))
+    return _plugin_tree(prepared)
+
+
 def format_export_report(report: ExportReport) -> str:
+    plugin = report.target is ExportTarget.CLAUDE_PLUGIN
     lines = [f"{report.target.value}: {report.out_dir} (source: {report.source_label})"]
     for result in report.results:
         if result.status is ExportStatus.EXPORTED:
@@ -246,7 +331,11 @@ def format_export_report(report: ExportReport) -> str:
         failed = sum(
             1 for result in report.results if result.status is ExportStatus.FAILED
         )
-        lines.append(f"\nno bundles written: {failed} skill(s) failed validation")
+        written = "plugin" if plugin else "bundles"
+        lines.append(f"\nno {written} written: {failed} skill(s) failed validation")
+    elif plugin:
+        lines.extend(f"  removed (stale): {name}" for name in report.removed)
+        lines.append(f"  marketplace: {report.out_dir / CLAUDE_MARKETPLACE_PATH}")
     return "\n".join(lines)
 
 
@@ -391,6 +480,122 @@ def _prepare_skill(
         ),
         archive=archive,
     )
+
+
+def _export_claude_plugin(out_dir: Path, source: installer.SkillSource) -> ExportReport:
+    _check_output_dir(out_dir, source)
+    _check_plugin_destination(out_dir, source)
+    prepared = [_prepare_plugin_skill(name, source) for name in source.skill_names()]
+    skills_dir = out_dir / CLAUDE_PLUGIN_DIR / "skills"
+    results = tuple(
+        (
+            dataclasses.replace(item.result, archive_path=skills_dir / item.result.name)
+            if item.result.status is ExportStatus.EXPORTED
+            else item.result
+        )
+        for item in prepared
+    )
+    removed: tuple[str, ...] = ()
+    if not any(item.result.status is ExportStatus.FAILED for item in prepared):
+        tree = _plugin_tree(prepared)
+        removed = _stale_plugin_entries(skills_dir, {r.name for r in results})
+        _publish_plugin_tree(out_dir, tree)
+    return ExportReport(
+        target=ExportTarget.CLAUDE_PLUGIN,
+        out_dir=out_dir,
+        source_label=source.label,
+        results=results,
+        removed=removed,
+    )
+
+
+def _prepare_plugin_skill(
+    skill_name: str, source: installer.SkillSource
+) -> _PreparedSkill:
+    try:
+        source_files = installer._collect_source_files(source.skill_root(skill_name))
+    except installer.SkillSourceError as err:
+        return _failed(skill_name, [str(err)])
+
+    errors: list[str] = []
+    metadata = _validate_skill_md(skill_name, source_files, errors)
+    # Manual-only skills are kept, but a malformed marker still fails: the
+    # frontmatter ships unchanged, so Claude would misread it the same way.
+    _claude_manual_only(metadata, errors)
+    files = ClaudePluginSkillRenderer().render(skill_name, source_files)
+    errors.extend(_path_errors(files))
+    if errors:
+        return _failed(skill_name, errors)
+    return _PreparedSkill(
+        result=SkillExportResult(
+            name=skill_name,
+            status=ExportStatus.EXPORTED,
+            notices=tuple(_skipped_entry_notices(source_files, container="plugin")),
+        ),
+        files=files,
+    )
+
+
+def _plugin_tree(prepared: Sequence[_PreparedSkill]) -> dict[str, bytes]:
+    """Assemble the marketplace and plugin files, checking plugin limits."""
+    tree = {
+        CLAUDE_MARKETPLACE_PATH: _json_bytes(
+            {
+                "name": _CLAUDE_MARKETPLACE_NAME,
+                "owner": _CLAUDE_PLUGIN_AUTHOR,
+                "description": _CLAUDE_PLUGIN_DESCRIPTION,
+                "plugins": [
+                    {
+                        "name": _CLAUDE_PLUGIN_NAME,
+                        "source": f"./{CLAUDE_PLUGIN_DIR}",
+                        "description": _CLAUDE_PLUGIN_DESCRIPTION,
+                    }
+                ],
+            }
+        ),
+        # No `version`: claude.ai then versions the plugin by commit SHA, so
+        # every merge to the marketplace branch is picked up as an update.
+        f"{CLAUDE_PLUGIN_DIR}/{_CLAUDE_PLUGIN_MANIFEST}": _json_bytes(
+            {
+                "name": _CLAUDE_PLUGIN_NAME,
+                "description": _CLAUDE_PLUGIN_DESCRIPTION,
+                "author": _CLAUDE_PLUGIN_AUTHOR,
+            }
+        ),
+    }
+    for item in prepared:
+        for relative_path, content in (item.files or {}).items():
+            tree[f"{CLAUDE_PLUGIN_DIR}/skills/{item.result.name}/{relative_path}"] = (
+                content
+            )
+    errors = _plugin_limit_errors(tree)
+    if errors:
+        raise SkillExportError("; ".join(errors))
+    return tree
+
+
+def _json_bytes(data: dict[str, Any]) -> bytes:
+    return (json.dumps(data, indent=2) + "\n").encode("utf-8")
+
+
+def _plugin_limit_errors(tree: dict[str, bytes]) -> list[str]:
+    prefix = f"{CLAUDE_PLUGIN_DIR}/"
+    plugin_files = {
+        path[len(prefix) :]: content
+        for path, content in tree.items()
+        if path.startswith(prefix)
+    }
+    errors: list[str] = []
+    if len(plugin_files) > MAX_PLUGIN_FILE_COUNT:
+        errors.append(
+            f"plugin has {len(plugin_files)} files; limit is {MAX_PLUGIN_FILE_COUNT}"
+        )
+    total = sum(len(content) for content in plugin_files.values())
+    if total > MAX_PLUGIN_BYTES:
+        errors.append(f"plugin is {total} bytes; limit is {MAX_PLUGIN_BYTES}")
+    if any(path.split("/")[0] == "bin" for path in plugin_files):
+        errors.append("plugin must not have a top-level bin/; claude.ai rejects it")
+    return errors
 
 
 def _failed(skill_name: str, errors: list[str]) -> _PreparedSkill:
@@ -631,7 +836,9 @@ def _is_ignored_segment(segment: str) -> bool:
     )
 
 
-def _skipped_entry_notices(source_files: dict[str, bytes]) -> list[ExportNotice]:
+def _skipped_entry_notices(
+    source_files: dict[str, bytes], *, container: str = "bundle"
+) -> list[ExportNotice]:
     skipped: set[str] = set()
     for path in source_files:
         if _is_bundle_path(path):
@@ -648,7 +855,7 @@ def _skipped_entry_notices(source_files: dict[str, bytes]) -> list[ExportNotice]
     return [
         ExportNotice(
             code="skipped_entry",
-            message="non-portable entries not included in the bundle: "
+            message=f"non-portable entries not included in the {container}: "
             + ", ".join(f"`{entry}`" for entry in ordered),
         )
     ]
@@ -726,6 +933,51 @@ def _check_output_dir(out_dir: Path, source: installer.SkillSource) -> None:
         )
 
 
+def _check_plugin_destination(out_dir: Path, source: installer.SkillSource) -> None:
+    """Refuse plugin destinations the tree replacement could write through.
+
+    The export writes only `CLAUDE_MARKETPLACE_PATH` and `CLAUDE_PLUGIN_DIR`,
+    so their directories must be real directories (or absent), never
+    symlinks that would redirect writes outside the output directory.
+    Replacing the plugin directory deletes the old one, and staging writes
+    beside it, so the canonical source must not live inside the plugin
+    directory, nor contain either folder the export writes into.
+    """
+    plugin_dir = out_dir / CLAUDE_PLUGIN_DIR
+    marketplace = out_dir / CLAUDE_MARKETPLACE_PATH
+    for path in (marketplace.parent, plugin_dir.parent, plugin_dir):
+        if path.is_symlink():
+            raise SkillExportError(f"export destination must not be a symlink: {path}")
+        if path.exists() and not path.is_dir():
+            raise SkillExportError(f"export destination is not a directory: {path}")
+    if marketplace.is_dir() and not marketplace.is_symlink():
+        raise SkillExportError(f"export destination is a directory: {marketplace}")
+    if not isinstance(source.root, Path):
+        return
+    if plugin_dir.exists() and _is_within(source.root, plugin_dir):
+        raise SkillExportError(
+            f"skill source {source.root} is inside the plugin directory {plugin_dir},"
+            " which the export replaces"
+        )
+    for path in (plugin_dir.parent, marketplace.parent):
+        if _is_within(path, source.root):
+            raise SkillExportError(
+                f"export destination {path} is inside the skill source {source.root}"
+            )
+
+
+def _stale_plugin_entries(skills_dir: Path, names: set[str]) -> tuple[str, ...]:
+    if skills_dir.is_symlink() or not skills_dir.is_dir():
+        return ()
+    return tuple(
+        sorted(
+            item.name
+            for item in skills_dir.iterdir()
+            if item.name not in names and not item.name.startswith(".")
+        )
+    )
+
+
 def _is_within(path: Path, root: Path) -> bool:
     """Return True when `path` is `root` or lies inside it.
 
@@ -784,3 +1036,83 @@ def _stage_archive(path: Path, archive: bytes) -> Path:
     with os.fdopen(descriptor, "wb") as handle:
         handle.write(archive)
     return temporary
+
+
+def _publish_plugin_tree(out_dir: Path, tree: dict[str, bytes]) -> None:
+    """Replace the plugin directory and marketplace manifest together.
+
+    The whole new plugin directory is staged beside the old one, and the
+    manifest beside its old copy. Only then is the old directory moved
+    aside, the staged one renamed into place, and the manifest promoted.
+    Stale skill folders and files go with the old directory. A staging
+    failure removes everything staged and leaves the previous export as it
+    was; a failed swap or manifest promotion puts the old directory back.
+    Only if that restore also fails is the old directory left at its
+    `.lrh-previous-*` name, which the error reports.
+    """
+    plugin_dir = out_dir / CLAUDE_PLUGIN_DIR
+    marketplace = out_dir / CLAUDE_MARKETPLACE_PATH
+    prefix = f"{CLAUDE_PLUGIN_DIR}/"
+    created = [
+        path
+        for path in (out_dir, plugin_dir.parent, marketplace.parent)
+        if not path.exists()
+    ]
+    staging: Path | None = None
+    manifest_temporary: Path | None = None
+    try:
+        plugin_dir.parent.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=".lrh-staging-", dir=plugin_dir.parent))
+        staging.chmod(0o755)
+        for path, content in sorted(tree.items()):
+            if path.startswith(prefix):
+                target = staging / path[len(prefix) :]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+        manifest_temporary = _stage_archive(marketplace, tree[CLAUDE_MARKETPLACE_PATH])
+    except OSError as err:
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+        if manifest_temporary is not None:
+            manifest_temporary.unlink(missing_ok=True)
+        for path in reversed(created):
+            _remove_empty_dir(path)
+        raise SkillExportError(f"could not stage the Claude plugin: {err}") from err
+
+    previous: Path | None = None
+    try:
+        if plugin_dir.exists():
+            aside = staging.with_name(
+                staging.name.replace(".lrh-staging-", ".lrh-previous-", 1)
+            )
+            os.rename(plugin_dir, aside)
+            previous = aside
+        os.rename(staging, plugin_dir)
+        os.replace(manifest_temporary, marketplace)
+    except OSError as err:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+        else:
+            shutil.rmtree(plugin_dir, ignore_errors=True)
+        manifest_temporary.unlink(missing_ok=True)
+        if previous is not None:
+            try:
+                os.rename(previous, plugin_dir)
+            except OSError as restore_err:
+                raise SkillExportError(
+                    f"could not publish the Claude plugin: {err}; restoring the"
+                    f" previous plugin also failed ({restore_err}), so it is"
+                    f" still at {previous}"
+                ) from err
+        for path in reversed(created):
+            _remove_empty_dir(path)
+        raise SkillExportError(f"could not publish the Claude plugin: {err}") from err
+    if previous is not None:
+        shutil.rmtree(previous, ignore_errors=True)
+
+
+def _remove_empty_dir(path: Path) -> None:
+    try:
+        path.rmdir()
+    except OSError:
+        pass

@@ -1,0 +1,14 @@
+{
+  "name": "logical-robotics-harness",
+  "owner": {
+    "name": "Logical Robotics Harness"
+  },
+  "description": "Logical Robotics Harness (LRH) workflow skills, generated from canonical SKILL.md sources.",
+  "plugins": [
+    {
+      "name": "lrh",
+      "source": "./plugins/lrh",
+      "description": "Logical Robotics Harness (LRH) workflow skills, generated from canonical SKILL.md sources."
+    }
+  ]
+}

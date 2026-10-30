@@ -80,6 +80,16 @@ into this branch; the backend files cited in G1-G5 are unchanged since
 979ac1e0, while `serve.py` line numbers moved). Behavior marked
 "ran" was reproduced on a scratch copy of `project/`.
 
+Citation convention: bare filenames in `file:line` cites resolve as follows.
+`loader.py`, `validator.py`, `models.py` and `planning_tree.py` are in
+`src/lrh/control/`; `core_state.py` and `serve.py` are in `src/lrh/`;
+`precedence.py` and its re-export in `__init__.py` are in
+`src/lrh/control_plane/`; `dashboard.py` is in `src/lrh/ux/`;
+`snapshot_cli.py` is in `src/lrh/assist/`; `audit.py` is in
+`src/lrh/work_items/`; `lib.rs` and `settings.rs` are in
+`apps/desktop/src-tauri/src/`. `design.md` is `project/design/design.md` and
+`humans.md` is `project/context/humans.md`.
+
 **G1. "Active leaf" is defined twice, and one definition is gated on focus.**
 `planning_tree.py:510` marks a work item an active leaf when it is `active`
 with no children. `core_state.py:674-676` additionally requires
@@ -140,7 +150,7 @@ rendered in HTML; the meta-dashboard card shows a "Focus:" string
 (`dashboard.py:377`, `serve.py:2220`). There is no focus list, no work items
 grouped by focus, and no view of archived foci (the loader never reads the
 archive). Workstreams, by contrast, get a list and detail page
-(`serve.py:1442-1478`). The desktop app (`apps/desktop`, Tauri) is a shell that
+(`serve.py:1244,1310,1408,1491`). The desktop app (`apps/desktop`, Tauri) is a shell that
 owns and displays `lrh serve` (`src-tauri/src/lib.rs:4`); its only focus
 dependency is requiring a `project/focus` directory to recognize a workspace
 (`settings.rs:141,182`, mirroring `loader.py:28`).

@@ -269,10 +269,10 @@ Checked against `project/memory/decisions/precedence_semantics.md`:
   and so does this proposal's own Decision 3, because it changes how the
   resolver treats a non-active focus (`precedence.py:89,105,107`). Options (a)
   and (d) and Decisions 1, 2, 4 and 5 do not touch the resolver.
-- Decision 3 also touches Invariant 4's spirit: the matching-ID branch
-  (`precedence.py:107`) lets runtime input keep a non-active loaded focus
-  active, which the record's "runtime narrows, never widens" principle does
-  not clearly sanction.
+- Decision 3 also bears on Invariant 3 and the record's "runtime invocation is
+  narrowing-only" principle: the matching-ID branch (`precedence.py:107`) lets
+  a runtime `focus_id` turn a non-active loaded focus into an active one, which
+  widens scope rather than narrowing it.
 
 ## Non-Goals
 

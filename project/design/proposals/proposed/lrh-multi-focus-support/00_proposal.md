@@ -4,7 +4,7 @@ type: design_proposal
 title: "Focus Model Gaps and Multi-Focus Support: Options and Recommendation"
 status: proposed
 created_on: 2026-10-11
-updated_on: 2026-10-11
+updated_on: 2026-10-28
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -13,6 +13,7 @@ related_design:
   - project/design/design.md
   - project/context/humans.md
   - project/memory/decisions/precedence_semantics.md
+  - project/work_items/proposed/WI-LRH-PROJECT-UPDATE-SKILL.md
   - src/lrh/control/loader.py
   - src/lrh/control/validator.py
   - src/lrh/core_state.py
@@ -42,11 +43,18 @@ without focus links. Two needs are entangled: (N1) draft and validate a next
 focus before activating it, and (N2) run several threads concurrently. The
 originating handoff addressed N1 only.
 
-Investigation against `main` (50f00813) showed the handoff's premise was right
+Investigation against `main` (re-verified at d741b4b4) showed the handoff's premise was right
 on the loader and validator but overstated focus's reach, and that the real
 cost of a stale or mismatched focus is silent under-reporting rather than an
 error (see Current-State Gaps). `design.md:438` and `humans.md:431` both state
 the model as singular ("only one focus should be active at a time").
+
+The project owner has a design session planned on the focus construct,
+described as "threads of work that cut across workstreams"
+(`project/work_items/proposed/WI-LRH-PROJECT-UPDATE-SKILL.md:112`). This
+proposal is written as input to that session: it documents what the
+single-focus model does today, so the session can decide what a focus
+should be.
 
 ## Prior Art Check
 
@@ -58,15 +66,18 @@ the model as singular ("only one focus should be active at a time").
 - Recommendation: Proceed
 
 ### Demand search
-- Work items: None found
+- Work items: Found: WI-LRH-PROJECT-UPDATE-SKILL (`:112`) names a planned
+  design session on the focus construct as a related dependency; it does
+  not request or satisfy this work.
 - Proposals: None found
 - Backlog: No matching entries
 - Recommendation: No action
 
 ## Current-State Gaps
 
-All cites are against `main` at 50f00813 (line numbers were re-verified after
-syncing; the cited source files are unchanged since 979ac1e0). Behavior marked
+All cites are against `main` at d741b4b4 (re-verified after merging `main`
+into this branch; the backend files cited in G1-G5 are unchanged since
+979ac1e0, while `serve.py` line numbers moved). Behavior marked
 "ran" was reproduced on a scratch copy of `project/`.
 
 **G1. "Active leaf" is defined twice, and one definition is gated on focus.**
@@ -74,21 +85,27 @@ syncing; the cited source files are unchanged since 979ac1e0). Behavior marked
 with no children. `core_state.py:674-676` additionally requires
 `is_current_focus_related`, computed at `core_state.py:642-647` against the
 single loaded focus id. The serve payload emits both: `active_leaf_ids`
-(`serve.py:864`, ungated) and `active_leaves` (`serve.py:865`, gated through
+(`serve.py:865`, ungated) and `active_leaves` (`serve.py:866`, gated through
 `active_leaf_work_items`, `core_state.py:410`). The HTML active-leaves list
-(`serve.py:466`) and the card's active-work count (`dashboard.py:386`) use the
+(`serve.py:467`) and the card's active-work count (`dashboard.py:386`) use the
 gated one. Active work not linked to the current focus is therefore dropped
 from those views without any diagnostic, and the two fields can disagree.
 
 **G2. Focus status means different things in different places.**
 `FOCUS_STATUS` allows six values (`validator.py:26`) but nothing ties status to
 location or requires `current_focus.md` to be `active` (the archived
-`FOCUS-BOOTSTRAP` is itself `status: active`). `core_state.py:642` ignores
-status entirely (ran: a paused current focus still reports the same focus and
-active leaves). `precedence.py:89` treats a non-active focus as no focus, and
-with no focus `precedence.py:117` puts every work item in scope. "Pause the
-focus" therefore widens the resolver's scope while the dashboard still treats
-that focus as current.
+`FOCUS-BOOTSTRAP` is itself `status: active`). A non-active (e.g. paused) current
+focus then behaves three different ways:
+(1) `core_state.py:642` ignores status entirely (ran: a paused current focus
+still reports the same focus and active leaves);
+(2) with no runtime `focus_id`, or a mismatching one, the resolver treats it
+as no focus (`precedence.py:89,105`), and with no focus `precedence.py:117`
+puts every work item in scope; and
+(3) when `RuntimeInvocation.focus_id` matches, `precedence.py:107` returns the
+loaded focus regardless of status, so a paused focus resolves as active.
+"Pause the focus" therefore widens the resolver's scope in cases (2), keeps
+the dashboard treating that focus as current in (1), and keeps the focus
+active in (3).
 
 **G3. The precedence resolver has no production caller.**
 `resolve_precedence` is re-exported (`control_plane/__init__.py:8`) and covered
@@ -116,14 +133,14 @@ errors from this repo's own links, so the single-error blanking effect is
 established by the code path, not isolated empirically.
 
 **G6. `lrh serve` and the desktop app expose almost no focus information.**
-The viewer shows one overview line (`serve.py:458-461,515`); the JSON payload
-carries the current focus (`serve.py:845,3312-3324`) and per-item
-`related_focus` / `is_current_focus_related` (`serve.py:3383,3391`), neither
+The viewer shows one overview line (`serve.py:459-462,516`); the JSON payload
+carries the current focus (`serve.py:846,3462-3474`) and per-item
+`related_focus` / `is_current_focus_related` (`serve.py:3533,3541`), neither
 rendered in HTML; the meta-dashboard card shows a "Focus:" string
-(`dashboard.py:377`, `serve.py:2185`). There is no focus list, no work items
+(`dashboard.py:377`, `serve.py:2220`). There is no focus list, no work items
 grouped by focus, and no view of archived foci (the loader never reads the
 archive). Workstreams, by contrast, get a list and detail page
-(`serve.py:1411-1447`). The desktop app (`apps/desktop`, Tauri) is a shell that
+(`serve.py:1442-1478`). The desktop app (`apps/desktop`, Tauri) is a shell that
 owns and displays `lrh serve` (`src-tauri/src/lib.rs:4`); its only focus
 dependency is requiring a `project/focus` directory to recognize a workspace
 (`settings.rs:141,182`, mirroring `loader.py:28`).
@@ -131,8 +148,12 @@ dependency is requiring a `project/focus` directory to recognize a workspace
 **G7. Archived foci are validated but unusable.**
 The validator accepts ids from `focus/archive/**/*.md` for `related_focus`
 (`validator.py:380-394`, `:1603-1611`) regardless of their status, but the
-loader and core state never load them, so a `proposed` focus can exist only by
-being misfiled in `archive/`.
+loader and core state never load them. A `proposed` focus can therefore exist
+in only two places: misfiled in `archive/` (validated but never loaded), or as
+`current_focus.md` itself, since `FOCUS_STATUS` (`validator.py:26`) permits any
+status there, which displaces the designated current focus. There is no valid
+place to stage a proposed focus while a separate current focus stays
+designated.
 
 ## Options
 
@@ -153,7 +174,7 @@ Add a validated location for drafted-but-inactive foci.
   rule between foci and an update to the precedence decision (see below);
   compounds G1-G3 if built before they are fixed.
 - Touch points: `loader.py:36,54`; `models.py:126,136`;
-  `core_state.py:179-193,407,642-676`; `serve.py:845,3312`; `dashboard.py:377`;
+  `core_state.py:179-193,407,642-676`; `serve.py:846,3462`; `dashboard.py:377`;
   `snapshot_cli.py:597-632,721,746-790`; `precedence.py:9-12,31-35,79-107`;
   tests; the `snapshot current_focus` scope name.
 
@@ -163,12 +184,20 @@ Add a validated location for drafted-but-inactive foci.
   in the resolver and core state (G2) and the swap requires misfiling in
   `archive/` (G7). Becomes viable only after G2 is fixed.
 
-### Option (d): One umbrella focus; threads are workstreams
-Express LCATS-style threads as workstreams (already carrying `related_focus`,
-`core_state.py:626`) under one focus with several priorities.
-- Pros: zero schema change; fits the "priorities inside one focus" convention.
+### Option (d): One umbrella focus; threads are parent workstreams
+Express each LCATS-style thread as a parent workstream whose child workstreams
+are its lines of work (workstreams support `parent_id` and `children`,
+`validator.py:842,895`, and carry `related_focus`, `core_state.py:626`), all
+linked to one umbrella focus with several priorities. A thread is therefore a
+grouping above workstreams, not a workstream itself.
+- Pros: no schema change; fits the "priorities inside one focus" convention;
+  the parent/child structure already exists.
 - Cons: relies on discipline; with G1 unfixed, items not linked to the umbrella
-  vanish from active-work views; no per-thread focus view until G6 is fixed.
+  vanish from active-work views; no per-thread view until G6 is fixed.
+- Open question for the planned focus design session: the owner describes
+  threads as cutting across workstreams. If a thread can span several
+  unrelated workstream trees (many-to-many), a parent workstream cannot model
+  it and this option does not hold; a focus-level grouping would be needed.
 
 ## Design Decisions
 
@@ -186,9 +215,13 @@ not a gate.
 
 ### Decision 3: One status semantics
 A non-`active` current focus is "no active focus" in every consumer (core
-state, dashboard, resolver, snapshots); in that state work-item views are
-ungated, never widened-or-narrowed inconsistently.
-**Chosen**: define the rule once and test it across core state and resolver.
+state, dashboard, resolver, snapshots), including when
+`RuntimeInvocation.focus_id` matches it (`precedence.py:107`); in that state
+work-item views are ungated, never widened-or-narrowed inconsistently.
+**Chosen**: define the rule once and test it across core state and resolver,
+including the matching-runtime-ID case. Because this changes canonical
+resolver behavior, its implementation must update `precedence_semantics.md`,
+`precedence.py` and the precedence tests in the same change set.
 
 ### Decision 4: Make "no active focus" a supported state
 Options: optional `current_focus.md` (loader/validator/snapshot accept absence);
@@ -232,10 +265,14 @@ Checked against `project/memory/decisions/precedence_semantics.md`:
 - The decision defines no tie-break between two foci at the same layer; option
   (b) must add one.
 - The decision's Consequences require any precedence redesign to update the
-  record, implementation and tests together; options (a) and (d) and
-  Decisions 1-5 do not trigger that clause, option (b) does.
-- Decision 3 aligns the live path with the record's existing statement that
-  runtime state must not silently override loaded focus state.
+  record, implementation and tests together. Option (b) triggers that clause,
+  and so does this proposal's own Decision 3, because it changes how the
+  resolver treats a non-active focus (`precedence.py:89,105,107`). Options (a)
+  and (d) and Decisions 1, 2, 4 and 5 do not touch the resolver.
+- Decision 3 also touches Invariant 4's spirit: the matching-ID branch
+  (`precedence.py:107`) lets runtime input keep a non-active loaded focus
+  active, which the record's "runtime narrows, never widens" principle does
+  not clearly sanction.
 
 ## Non-Goals
 
@@ -254,7 +291,9 @@ work items in this order:
 
 1. Decouple active-leaf from focus (Decision 2); tests for G1.
 2. Single focus-status semantics and placeholder convention (Decisions 3-4);
-   cross-consumer tests for G2, G5.
+   cross-consumer tests for G2 (including the matching-runtime-ID case) and
+   G5; update `precedence_semantics.md`, `precedence.py` and the precedence
+   tests in the same change set.
 3. Focus registry: validator glob, loader read-only collection (Decision 5, G7).
 4. `lrh serve` focus list and work-items-by-focus views (Decision 5, G6).
 5. Resolver disposition decision (Decision 8, G3).
@@ -266,3 +305,4 @@ work items in this order:
 - Human-facing model: `project/context/humans.md:417-437`
 - Precedence decision: `project/memory/decisions/precedence_semantics.md`
 - Adjacent proposal: `project/design/proposals/proposed/lrh-open-work/00_proposal.md`
+- Planned focus design session: `project/work_items/proposed/WI-LRH-PROJECT-UPDATE-SKILL.md:112`

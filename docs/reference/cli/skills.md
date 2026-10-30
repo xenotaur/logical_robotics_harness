@@ -1,7 +1,7 @@
 # `lrh skills`
 
 `lrh skills` installs, inspects, and exports LRH agent skills rendered from a
-canonical skill source. Installed target directories and exported bundles are
+canonical skill source. Installed target directories and exported output are
 generated outputs; the canonical source remains `src/lrh/skills/`, the packaged
 LRH skills tree, or an explicit source path.
 
@@ -11,7 +11,7 @@ LRH skills tree, or an explicit source path.
 lrh skills install [options]
 lrh skills status [options]
 lrh skills check [options]
-lrh skills export --target chatgpt --out <directory> [options]
+lrh skills export --target chatgpt|claude-plugin --out <directory> [options]
 ```
 
 | Subcommand | Behavior |
@@ -19,7 +19,7 @@ lrh skills export --target chatgpt --out <directory> [options]
 | `install` | Writes missing or forced target files and reports what changed. |
 | `status` | Reports installed target state without writing files. |
 | `check` | Reports installed target drift and compatibility issues without writing files; exits non-zero when any inspected item is missing, modified, or has reported issues. |
-| `export` | Writes one upload bundle (ZIP) per skill for a hosted assistant; see [Export](#export). |
+| `export` | Writes skills for a hosted assistant: one upload bundle (ZIP) per skill, or a Claude plugin marketplace; see [Export](#export). |
 
 ## Target Selection
 
@@ -116,24 +116,33 @@ strip Claude-only frontmatter, and generate `plugin.json` at the plugin root.
 
 ## Export
 
-`lrh skills export` packages skills for hosted assistants that take uploads
-instead of discovering skills on disk. ChatGPT online is the only export
-target; it is not an `install` target.
+`lrh skills export` packages skills for hosted assistants that don't discover
+skills on disk. Neither export target is an `install` target:
+
+- `chatgpt` writes one upload bundle per skill for ChatGPT online;
+- `claude-plugin` writes a Claude plugin marketplace that claude.ai syncs
+  into Claude Code cloud sessions; see
+  [Claude plugin](#claude-plugin---target-claude-plugin).
 
 ```bash
 lrh skills export --target chatgpt --out ./chatgpt-skills
 lrh skills export --target chatgpt --out ./chatgpt-skills --skill lrh-design --skill lrh-work-item
+lrh skills export --target claude-plugin --source current-repo --out .
 ```
 
 | Option | Behavior |
 |---|---|
-| `--target chatgpt` | Required. The hosted assistant to export for. |
-| `--out <directory>` | Required. Where `<skill-name>.zip` bundles are written; created if missing. |
+| `--target chatgpt\|claude-plugin` | Required. The hosted assistant to export for. |
+| `--out <directory>` | Required. Where output is written; created if missing. |
 | `--source` | Canonical skill source, as for `install` (repo config, then `lrh-package`). |
-| `--skill <name>` | Repeatable. Export only the named skills; an unknown name is an error. |
+| `--skill <name>` | `chatgpt` only. Repeatable. Export only the named skills; an unknown name is an error. |
 
-`export` does not accept `--local` or `--scope`: hosted bundles have no install
+`export` does not accept `--local` or `--scope`: hosted exports have no install
 scope.
+
+### ChatGPT (`--target chatgpt`)
+
+Bundles are written to `--out` as `<skill-name>.zip`.
 
 **Selection.** Without `--skill`, every public skill is exported except
 manual-only skills (`disable-model-invocation: true` in `SKILL.md`, or
@@ -209,10 +218,50 @@ Exported output uses:
 
 | Status | Meaning |
 |---|---|
-| `exported` | The bundle was written. |
+| `exported` | The bundle (or, for `claude-plugin`, the skill folder) was written. |
 | `not written` | The skill validated, but another selected skill failed, so nothing was written. |
-| `skipped (manual-only)` | Manual-only skill left out of a default export. |
+| `skipped (manual-only)` | Manual-only skill left out of a default `chatgpt` export. |
 | `error` | The skill failed validation. |
+
+### Claude plugin (`--target claude-plugin`)
+
+The export writes a Claude plugin marketplace that lists one plugin, `lrh`.
+It writes only two paths under `--out`:
+
+- `.claude-plugin/marketplace.json`, the marketplace `logical-robotics-harness`
+  with plugin source `./plugins/lrh`;
+- `plugins/lrh/`, holding `.claude-plugin/plugin.json` and
+  `skills/<skill-name>/` for every public skill.
+
+Everything else in `--out` is left alone, so the export can target a
+repository root. The LRH repo commits this tree at its root; see
+[Use LRH with AI Agent Assistants](../../how-to/use-lrh-with-agent-assistants.md#5-claude-code-cloud-sessions-claudeai).
+
+**Contents.** Every public skill is included, manual-only skills too: Claude
+honors `disable-model-invocation`, so they stay manual-only. `--skill` is
+rejected. Each skill folder holds `SKILL.md`, copied byte for byte with its
+full Claude frontmatter, plus any `references/`, `scripts/`, and `assets/`.
+`agents/`, `_`-prefixed shared folders such as `_shared/`, hidden files, and
+Python caches are left out; other top-level entries are skipped and reported.
+`plugin.json` sets no `version`, so claude.ai versions the plugin by commit
+and every change on the marketplace branch is an update.
+
+**Validation.** Skills are checked as for `chatgpt` (frontmatter, names,
+descriptions, `disable-model-invocation` values, symlinks, and safe paths),
+except that the Codex `agents/openai.yaml` policy is not read. The whole
+plugin must also stay within the claude.ai plugin limits (5,000 files and
+200 MB) and must not have a top-level `bin/`. If anything fails, nothing is
+written: a skill failure exits 1, and a limit failure or an unusable
+destination exits 2.
+
+**Publishing.** The new `plugins/lrh/` is staged in full beside the old one,
+then swapped in, so a re-export replaces the plugin as a unit. Skill folders
+and files that no longer exist in the source disappear with the old copy; the
+report lists removed skills as `removed (stale)`. A failure while staging or
+swapping leaves the previous export in place. `--out`, `.claude-plugin/`,
+`plugins/`, and `plugins/lrh` must not be symlinks, and `plugins/lrh` must not
+be a file. The skill source must not be inside `plugins/lrh`, and must not
+contain `plugins/` or `.claude-plugin/`, since the export writes there.
 
 ## Related Docs
 

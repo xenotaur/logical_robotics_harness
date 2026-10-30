@@ -1,0 +1,608 @@
+---
+name: lrh-closeout
+description: >
+  Automate the post-execution closeout workflow for an LRH session. Given a PR
+  URL, WI ID, WS ID, or auto-detected from in-progress execution records, the
+  skill assesses all artifact states, resolves the session transcript, presents
+  a full closeout plan at a human gate, executes confirmed actions (landing
+  execution records via lrh prompt update-execution, resolving work items,
+  closing workstreams, adopting proposals), validates, prompts for session
+  reflection, and reports.
+when_to_use: >
+  Invoke when the user wants to run post-execution closeout for a merged
+  PR, resolved WI, or closed WS — landing execution records, resolving
+  work items, closing workstreams, adopting proposals — or as the final
+  link in a human-initiated /lrh-land or /lrh-execute chain. Do not invoke
+  for an open, unmerged PR; the skill itself aborts on anything but
+  MERGED. The Step 4 plan-confirm gate is the write-protection regardless
+  of invocation route.
+argument-hint: "[pr-url | WI-ID | WS-ID]"
+---
+
+# lrh-closeout Skill
+
+This skill automates the post-execution closeout workflow that completes every
+LRH session: updating execution records to `landed`, resolving work items,
+closing workstreams, and adopting governing proposals. It assesses all artifact
+states before touching any files, presents a full closeout plan at a human
+confirm gate, and executes only what the user approves.
+
+This is the missing complement to `/lrh-implement` and `/lrh-review-response`
+in the LRH execution lifecycle. See `PROP-LRH-CLOSEOUT` for the design.
+
+---
+
+## Inputs
+
+Provide one of:
+
+```
+/lrh-closeout https://github.com/xenotaur/logical_robotics_harness/pull/342
+/lrh-closeout WI-SKILLS-LRH-CLOSEOUT
+/lrh-closeout WS-SKILLS-CLOSEOUT
+/lrh-closeout
+```
+
+Omitting the argument triggers auto-detection from in-progress execution
+records. If multiple candidates are found, they are listed for the user to
+choose. See Step 1 for full auto-detection behavior.
+
+---
+
+## Reference Knowledge
+
+Load this before running any step:
+
+1. **`references/closeout-workflow.md`** — Full decision matrix (artifact →
+   condition → action), execution record update protocol (field values, valid
+   transitions, `pending`/`none` conventions), WI resolution protocol
+   (`mv` commands, frontmatter fields), WS closeout protocol, proposal
+   adoption protocol, and session-transcript resolution (via
+   `/lrh-session-id-claude`: the current window through the
+   `current-claude-session-id` resolver, then `list_sessions` by PR, branch,
+   or title, then a user pick; `pending` on any resolver failure or missing
+   host id; `claude-app:<host-uuid-stem>` format, `pending`/`none`
+   sentinels). Read this before Step 2 and Step 5.
+
+---
+
+## Execution Steps
+### Restricted network recovery
+
+For local-only work—file reads and edits, local Git inspection, parsing,
+formatting, linting, tests, and `lrh validate`—use normal execution. For
+commands contacting GitHub or a remote Git server, use this bounded procedure:
+
+1. Confirm the absolute project root with `git rev-parse --show-toplevel` and
+   `pwd`, and preserve the short, redacted error category.
+2. For a read-only or otherwise idempotent remote command that failed because
+   of DNS, HTTPS, or sandbox networking, request approved network execution
+   and retry that exact command once.
+3. For a mutating remote command, do not blindly retry: first reconcile remote
+   state to determine whether the request was accepted (for example, check
+   whether the PR or ref already exists). Retry only when the evidence shows
+   that no mutation was accepted; otherwise report the resulting state.
+4. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker rather than looping, broadening the command,
+   or silently substituting `--no-remote`.
+
+Do not refresh, replace, expose, or reauthorize credentials for DNS,
+connection, or sandbox-policy failures. Diagnose authentication separately
+only after the execution path can reach GitHub. The canonical maintainer
+procedure is `src/lrh/skills/_shared/github-network-execution.md`; this
+section is self-contained for installed client skills.
+
+
+Work through these steps in order. Do not skip Step 4 (confirm gate).
+
+### Step 1 — Parse input
+
+**If a PR URL was provided:**
+Use it directly as the target. Proceed to Step 2 with this URL.
+
+**If a WI ID was provided:**
+Locate the execution record for this WI:
+```bash
+find project/executions/<WI-ID>/ -name "*.md" 2>/dev/null
+```
+If found, read the `pr:` field for the PR URL. If not found, warn and ask.
+
+**If a WS ID was provided:**
+Read the workstream file to find its `work_items:` list, then find execution
+records for each WI as above.
+
+**If no argument was provided (auto-detect):**
+```bash
+grep -rl '^status: in_progress' project/executions/ --include='*.md'
+```
+
+For each candidate returned, read its `pr:` field. If exactly one candidate
+has a non-empty `pr:` field, use it. If multiple candidates match, list them
+and ask the user to select one. If none has a `pr:` field, list all candidates
+and ask the user to identify the target.
+
+### Step 2 — Assess state → build closeout plan
+
+Apply the decision matrix from `references/closeout-workflow.md` to all
+discovered artifacts. Assess in this order:
+
+**1. PR state:**
+```bash
+gh pr view <pr-url> --json state,mergeCommit \
+  --jq '{state: .state, commit: .mergeCommit.oid}'
+```
+- `MERGED` → proceed; record the commit SHA
+- `OPEN` or `CLOSED` without merge → **abort** and report; do not proceed
+  past this point
+
+**2. Execution record(s):**
+Find all execution records linked to this PR by `pr:` field:
+```bash
+grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
+```
+If no records are found (common when `/lrh-implement` left `pr:` blank), fall
+back to listing all in-progress records:
+```bash
+grep -rl '^status: in_progress' project/executions/ --include='*.md'
+```
+Present the fallback candidates to the user and ask which one(s) belong to
+this PR. For each matched record: check `status:` field. See decision matrix
+in `references/closeout-workflow.md` for `in_progress` / `landed` / missing
+actions.
+
+**3. Work item(s):**
+```bash
+find project/work_items/ -name "<WI-ID>.md"
+```
+Check which bucket (`proposed/` vs. `resolved/`) the file is in. See
+decision matrix for actions.
+
+**4. Workstream (if linked from WI):**
+Read the `related_workstreams:` field of the WI. For each workstream:
+- Read `work_items:` from the WS file
+- Check whether every listed WI will be resolved after this closeout. Treat
+  WIs already marked `resolve and move` in the current plan as resolved —
+  assess WS readiness from the **post-plan state**, not the current on-disk
+  state. Check disk only for WIs not mentioned in the current plan.
+- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`
+  or `workstreams/active/`:
+  - Also read `exit_criteria:` from the WS file
+  - Include the criteria list in the plan output as a sub-list below the WS
+    row — the user must see the criteria at assessment time
+  - Mark the WS as "offer closeout — exit criteria confirmation required at
+    Step 4"
+- If any WI would remain unresolved after this closeout → skip (not ready)
+
+**5. Proposal (if WS would be closed):**
+Read `related_design:` from the WS file; identify any proposals in
+`project/design/proposals/proposed/`. If the WS would close AND the proposal
+is still in `proposed/` → offer adoption.
+
+Present the full plan as a table:
+
+| Artifact | Current state | Intended action |
+|---|---|---|
+| PR #N | MERGED, commit `<sha>` | record commit |
+| Execution record `<id>` | `in_progress` | update to `landed` |
+| WI `<WI-ID>` | in `proposed/` | resolve and move |
+| WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
+| WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
+| PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
+
+### Step 3 — Resolve session transcript
+
+**Resolve a transcript value separately for each execution record matched in
+Step 2** — a single PR can carry records from different backends (e.g. a
+`codex_cloud` implementation record plus Claude-authored review-response/
+confirm-fixes records), and stamping one resolved value onto every record
+would misattribute provenance on whichever records don't share that backend.
+Repeat the branch-and-resolve procedure below once per matched record, keyed
+off that record's own `agent` field, and keep each record's resolved value
+separate for Step 5.
+
+**First, branch on the execution record's `agent`** — the pointer scheme is
+backend-specific, and running closeout from Claude must not associate the
+current Claude window with work another backend produced:
+
+- **Codex app** (`agent: codex_app`): the Claude env var and Claude session URL
+  are the *wrong* session — do **not** use them. Resolve
+  `codex-app:<task-or-thread-id>` when a durable Codex app task/thread
+  identifier is available; otherwise leave `pending` if the session should be
+  recorded later.
+- **Codex Cloud** (`agent: codex_cloud`): resolve `codex-cloud:<task-id>` from
+  the Codex run when available; otherwise leave `pending` if the task id should
+  be recorded later.
+- **Manual/no transcript backend** (`agent: manual`, or any other terminal
+  non-retrievable value): use `none`.
+- **Other non-Claude backend** (any other value): the Claude env var and
+  Claude session URL are the *wrong* session — do **not** use them. Resolve
+  the backend's own scheme-prefixed id if one is retrievable; otherwise use
+  `none`. Skip the Claude-specific steps below.
+- **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
+  host id with the steps below.
+
+For a Claude.app session the canonical stored value is
+`claude-app:<host-uuid-stem>` — the **host** session id (`local_<uuid>`,
+`local_` stripped), not the child SDK id that names the JSONL file. Do **not**
+use JSONL-filename auto-detection: on Claude.app sessions it returns the child
+id, which differs from the host id on resumed/continued sessions and produces
+a pointer that session-management tools cannot resolve.
+
+**Resolve it with `/lrh-session-id-claude`.** That skill owns the
+resolution order, so it is not restated here. In summary:
+
+1. **Same session — current window.** With no argument, the skill runs
+   `lrh conversation current-claude-session-id` (reading
+   `CLAUDE_CODE_HOST_SESSION_ID` directly only when the installed CLI lacks
+   that subcommand) and reports the pointer with the session's title and
+   branch from `get_session` (`"self"`).
+
+   **Confirm before storing — the host id tracks the *current* window.**
+   On a long, resumed, or forked session it can differ from the session that
+   actually authored the work. Show the reported pointer, title, and branch
+   and ask, e.g. "In-session host id is `claude-app:<stem>` (session
+   "<title>", branch `<branch>`). Is this the session for this work?" If the
+   user says no, continue to path 2 or 3. When they confirm, store it.
+
+   **This is the only path that may also capture a child-id alias.** The
+   skill reports the alias as *pairable* only here; pair it with the
+   confirmed host id in `project/sessions/index.jsonl` at Step 5. Paths 2 and
+   3 below resolve a host id belonging to a *different* window than the one
+   running closeout right now, so this pairing must not be made there — see
+   `references/closeout-workflow.md`'s "Session identity capture" section.
+
+2. **Cross-session — by PR number, then branch or title.** When closing
+   out on `main` after merge from a *different* session than the one that
+   did the work, run `/lrh-session-id-claude <pr-url>`. It matches the
+   session by `prNumber` via `list_sessions`, falls back to the PR's head
+   branch and then its title, and asks the user to pick when several
+   sessions match.
+
+3. **Manual — pick from the session list.** If neither path yields a
+   confident id, the skill lists candidates (title, branch, PR, last
+   activity; archived sessions too when needed, plus the current session
+   from `get_session`, since `list_sessions` excludes it) and the user picks
+   one, or confirms `none`/`pending`. The Claude desktop app no longer
+   exposes View > Copy URL, so there is no browser URL to paste; a
+   `local_<uuid>` the user already has is accepted as the skill's argument.
+   A session picked this way never gets a child-id alias.
+
+4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
+   - `none`: the backend produced **no retrievable transcript** (e.g. a
+     `codex_cloud` or `manual` execution). This is a **terminal** value — do
+     not add a "update it later" reminder.
+   - `pending`: a transcript exists but its id is **not yet known**. This is a
+     **to-do** — include the Step 8 reminder to update it before archiving.
+
+   Use `none` (not `pending`) whenever the backend simply has no session URL
+   to resolve, so a finished record is never left looking like unfinished
+   work. See the 2026-07-23 "Backend-Agnostic Session Pointer Grammar"
+   decision-log entry and `project/executions/README.md`.
+
+If `/lrh-session-id-claude` reports `session_transcript: pending` (the
+resolver failed, or no host id was available), keep `pending` for that
+record rather than guessing.
+
+**If `/lrh-session-id-claude` is not installed**, run the same resolver
+inline under the same restricted rule, never a bare env-var read:
+`lrh conversation current-claude-session-id --format json`, falling back to
+`$CLAUDE_CODE_HOST_SESSION_ID` only when the subcommand is unavailable
+(`lrh` not found, or `lrh` reports it as an invalid choice). Any other
+failure, or a `null` `session_transcript`, means `pending`.
+
+### Step 4 — Confirm gate (human gate)
+
+**When inlined by `/lrh-land` Step 6/7 with a preview already presented:**
+do not ask this gate's question again merely because this step was reached.
+Compare the live assessment above against the preview `/lrh-land` Step 6
+already showed the human and got a reply to. If there is no material
+divergence (same resolution text, same WS exit-criteria answer, no newly
+appeared execution record, no WI/WS state change — a differing merge-commit
+SHA alone is never material, since the preview always expected it to be
+filled in after merge), that upstream approval satisfies this gate
+(`DEC-SINGLE-ASK-RUN-GATES`); continue to Step 5 without a second live
+reply. If any material field differs, ask this gate live with a structured
+diff, exactly as below. This special path applies only when `/lrh-land`
+provided a preview; direct `/lrh-closeout` invocation always uses the
+normal live gate below.
+
+<!-- GATE-DEFINITION -->
+Before touching any files, show the user:
+
+- PR URL, state (`MERGED`), and commit SHA
+- The full closeout plan table (from Step 2)
+- Resolved session transcript value for **every** matched execution record
+  from Step 3, enumerated by execution ID — not a single summary value.
+  Step 3 resolves a value per record (Step 5 writes each to its own
+  record), so showing only one here would let the user confirm without
+  ever seeing what gets written to the others.
+- For any WI being resolved: the `resolution:` text to be written. If the
+  user has not already stated it, ask: "What should the `resolution:` note
+  say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
+- The closeout-triggered archive-sync command that will run after confirmed
+  control-plane edits and before validation:
+  `lrh sessions closeout-sync --project-root .`. Include any explicit
+  `--archive-root`, `--claude-projects-root`, or `--exports-dir` values if
+  the user provided them for this closeout.
+
+**WS exit criteria confirmation:** for any WS where closeout is being offered,
+display the full `exit_criteria:` list (already shown at Step 2, repeated here
+for the gate) and ask:
+
+> "Are all of these WS exit criteria met? [y/N]"
+
+Only include the WS closeout action in the confirmed plan if the user answers
+`y`. If the user answers `n` or expresses doubt about any criteria, remove WS
+closeout from the plan — and also remove any proposal-adoption action whose
+offer depended on that WS closing — then note which criteria blocked it. Show
+the revised plan before asking for final confirmation.
+
+**Wait for explicit confirmation before touching any files.** If the user
+redirects, updates the resolution text, or asks to skip an action, adjust the
+plan and show it again.
+<!-- /GATE-DEFINITION -->
+
+### Step 5 — Execute confirmed actions
+
+Execute all confirmed actions. Abort on any error rather than partially completing.
+
+**Execution records** (for each record marked `update to landed`):
+
+Call the CLI to update all four fields atomically, using **that record's own**
+resolved transcript value from Step 3 — not a value resolved for a different
+record on the same PR:
+
+```bash
+lrh prompt update-execution \
+  --execution-id <execution-id> \
+  --status landed \
+  --pr <pr-url> \
+  --commit <merge-commit-sha> \
+  --session-transcript <this-record's-resolved-value-from-step-3> \
+  --project-root .
+```
+
+The `--execution-id` is the `execution_id:` field value from the record
+(e.g. `2026_06_28_11_30_26_WI_PROMPT_CLI_CLOSEOUT`). The command finds the
+record by scanning `project/executions/**/*.md`, updates the four frontmatter
+fields in-place, and prints `updated: <path>` on success.
+
+See `references/closeout-workflow.md` for valid field values and the
+`session_transcript:` `pending` convention.
+
+**Session identity capture** (only for records where Step 3's Claude.app
+branch — paths 1, 2, or 3 — resolved a confirmed host-uuid-stem; the
+host-to-PR association is worth recording for any of those three paths):
+
+```bash
+lrh prompt record-session-alias \
+  --host-id <host-uuid-stem-confirmed-in-step-3> \
+  --child-id <child-id-reported-as-pairable-in-step-3> \
+  --title "<title-from-step-3>" \
+  --branch <pr-head-branch> \
+  --pr <pr-url> \
+  --project-root .
+```
+
+Take `--title` from what `/lrh-session-id-claude` reported at Step 3, and
+`--branch` from the PR's head branch (`gh pr view <pr-url> --json
+headRefName`), not from the app-recorded branch, which can be stale when a
+session switched branches inside its worktree. Omit `--title` when it was
+reported unavailable. (The index's `title` and `branch` are
+latest-value-wins; passing them here is what keeps sessions first indexed at
+closeout from having none, and using the PR's head branch keeps closeout
+from overwriting a correct branch with a stale one.)
+
+**Skip this step entirely** for records resolved via Step 3's `codex_app`,
+`codex_cloud`, `manual`, or other-non-Claude-backend branches. The
+`codex_app`/`codex_cloud`/`manual` branches resolve to `codex-app:<id>`,
+`codex-cloud:<id>`, `pending`, or `none`; the catch-all other-non-Claude
+branch may resolve to a different backend's own scheme-prefixed id
+instead. None of these — nor any other non-Claude-backend pointer value,
+whatever its exact form — is a usable `--host-id`; the value this flag
+expects is specifically the Claude.app host-uuid-stem paths 1/2/3 above
+resolve. There is no analogous alias mechanism for non-Claude backends; do
+not pass any non-Claude-backend pointer value as `--host-id`.
+
+**Omit `--child-id` entirely** (do not pass the flag) for records resolved
+via path 2 (`list_sessions` by PR) or path 3 (picked from the session
+list) — pairing a cross-session host id with the *current* window's child
+id would record a false alias. The command and its underlying merge both
+treat a missing child id as "nothing to add here," not as an error, so the
+host id and PR are still captured on those paths; only the alias is
+withheld. See
+`references/closeout-workflow.md`'s "Session identity capture" section.
+
+**Work items** (for each WI marked `resolve and move`):
+
+Edit the frontmatter in-place:
+- `status: proposed` → `status: resolved`
+- `resolution:` → set to the confirmed resolution text
+
+**Always quote free-text frontmatter scalar values when writing
+`resolution:`.** Never write bare prose directly after `key:` — an
+unquoted colon (e.g. `resolution: Fixed X: did Y`) or an unquoted ` #`
+(e.g. `resolution: Implemented in PR #614`) changes meaning or truncates
+silently under real YAML. Wrap the value in quotes instead, e.g.
+`resolution: 'Implemented and merged in PR #614'`. `lrh validate`'s
+`FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this after the fact
+(`WI-FRONTMATTER-MIGRATION-LINT-GUARD`), but writing it quoted the first
+time avoids the warning entirely.
+
+Then move the file:
+```bash
+mv project/work_items/proposed/<WI-ID>.md project/work_items/resolved/<WI-ID>.md
+```
+
+Do not use `cp` — a copy in both locations triggers `WORK_ITEM_ID_DUPLICATE`
+in `lrh validate`.
+
+**Workstream** (if offered closeout and user confirmed):
+
+Edit the frontmatter in-place:
+- `stage:` → `stage: closed`
+- `status:` → `status: resolved`
+
+Then move from whichever bucket the WS was found in at Step 2 (`proposed/` or
+`active/`):
+```bash
+mv project/workstreams/<current-bucket>/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
+```
+
+**Proposal** (if offered adoption and user confirmed):
+
+Edit the frontmatter in-place:
+- `status: proposed` → `status: adopted`
+- `implementation_status: not_started` → `implementation_status: implemented`
+- `implemented_by:` → set to the list of implementing WI IDs (e.g., `[WI-SKILLS-LRH-CLOSEOUT]`)
+
+Then move the entire proposal directory:
+```bash
+mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<slug>/
+```
+
+**Closeout-triggered session archive sync** (always run after confirmed
+control-plane actions and before validation):
+
+```bash
+lrh sessions closeout-sync --project-root .
+```
+
+If this closeout needs an explicit archive root, Claude projects root, or export
+zip directory, pass the corresponding flags:
+
+```bash
+lrh sessions closeout-sync \
+  --project-root . \
+  --archive-root <private-archive-root> \
+  --claude-projects-root <claude-projects-root> \
+  --exports-dir <export-zip-directory>
+```
+
+The command prints a human-visible outcome and may update the private local
+archive and `project/sessions/index.jsonl`; it must not print raw transcript
+bodies. If it exits non-zero, stop and report the error before committing. Do
+not silently skip it unless the user explicitly asked for a dry-run or disabled
+archive sync for this closeout. For a dry-run, use `--dry-run` and record that
+no archive writes were attempted.
+
+### Step 6 — Validate
+
+```bash
+lrh validate
+```
+
+If any errors are reported: stop, report each error to the user, and ask how
+to proceed. Do not commit with `lrh validate` errors.
+
+If clean (0 errors, 0 warnings): proceed to Step 7.
+
+### Step 7 — Session reflection
+
+Before asking the user anything, review this session's actual changes and
+decisions — corrected assumptions, discovered conventions or gotchas,
+design decisions and their rationale, anything a fresh session would have
+no way to re-derive from code or git history alone. Apply the same bar the
+auto-memory system already uses: surprising, non-obvious, durable, and not
+already fully captured by an existing memory or derivable by reading the
+current project state.
+
+Draft 0-3 candidate suggestions from that review. Each candidate is one
+line naming the rule or fact, plus one line of why it matters. If nothing
+in the session clears that bar, say so explicitly — do not silently skip
+straight to asking.
+
+Then present the candidates (or the explicit "nothing stands out" finding)
+and ask: "Does this look right — anything to add, edit, or drop?"
+
+If candidates were presented and the user confirms, adds, or edits: write
+each one with `lrh memory write <name> --description "..." --type <type>
+--agent <agent-backend>`, one candidate per name. This validates
+frontmatter and updates `MEMORY.md` in the same operation — do not write
+the memory file and index entry by hand; that is exactly the unvalidated,
+unindexable-by-mistake path `PROP-LRH-MEMORY-COMMAND` exists to close.
+See `lrh memory write --help` for the full flag reference.
+
+If the user declines all candidates, or confirms the "nothing stands out"
+finding with no additions: proceed to Step 8 without writing anything.
+Confirming that nothing stands out is not itself content to persist — only
+write when there is an actual candidate or user-supplied fact to record.
+
+### Step 8 — Report and commit
+
+Commit all closeout changes to `main`:
+
+```bash
+git add -p   # or stage specific files
+git commit -m "chore(closeout): <summary of actions> (PR #N)"
+```
+
+Report to the user:
+
+- Each action taken (file edited, file moved, validation result)
+- The closeout-triggered archive sync result, including whether it was a real
+  run or `--dry-run`
+- Commit SHA on `main`
+- If any `session_transcript` is still `pending`: remind the user to update it
+  with the durable pointer for that record's own backend before archiving the
+  session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
+  (from `/lrh-session-id-claude`, with `local_` stripped). For Codex
+  app or Codex Cloud records, use the corresponding `codex-app:` or
+  `codex-cloud:` pointer when available. Do **not** add this
+  reminder for `none` — that value is terminal.
+- Offer the backend-appropriate local transcript archival/export workflow when
+  one is available.
+
+**Memory written (Step 7 outcome):** state explicitly whether memory was
+written this session. If yes: include a one-line summary of each memory
+persisted (e.g., "Memory written: feedback on WS premature closure —
+`feedback_closeout_ws_exit_criteria.md`"). If no: "Memory: nothing written
+this session."
+
+**Pending offers:** re-state any action that was offered during the skill run
+but was not included in the confirmed plan. For each skipped action, give a
+one-line reason:
+- "WS `<WS-ID>` closeout: skipped — `<WI-ID>` and `<WI-ID>` still unresolved"
+- "Proposal `<slug>` adoption: skipped — governing WS not closing"
+- Any offer the user deferred at Step 4
+
+If no offers were skipped, omit this section.
+
+---
+
+## Quality Checklist
+
+Before reporting completion, verify:
+
+- [ ] PR state verified as `MERGED` before any files were touched
+- [ ] Decision matrix applied to all discovered artifacts
+- [ ] Session transcript value resolved (or `pending` confirmed)
+- [ ] User confirmed at Step 4 before any files were touched
+- [ ] Each file read before editing; no partial edits
+- [ ] `lrh sessions closeout-sync --project-root .` ran after confirmed
+      actions and before validation, or an explicit user-approved dry-run/skip
+      was recorded
+- [ ] `mv` used for WI/WS/proposal moves (not `cp`)
+- [ ] `lrh validate` reports 0 errors before commit
+- [ ] Committed to `main` (not a feature branch)
+- [ ] `session_transcript: pending` reminder included in report if applicable
+
+---
+
+## What This Skill Does Not Do
+
+- Does not close GitHub PRs — the skill records an already-merged PR; closing
+  is a human action.
+- Does not automatically write memories — Step 7 prompts the user; writing
+  is always opt-in.
+- Does not enforce WS exit criteria programmatically — prose criteria are
+  human-authored and cannot be machine-checked. The skill surfaces them at
+  Step 2 and requires human confirmation at Step 4, but the judgment is the
+  user's.
+- Does not automate the `resolution:` prose — the one-line summary is
+  human-authored and confirmed at Step 4.
+- Does not handle the design or instruction phases — those remain
+  `/lrh-design`, `/lrh-proposal`, and `/lrh-implement`.
+- Does not handle abandoned WIs (WI with no PR ever opened) — warns and
+  leaves for human resolution.
+- Does not open a new branch or PR — closeout commits go directly to `main`.

@@ -236,9 +236,12 @@ lrh skills export --target claude-plugin --source current-repo --out .
 ```
 
 A packaging test fails when the committed tree no longer matches the
-canonical source. The plugin carries every LRH skill, manual-only ones
-included, with their Claude frontmatter unchanged, so `/lrh-land` and the
-other manual-only skills stay manual-only. See the
+canonical source. The plugin carries every LRH skill with its Claude
+frontmatter unchanged, so a skill marked `disable-model-invocation: true` (today
+only `lrh-codex-session`) stays manual-only. Skills that are manual-only only
+through Codex's `agents/openai.yaml` policy, such as `lrh-land` and
+`lrh-execute`, are not: the plugin doesn't include that file, so Claude can
+start them on its own, as it can from a local Claude install. See the
 [`lrh skills` CLI reference](../reference/cli/skills.md#claude-plugin---target-claude-plugin)
 for exactly what the export writes.
 

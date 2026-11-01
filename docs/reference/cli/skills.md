@@ -237,9 +237,11 @@ Everything else in `--out` is left alone, so the export can target a
 repository root. The LRH repo commits this tree at its root; see
 [Use LRH with AI Agent Assistants](../../how-to/use-lrh-with-agent-assistants.md#5-claude-code-cloud-sessions-claudeai).
 
-**Contents.** Every public skill is included, manual-only skills too: Claude
-honors `disable-model-invocation`, so they stay manual-only. `--skill` is
-rejected. Each skill folder holds `SKILL.md`, copied byte for byte with its
+**Contents.** Every public skill is included, manual-only skills too.
+`--skill` is rejected. A skill with `disable-model-invocation: true` stays
+manual-only in Claude. A skill that is manual-only only through
+`agents/openai.yaml` does not, because that Codex policy isn't included, which
+matches a local Claude install. Each skill folder holds `SKILL.md`, copied byte for byte with its
 full Claude frontmatter, plus any `references/`, `scripts/`, and `assets/`.
 `agents/`, `_`-prefixed shared folders such as `_shared/`, hidden files, and
 Python caches are left out; other top-level entries are skipped and reported.

@@ -4,7 +4,7 @@ prompt_id: PROMPT(WI-CODEX-MANAGED-SANDBOX-NETWORK-INCIDENT:WI_CODEX_MANAGED_SAN
 work_item: WI-CODEX-MANAGED-SANDBOX-NETWORK-INCIDENT
 status: in_progress
 rerun_of:
-pr:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/860
 commit:
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-MANAGED-SANDBOX-NETWORK-INCIDENT.md

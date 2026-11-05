@@ -286,10 +286,11 @@ and `lrh-work-item` still help with planning and drafting, but steps that call
 `lrh` fail.
 
 #### Updating
-Every merge to `main` that changes a skill also changes the committed plugin,
-and the plugin has no `version`, so claude.ai treats each commit as an update.
-A broken skill therefore reaches cloud sessions as soon as it merges; the
-packaging test and `claude plugin validate` are the guard.
+Every merge to `main` that changes a skill also changes the committed plugin.
+The plugin has no `version` to pin it, so with Sync automatically on, a
+change can reach cloud sessions as soon as it merges, broken skills included;
+the packaging test and `claude plugin validate` are the guard. Exactly how
+claude.ai versions a plugin without a `version` is not yet confirmed.
 
 ---
 

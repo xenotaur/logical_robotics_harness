@@ -553,8 +553,8 @@ def _plugin_tree(prepared: Sequence[_PreparedSkill]) -> dict[str, bytes]:
                 ],
             }
         ),
-        # No `version`: claude.ai then versions the plugin by commit SHA, so
-        # every merge to the marketplace branch is picked up as an update.
+        # No `version`, so no manifest version pins the plugin and every
+        # merge to the marketplace branch can reach accounts that sync it.
         f"{CLAUDE_PLUGIN_DIR}/{_CLAUDE_PLUGIN_MANIFEST}": _json_bytes(
             {
                 "name": _CLAUDE_PLUGIN_NAME,

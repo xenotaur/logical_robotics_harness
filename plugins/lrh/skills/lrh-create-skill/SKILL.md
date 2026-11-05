@@ -222,11 +222,21 @@ lrh skills install --local --target all --source current-repo --dry-run
 lrh skills install --local --target all --source current-repo
 ```
 
-Verify all three targets match `src` with the mirror sync test (CI runs it
-too, so a skill missing from any target fails the PR):
+In the LRH repository itself, also regenerate the committed Claude plugin
+marketplace (`.claude-plugin/marketplace.json` and `plugins/lrh/`), which the
+installer does not touch. Skip this in a repository with no
+`.claude-plugin/marketplace.json`:
+
+```bash
+lrh skills export --target claude-plugin --source current-repo --out .
+```
+
+Verify all targets match `src` with the sync tests (CI runs them too, so a
+skill missing from any target fails the PR):
 
 ```bash
 scripts/test tests/packaging_tests/skills_mirror_sync_test.py
+scripts/test tests/packaging_tests/skills_claude_plugin_sync_test.py
 ```
 
 Without `--force`, the installer never overwrites a skill that differs from
@@ -266,11 +276,13 @@ After writing, check these conditions. Fix any failure before proceeding.
 
 ### 9. Commit and open PR
 
-Stage and commit all skill files and the CLAUDE.md update:
+Stage and commit all skill files and the CLAUDE.md update. In the LRH
+repository, also stage `plugins/lrh/` (the regenerated plugin):
 
 ```bash
 git add src/lrh/skills/<name>/ .claude/skills/<name>/ .agents/skills/<name>/ \
   .gemini/plugins/lrh/skills/<name>/ CLAUDE.md
+git add plugins/lrh/   # LRH repository only
 git commit -m "Add /<name> skill"
 git push -u origin <branch-name>
 gh pr create --title "Add /<name> skill" --body "..."

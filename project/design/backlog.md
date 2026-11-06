@@ -2405,3 +2405,24 @@ rather than a profile. Revisit if a real need appears.
 
 **Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
 (Decision 3); owner decision recorded in this session.
+
+---
+
+## LRH Console: revisit Save-in-override once profiles land
+
+**Noted:** 2026-10-22, while choosing option B for
+`WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD` (PROP-LRH-PROFILES Decision 8). That
+item shows the saved values and a warning under an `LRH_CONSOLE_*` override.
+
+**Revisit when:** the Console stage of WS-LRH-PROFILES lands. With
+`LRH_CONSOLE_PROFILE`, an override session could save to its own profile's
+config file, which would make the preload and warning unnecessary. An override
+combined with the default profile would still touch the shared file. Decide
+whether to drop, keep, or narrow the preload and warning, and whether Save
+under an override should target the active profile.
+
+**Why deferred:** it depends on Console profiles, which are not built yet, and
+the interim fix is small. File a work item during the Console stage.
+
+**Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
+(Decision 8); `d52bd183`; PR #776.

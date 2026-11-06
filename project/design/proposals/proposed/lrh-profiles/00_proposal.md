@@ -36,16 +36,18 @@ An installed LRH Console always reads one `config.json`
 `tauri.conf.json:4`). The backend it launches resolves one global Meta
 workspace from flags, `LRH_CONFIG`, `LRH_WORKSPACE`, local `.lrh/config.toml`
 discovery, then `$XDG_CONFIG_HOME/lrh/config.toml`
-(`src/lrh/meta/workspace.py:905-1004`, `1280-1298`; `src/lrh/serve.py:141`).
+(`src/lrh/meta/workspace.py:905-1004`, `1280-1298`; `src/lrh/serve.py:145`).
 The app's `Config` has no Meta field (`settings.rs:71-80`); Meta isolation
 comes only from the backend's environment. Users cannot keep two starting
 projects with different configs, and developers cannot try a new LRH
 installation against a fresh Meta directory.
 
 An existing developer override (`LRH_CONSOLE_*`, `shell.rs:37-47`) covers part
-of testing but has a hazard: `save_settings` writes the shared `config.json`
-before checking for the override (`shell.rs:1387` vs `1391`), so a Save during
-a test session overwrites the real configuration.
+of testing but has a paper-cut: under an override, Settings opens with an empty
+form even when a saved `config.json` exists, and `save_settings` writes the
+file (`shell.rs:1578`, before the override check at `1582`). A Save can
+therefore replace the saved settings with whatever was typed. The write itself
+is documented behavior, in place since `d52bd183` and reworded in PR #776.
 
 ## Prior Art Check
 
@@ -69,11 +71,12 @@ a test session overwrites the real configuration.
 ### Decision 1: Where a profile sits in resolution
 
 Options: above local discovery; replace only the global (XDG) tier; replace
-everything. **Chosen: a profile replaces only the global tier** (resolution
-step 7). Placing it higher would make `lrh meta` inside a repo ignore that
+everything. **Chosen: a profile replaces only the global tier** (the last
+tier in the resolution order). Placing it higher would make `lrh meta` inside a repo ignore that
 repo's `.lrh/config.toml`. Because `serve` resolves from `cwd=project_root`,
 local discovery would defeat the app's isolation, so the app additionally sets
-`LRH_CONFIG` to the profile config (step 4).
+`LRH_CONFIG` to the profile config (it is checked before local
+discovery).
 
 ### Decision 2: Isolation mechanism
 
@@ -142,7 +145,7 @@ non-default profile uses `app_config_dir()/profiles/<name>/config.json` and
 its own store. `launch_config` (`settings.rs:190-214`) adds `LRH_PROFILE` and
 `LRH_CONFIG` to the child. The webview store uses a deterministic
 `data_store_identifier` derived from the name (macOS >= 14; Tauri 2.12
-`webview_window.rs:1199`), and the profile name appears in the window title.
+`webview_window.rs:1205`), and the profile name appears in the window title.
 
 **Cross-language contract.** The Console picks its config store in Rust before
 it starts the Python backend, so it cannot call `lrh.meta.profiles`. The
@@ -172,10 +175,16 @@ Templates resolve from the profile's `templates/` directory
 (`src/lrh/assist/template_resolver.py:210`). Under `default` this is today's
 `$XDG_CONFIG_HOME/lrh/templates`, so current users see no change.
 
-### Decision 8: Fix the Save hazard first
+### Decision 8: Make Save non-destructive under an override first
 
-In env-override mode Save must not write the shared file. Independently
-valuable and shippable first.
+Options considered: refuse to save under an override (A); keep saving but show
+the saved values in the form and warn (B); drop the fix and rely on profiles
+(C). **Chosen: B**, as the first work item, `WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD`.
+The write under an override is existing, documented behavior with unclear design
+intent; B removes the blank-form trap without removing it. The behavior should
+be revisited once Console profiles land, because an override session could then
+write to its own profile's file (design backlog entry "LRH Console: revisit
+Save-in-override once profiles land").
 
 ## Non-Goals
 
@@ -192,7 +201,7 @@ valuable and shippable first.
 Multi-PR; to be governed by the planned workstream `WS-LRH-PROFILES`
 (proposed in PR #815; not yet merged). Proposed order:
 
-1. Fix `save_settings` in env-override mode (first, standalone).
+1. Make Settings non-destructive under an override: `WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD` (first, standalone).
 2. `lrh.meta.profiles` resolver plus tests.
 3. Wire the resolver into `resolve_meta_workspace`, `meta init`, `serve`, and
    the assist template resolver; update help text and release-smoke
@@ -208,7 +217,7 @@ Resolved with the owner after the first draft:
 - Flag and env name: `--profile` / `LRH_PROFILE`.
 - Assist templates: per-profile.
 - Copy, save and load: deferred; relocatable layout instead (Decision 3).
-- Save-hazard fix: its own first work item.
+- Save under an override: option B (show the saved values and warn), as its own first work item; revisit after Console profiles land.
 - Profile mode: `global` only in v1; other modes are a backlog item.
 - Webview isolation and `open -n`: a short spike opens the Console stage.
 - The proposal stays `proposed` at merge; adoption is a separate decision.

@@ -12,12 +12,13 @@ related_focus: []
 related_roadmap: []
 related_design:
 - "project/design/proposals/proposed/lrh-profiles/00_proposal.md"
-work_items: []
+work_items:
+- "WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD"
 execution_records: []
 evidence: []
 exit_criteria:
 - "PROP-LRH-PROFILES is reviewed and merged (as proposed), with its remaining open questions (profiles root, spike results) resolved or recorded as evidence."
-- "save_settings no longer writes the shared config.json while an LRH_CONSOLE_* override is active, with a regression test."
+- "Under an LRH_CONSOLE_* override, Settings shows the saved configuration and warns before a Save, with tests (WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD)."
 - "A profile resolver is used by resolve_meta_workspace, meta init, serve, and the assist template resolver, and the default profile resolves to today's paths unchanged."
 - "LRH Console runs two profiles side by side with isolated app config and Meta, with webview-store isolation and the second-profile launch verified on macOS, or the limit recorded as evidence."
 - "Docs explain profiles and disambiguate them from bootstrap, chain-defaults, and assistant profiles."
@@ -39,7 +40,7 @@ changes).
 
 ## Scope
 
-- Fix the Console Save hazard in env-override mode, independently and first.
+- Make Console Settings non-destructive under an env override (show the saved values and warn), independently and first.
 - A shared `lrh.meta.profiles` resolver, wired into Meta resolution, `meta init`,
   `serve`, and assist templates; `default` stays today's layout. Non-default
   profiles are self-contained, relocatable directories, global mode only.
@@ -69,7 +70,7 @@ design questions are settled (see PROP-LRH-PROFILES, "Decisions Recorded"). The
 stage moves from `designed` to `planned` once they exist. Planned, in proposed
 order:
 
-1. Fix `save_settings` in env-override mode (standalone; ships first).
+1. **WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD** — make Settings non-destructive under an override (standalone; ships first).
 2. `lrh.meta.profiles` resolver plus tests.
 3. Wire the resolver into Meta resolution, `meta init`, `serve`, assist templates,
    help text, and release-smoke sanitising.
@@ -82,8 +83,8 @@ order:
 
 - PROP-LRH-PROFILES is reviewed and merged (as proposed), with its remaining
   open questions (profiles root, spike results) resolved or recorded as evidence.
-- `save_settings` no longer writes the shared `config.json` during an
-  `LRH_CONSOLE_*` override, with a regression test.
+- Under an `LRH_CONSOLE_*` override, Settings shows the saved configuration and
+  warns before a Save, with tests (`WI-LRH-CONSOLE-SAVE-ENV-OVERRIDE-GUARD`).
 - The resolver is used by `resolve_meta_workspace`, `meta init`, `serve`, and the
   assist template resolver; `default` resolves to today's paths unchanged.
 - Two Console profiles run side by side with isolated app config and Meta;

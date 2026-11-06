@@ -2,14 +2,14 @@
 execution_id: 2026_10_29_01_13_43_WI_SKILLS_CLAUDE_PLUGIN_EXPORT
 prompt_id: PROMPT(WI-SKILLS-CLAUDE-PLUGIN-EXPORT:WI_SKILLS_CLAUDE_PLUGIN_EXPORT)[2026-10-29T00:53:34+00:00]
 work_item: WI-SKILLS-CLAUDE-PLUGIN-EXPORT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/859
-commit:
+commit: 216c451b4dac1b775c8f245734dfb51423ad172c
 created_at: 2026-10-29T01:13:43+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-CLAUDE-PLUGIN-EXPORT.md
-session_transcript: pending
+session_transcript: claude-app:b45207bd-f56d-4b2d-a182-23126acc88a6
 ---
 
 # Summary

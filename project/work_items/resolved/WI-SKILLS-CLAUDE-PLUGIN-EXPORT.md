@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #859 (merge 216c451b): lrh skills export --target claude-plugin and the committed marketplace at the repo root; cloud-session dogfood recorded in the _DOGFOOD execution record.'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CLAUDE-PLUGIN-EXPORT
 title: 'Export LRH skills as a Claude plugin marketplace committed in the LRH repo'
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

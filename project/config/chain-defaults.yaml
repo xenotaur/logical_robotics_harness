@@ -6,7 +6,7 @@
 # confirmed_commit/confirmed_at are null until a human live-confirms these
 # values at a chain-authorization gate for the first time in this repo.
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
-stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
+stop_work_condition: "Any failing CI check, a reviewer finding marked blocking or that can't be verified on re-verification, or an ambiguous/refused merge-authorization reply. Non-blocking findings are recorded in the closeout record instead of halting."
 chain_init_confirmation: skip_if_opted_in
 closeout_with_merge: true
 confirm_fixes_batch: auto_unless_unusual

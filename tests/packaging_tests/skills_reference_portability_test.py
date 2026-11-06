@@ -18,6 +18,7 @@ TARGET_ROOTS = (
     REPO_ROOT / ".claude" / "skills",
     REPO_ROOT / ".agents" / "skills",
     REPO_ROOT / ".gemini" / "plugins" / "lrh" / "skills",
+    REPO_ROOT / "plugins" / "lrh" / "skills",
 )
 AFFECTED_SKILLS = (
     "lrh-codex-export",

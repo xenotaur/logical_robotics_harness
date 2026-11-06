@@ -2,14 +2,14 @@
 execution_id: 2026_11_06_21_32_17_CLAUDE_PLUGIN_CLOUD_RESULTS_CONFIRM
 prompt_id: PROMPT(AD_HOC:CLAUDE_PLUGIN_CLOUD_RESULTS_CONFIRM)[2026-11-06T21:32:17+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/861
-commit:
+commit: 660cb98528fc429a97798b21a7da5889ea056f39
 created_at: 2026-11-06T21:32:17+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/861
-session_transcript: pending
+session_transcript: claude-app:b45207bd-f56d-4b2d-a182-23126acc88a6
 ---
 
 # Summary

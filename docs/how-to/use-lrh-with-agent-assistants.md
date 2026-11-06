@@ -248,9 +248,12 @@ for exactly what the export writes.
 #### Add the marketplace on claude.ai
 1. In claude.ai, open **Customize > Plugins** and add a marketplace from
    GitHub: `xenotaur/logical_robotics_harness`.
-2. Turn on **Sync automatically** so the plugin follows the repository's
-   default branch.
-3. Enable the `lrh` plugin.
+2. Turn on **Sync automatically** when the add flow offers it, so the plugin
+   follows the repository's default branch. On a personal account it was a
+   step in the add flow, and the flow may ask for the repository a second
+   time; there is no separate sync button afterward.
+3. Enable the `lrh` plugin. It then appears under "From marketplaces you
+   added", with every LRH skill listed.
 
 Menu names may change; Anthropic's plugin documentation is authoritative.
 claude.ai's own limits apply to the plugin (5,000 files and 200 MB), and the
@@ -260,17 +263,38 @@ export checks them.
 Start a new session at claude.ai/code. Plugin skills are namespaced by plugin,
 so LRH skills appear as `lrh:<skill-name>`, for example `/lrh:lrh-design`.
 
-What is known so far:
+- **Type the prefixed name.** In a cloud session only `/lrh:lrh-design`
+  runs the plugin skill. The short `/lrh-design` is not a command there,
+  even though the composer offers the prefixed name as a completion. In a
+  session on a repository that commits LRH skills, `/lrh-design` runs the
+  repository's copy instead.
+- **The composer lists plugin skills only after the session starts.** Before
+  the first message, typing `/lrh:` shows nothing. To check that the plugin
+  is enabled before then, type `/skills`, which opens a list of your skills
+  including the plugin's. Once the session is running, `/lrh:` autocompletes
+  with descriptions.
+- **To check what loaded**, ask Claude in the session to run
+  `claude plugin list`. The plugin shows as `lrh@synced` with status loaded.
+  `/plugin` is not available in cloud sessions.
+- **Manual-only skills** (today only `lrh-codex-session`) are left out of
+  Claude's skill list, as intended. Run them by name.
 
-- A probe on 2026-10-26 confirmed that a plugin added to a personal claude.ai
-  account loads in a cloud session with no repository attached. Anthropic's
-  documentation lists only the terminal, Desktop, IDE, and Cowork for synced
-  plugins, so this behavior is real but undocumented, and could change.
-- Repository-attached cloud sessions have not been tested yet.
-- Whether a personally added marketplace re-syncs on every push is untested.
-  If an update doesn't appear, re-sync the marketplace from the same screen.
+What is known so far, from a probe on 2026-10-26 and a test of this
+marketplace on 2026-11-06, both on a personal claude.ai account:
+
+- The plugin loads in cloud sessions with and without a repository attached.
+  Anthropic's documentation lists only Cowork and terminal sessions for
+  synced plugins, so this behavior is real but undocumented, and could
+  change.
 - In a session on the LRH repository itself, the committed
-  `.claude/skills/lrh-*` copies and the plugin's `lrh:*` copies both load.
+  `.claude/skills/lrh-*` copies and the plugin's `lrh:*` copies both load,
+  under different names. Typed commands work either way, but the doubled
+  list can exceed Claude Code's skill-listing budget, which then drops
+  descriptions and makes Claude less likely to pick a skill on its own.
+- Skill texts cite `src/lrh/skills/_shared/` files by repository path. Those
+  files aren't in the plugin, but each citation sits beside an inlined copy,
+  so skills run without them.
+- Whether a personally added marketplace re-syncs on every push is untested.
 
 #### Install the `lrh` CLI in the cloud environment
 Skill instructions do not install tools. Most LRH workflows run the `lrh`
@@ -289,8 +313,17 @@ and `lrh-work-item` still help with planning and drafting, but steps that call
 Every merge to `main` that changes a skill also changes the committed plugin.
 The plugin has no `version` to pin it, so with Sync automatically on, a
 change can reach cloud sessions as soon as it merges, broken skills included;
-the packaging test and `claude plugin validate` are the guard. Exactly how
-claude.ai versions a plugin without a `version` is not yet confirmed.
+the packaging test and `claude plugin validate` are the guard. claude.ai
+labels the plugin `v1`; whether later syncs change that label is not yet
+confirmed.
+
+A cloud session picks up plugin changes when it starts. `/reload-plugins`
+is not available in cloud sessions, so start a new session to get a change.
+`/reload-skills` works there, but whether it picks up a plugin change is
+untested. If an update doesn't show up in new sessions, check the plugin's
+page under **Customize > Plugins** for its last update time. Anthropic's
+[plugin overview](https://claude.com/docs/plugins/overview) also describes a
+**Check for updates** action for a marketplace you added.
 
 ---
 

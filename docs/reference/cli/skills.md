@@ -246,8 +246,9 @@ full Claude frontmatter, plus any `references/`, `scripts/`, and `assets/`.
 `agents/`, `_`-prefixed shared folders such as `_shared/`, hidden files, and
 Python caches are left out; other top-level entries are skipped and reported.
 `plugin.json` sets no `version`, so no manifest version pins the plugin and
-every change on the marketplace branch can reach accounts that sync it. How
-claude.ai versions a plugin without one is not yet confirmed.
+every change on the marketplace branch can reach accounts that sync it.
+claude.ai labels such a plugin `v1`; whether later syncs change that label is
+not yet confirmed.
 
 **Validation.** Skills are checked as for `chatgpt` (frontmatter, names,
 descriptions, `disable-model-invocation` values, symlinks, and safe paths),

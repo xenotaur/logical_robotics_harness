@@ -261,9 +261,20 @@ claude.ai's own limits apply to the plugin (5,000 files and 200 MB), and the
 export checks them.
 
 #### Use it in a cloud session
-Start a new session at claude.ai/code. Plugin skills are namespaced by plugin,
-so LRH skills appear as `lrh:<skill-name>`, for example `/lrh:lrh-design`.
+Start a new session at claude.ai/code, or a cloud session from the Claude
+desktop app. Plugin skills are namespaced by plugin, so LRH skills appear as
+`lrh:<skill-name>`, for example `/lrh:lrh-design`.
 
+- **Use a session created after you enabled the plugin.** In testing, a
+  cloud session got your account's plugins when it was created, and resuming
+  an older session did not add them; Anthropic's documentation doesn't
+  cover this for cloud sessions. A desktop-started cloud session created
+  before the plugin existed, and resumed since, had your account skills
+  (those do refresh) but no plugins at all: `claude plugin list` reported
+  "No plugins installed". A new session on the same repository and
+  environment had the `lrh:` skills at once. `/reload-plugins` is refused
+  in cloud sessions ("isn't available over a remote connection"), so there
+  is no in-place refresh: start a new session.
 - **Type the prefixed name.** In a cloud session only `/lrh:lrh-design`
   runs the plugin skill. The short `/lrh-design` is not a command there,
   even though the composer offers the prefixed name as a completion. In a
@@ -324,9 +335,10 @@ plugin page labels it `v1` (inside a session, `claude plugin list` reports
 "Version: unknown"); whether later syncs change that label is not yet
 confirmed.
 
-A cloud session is expected to load the plugin as claude.ai last synced it,
-when the session starts; that matches what the test saw, but a later change
-has not been tried. `/reload-plugins` is not available in cloud sessions, so
+In testing, a cloud session got the plugin as claude.ai had synced it when
+the session was created, and resuming an older session did not add a plugin
+enabled later. Picking up a later change to an already-enabled plugin has
+not been tried. `/reload-plugins` is not available in cloud sessions, so
 starting a new session after claude.ai has synced a change is the expected
 way to get it.
 `/reload-skills` works there, but whether it picks up a plugin change is

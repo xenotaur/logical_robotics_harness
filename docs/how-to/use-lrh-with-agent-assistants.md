@@ -293,8 +293,7 @@ marketplace on 2026-11-06, both on a personal claude.ai account:
   change.
 - In a session on the LRH repository itself, the committed
   `.claude/skills/lrh-*` copies and the plugin's `lrh:*` copies both load,
-  under different names. Typed commands work either way, but the doubled
-  list can exceed Claude Code's skill-listing budget, which then drops
+  under different names. The doubled list can exceed Claude Code's skill-listing budget, which then drops
   descriptions and makes Claude less likely to pick a skill on its own.
 - Skill texts cite `src/lrh/skills/_shared/` files by repository path. Those
   files aren't in the plugin, but no skill needs them to run: each citation
@@ -320,13 +319,16 @@ and `lrh-work-item` still help with planning and drafting, but steps that call
 Every merge to `main` that changes a skill also changes the committed plugin.
 The plugin has no `version` to pin it, so with Sync automatically on, a
 change can reach cloud sessions as soon as it merges, broken skills included;
-the packaging test and `claude plugin validate` are the guard. claude.ai
-labels the plugin `v1`; whether later syncs change that label is not yet
+the packaging test and `claude plugin validate` are the guard. claude.ai's
+plugin page labels it `v1` (inside a session, `claude plugin list` reports
+"Version: unknown"); whether later syncs change that label is not yet
 confirmed.
 
-A cloud session loads the plugin as claude.ai last synced it, when the
-session starts. `/reload-plugins` is not available in cloud sessions, so
-start a new session to get a change once claude.ai has synced it.
+A cloud session is expected to load the plugin as claude.ai last synced it,
+when the session starts; that matches what the test saw, but a later change
+has not been tried. `/reload-plugins` is not available in cloud sessions, so
+starting a new session after claude.ai has synced a change is the expected
+way to get it.
 `/reload-skills` works there, but whether it picks up a plugin change is
 untested. The plugin's page under **Customize > Plugins** shows when it was
 last updated. Anthropic's

@@ -247,8 +247,9 @@ full Claude frontmatter, plus any `references/`, `scripts/`, and `assets/`.
 Python caches are left out; other top-level entries are skipped and reported.
 `plugin.json` sets no `version`, so no manifest version pins the plugin and
 every change on the marketplace branch can reach accounts that sync it.
-claude.ai labels such a plugin `v1`; whether later syncs change that label is
-not yet confirmed.
+claude.ai's plugin page labeled the LRH plugin `v1`, while `claude plugin
+list` in a cloud session reports "Version: unknown"; whether later syncs
+change that label is not yet confirmed.
 
 **Validation.** Skills are checked as for `chatgpt` (frontmatter, names,
 descriptions, `disable-model-invocation` values, symlinks, and safe paths),

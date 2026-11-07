@@ -1,0 +1,168 @@
+---
+resolution: null
+blocked_reason: null
+blocked: false
+id: WI-CLOUD-SESSION-PROBE
+title: "Probe a Claude Code cloud session for the facts PROP-LRH-CLOUD-SESSION-CAPTURE depends on"
+type: investigation
+status: proposed
+owner: anthony
+contributors:
+  - anthony
+assigned_agents: []
+related_focus:
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
+related_roadmap:
+  - ROADMAP-PHASE-04
+related_workstreams: []
+related_design:
+  - project/design/proposals/proposed/lrh-cloud-session-capture/00_proposal.md
+  - project/audits/2026-11-06-cloud-session-export-audit.md
+depends_on: []
+blocked_by: []
+expected_actions:
+  - create_report
+  - edit_file
+forbidden_actions:
+  - force_push
+  - delete_branch
+  - merge_pr
+  - print_transcript_text
+  - commit_transcript_export
+  - modify_user_settings
+acceptance:
+  - "An execution record states, from commands run in a real claude.ai/code cloud session, whether a synced plugin's bin/ directory is on the Bash tool's PATH"
+  - "The record states the python3 version and whether PyYAML imports in the default image"
+  - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
+  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
+  - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, whether it is complete or missing compacted messages, and which session id it carries, without reading or printing transcript content"
+  - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
+required_evidence:
+  - manual_review
+  - lrh_validate
+artifacts_expected:
+  - "project/executions/WI-CLOUD-SESSION-PROBE/<timestamp>_WI_CLOUD_SESSION_PROBE.md"
+  - project/audits/2026-11-06-cloud-session-export-audit.md
+  - project/design/proposals/proposed/lrh-cloud-session-capture/00_proposal.md
+---
+
+# WI-CLOUD-SESSION-PROBE: Probe a cloud session for the facts the proposal depends on
+
+## Summary
+
+Run a real Claude Code cloud session and record five facts that
+`PROP-LRH-CLOUD-SESSION-CAPTURE` relies on but Claude Code's documentation
+doesn't settle:
+
+- whether a synced plugin's `bin/` is on PATH;
+- the Python and PyYAML runtime in the default image;
+- which session-ID environment variables are set;
+- whether an exact allow rule bypasses the auto-mode classifier;
+- whether teleporting the session writes a complete local transcript, which
+  would let the export run locally and skip the download.
+
+## Problem / Context
+
+The proposal's Decision 1 (bundle the CLI in the plugin) depends on plugin
+`bin/` working for an account-synced plugin in a cloud session. The plugin
+reference documents `bin/`, but not cloud behavior. Decisions 3 and 4
+assume behavior that is documented in general but has never been checked in
+a cloud session. `project/audits/2026-11-06-cloud-session-export-audit.md`
+lists these as open questions. A probe is cheap, and it stops two
+deliverables from being built on assumptions. The repo already has a
+precedent: the `lrh-cloud-probe` plugin probe recorded in
+`WI-SKILLS-CLAUDE-PLUGIN-EXPORT`.
+
+### Duplication search
+- In-repo: Related: `project/work_items/resolved/WI-SKILLS-CLAUDE-PLUGIN-EXPORT.md`. Its dogfood covered skill loading only, not `bin/`, environment variables, or permissions.
+- Sibling repos: None identified
+- External libraries: None identified
+- Recommendation: Proceed
+
+### Demand search
+- Work items: None found
+- Proposals: Found: PROP-LRH-CLOUD-SESSION-CAPTURE — this item is that proposal's first implementation step
+- Backlog: No matching entries
+- Recommendation: No action
+
+## Scope
+
+- Run one or more claude.ai/code cloud sessions, with the probe plugin
+  enabled, on a test repository.
+- Record the answers as an execution record, and fold them into the audit
+  and the proposal's Open Questions.
+
+## Required Changes
+
+1. Build a minimal throwaway probe plugin, or extend the existing
+   `lrh-cloud-probe`, with a `bin/lrh-probe` script that prints its own path
+   and exits. Enable it on claude.ai and start a fresh cloud session. Plugins
+   reach a session only when it is created.
+2. In that session, run:
+   - `command -v lrh-probe`;
+   - `python3 --version`;
+   - `python3 -c "import yaml"`;
+   - for each of the four variables, a check that prints only set or unset,
+     plus each ID's prefix or format.
+3. Test an allow rule against a control, on single-repo cloud sessions in
+   auto mode, with `lrh` installed by setup script:
+   1. **Control.** With no LRH allow rule in the repository's
+      `.claude/settings.json`, run
+      `lrh conversation export-claude-session --out <scratchpad>/probe.md`,
+      the command the taurworks session was denied. Record whether the
+      classifier denied it.
+   2. **With the rule.** In a fresh session on a branch whose
+      `.claude/settings.json` allows
+      `Bash(lrh conversation export-claude-session *)`, run the same
+      command. Record whether it was denied.
+   3. If the command ran in either case, delete `probe.md` without opening
+      or printing it, and record its size only.
+
+   If the control isn't denied, record the allow-rule result as
+   inconclusive, not as a pass. `current-claude-session-id` alone isn't a
+   useful test: it reads environment variables and globs for the
+   transcript path without opening the file
+   (`claude_session.py:49-104`), so it may never be denied.
+4. From a clean local checkout of the session's repository, with the cloud
+   session's branch pushed, run `claude --teleport <session-id>`. Then
+   record:
+   - whether a new `*.jsonl` file appears under `~/.claude/projects/`, by
+     name and size only;
+   - its session ID;
+   - whether `lrh conversation current-claude-session-id` resolves it;
+   - whether the cloud session had been compacted.
+
+   Don't open or print the transcript.
+5. Write the execution record under `project/executions/WI-CLOUD-SESSION-PROBE/`.
+6. Update the audit's open-questions section and the proposal's
+   `## Open Questions` with the answers.
+
+## Non-Goals
+
+- Do not implement the bundled CLI, the cloud branch, or any skill change.
+- Do not record any transcript content. The only export run is the
+  allow-rule test in step 3: written to the scratchpad, never opened,
+  printed or committed, and deleted afterwards. Environment variables are
+  reported as present or absent, plus ID format, only.
+- Do not change claude.ai account or environment settings beyond what the
+  probe needs, and record anything that was changed.
+
+## Acceptance Criteria
+
+- The execution record answers each of the five questions with the command
+  run and what it showed, or says plainly that a question couldn't be
+  answered, and why.
+- The audit and the proposal's Open Questions reflect the answers.
+- `lrh validate` reports 0 errors.
+
+## Validation
+
+- `lrh validate`
+
+## Risk Notes
+
+- A single session is one observation. Record the date, the account type
+  (personal or org), and the environment's network level, so a later
+  regression can be compared.
+- If `bin/` isn't on PATH, Decision 1 falls back to the setup-script route,
+  and `WI-PLUGIN-BUNDLED-CLI` should be abandoned or rescoped.

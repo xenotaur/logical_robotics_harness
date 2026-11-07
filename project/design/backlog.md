@@ -2405,3 +2405,82 @@ rather than a profile. Revisit if a real need appears.
 
 **Source:** `project/design/proposals/proposed/lrh-profiles/00_proposal.md`
 (Decision 3); owner decision recorded in this session.
+
+---
+
+## Open questions: how claude.ai account plugins reach Claude Code cloud sessions
+
+**Noted:** 2026-11-06, while dogfooding the `lrh` plugin marketplace from
+`WI-SKILLS-CLAUDE-PLUGIN-EXPORT` (PR #859) in claude.ai/code and in cloud
+sessions started from the Claude desktop app. Anthropic's documentation
+covers synced plugins only for Cowork and terminal sessions
+(`plugins/loading.md`, "Plugins synced from claude.ai"). Everything known
+about cloud sessions comes from our own observations, so this entry keeps
+the open questions in one place. When a plugin misbehaves later, start
+here.
+
+**What is established** (observed, 2026-11-06):
+
+- New cloud sessions, started from claude.ai/code or the desktop app, load
+  account plugins as `<name>@synced`. This holds with or without a
+  repository attached, and for marketplace-added as well as uploaded
+  plugins.
+- A desktop-started cloud session for `xenotaur/taurworks`, created
+  2026-09-21 and resumed repeatedly since, had current account skills
+  (they re-synced on resume, `CLAUDE_CODE_SYNC_SKILLS=1`). But
+  `~/.claude/plugins/synced/<org>_<account>/` was empty, and
+  `claude plugin list` said "No plugins installed". A new session on the
+  same repository had `lrh:` at once.
+- `/reload-plugins` is refused in cloud sessions ("isn't available over a
+  remote connection in this session"), however they were started.
+- Only the prefixed `/lrh:lrh-*` names run in a cloud session without the
+  repository's own LRH skills.
+
+**Open questions:**
+
+1. **Creation-time sync or pre-sync session?** The taurworks session
+   predates every plugin on the account (the probe plugins are from
+   2026-10-26), and its environment reported `CLAUDE_CODE_VERSION=2.1.42`.
+   Two explanations fit:
+   - (a) cloud sessions take account plugins only when created;
+   - (b) sessions created before plugin sync existed never get it, while
+     newer sessions might pick up later changes.
+
+   The docs say "start a new session", which is right under both.
+2. **Does a newly enabled plugin reach an existing, post-sync session?**
+   This would settle question 1. A session created after 2026-10-26 that
+   later gains a newly enabled account plugin would show which
+   explanation holds.
+3. **Does a running or new session pick up a change to an already-enabled
+   plugin?** For example, a skill edit merged to `main`.
+4. **Does a personally added GitHub marketplace with Sync automatically
+   re-sync on push?** Only the first sync after PR #859's merge was
+   observed. claude.ai labels the plugin `v1`, while `claude plugin list`
+   says "Version: unknown". Whether that label changes on later syncs is
+   also unknown.
+5. **Can a plugin toggle reach a running Claude Code cloud session by a
+   background path?** Anthropic describes this for cloud Cowork sessions.
+   It is untested for Claude Code cloud sessions.
+
+**Symptoms to match against:**
+
+- A plugin missing from an **older** cloud session, but present in a new
+  one: questions 1–2. Record the old session's creation date,
+  `CLAUDE_CODE_VERSION`, and whether
+  `~/.claude/plugins/synced/*/` is empty.
+- A skill change not showing up in **new** sessions after it merged:
+  question 4. Check the plugin's last-update time under Customize >
+  Plugins.
+- A skill change not showing up in an **existing** session: question 3.
+  Expected for now; start a new session.
+
+**Idea:** No work item yet. Answer these opportunistically as they come up,
+and record each observation here or in a dogfood execution record. If
+question 1 resolves to (b), soften the "created after you enabled the
+plugin" bullet in `docs/how-to/use-lrh-with-agent-assistants.md` §5.
+
+**Source:**
+- `project/executions/WI-SKILLS-CLAUDE-PLUGIN-EXPORT/2026_11_06_21_08_36_WI_SKILLS_CLAUDE_PLUGIN_EXPORT_DOGFOOD.md`
+- `project/executions/AD_HOC/2026_11_06_23_53_51_CLAUDE_PLUGIN_NEW_SESSION_CLOSEOUT.md`
+  (the PR #862 review notes)
+- PRs #859, #861, #862

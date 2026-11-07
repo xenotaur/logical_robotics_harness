@@ -2,14 +2,14 @@
 execution_id: 2026_10_11_04_31_38_LRH_MULTI_FOCUS_SUPPORT
 prompt_id: PROMPT(AD_HOC:LRH_MULTI_FOCUS_SUPPORT)[2026-10-11T02:22:47+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/825
-commit:
+commit: 58e4b822d42f1e2ca346e56b218ed49cfcd7c264
 created_at: 2026-10-11T04:31:38+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/lrh-multi-focus-support/00_proposal.md
-session_transcript: pending
+session_transcript: claude-app:017c7be3-d288-4b60-becf-c31f8f62ebd6
 ---
 
 # Summary

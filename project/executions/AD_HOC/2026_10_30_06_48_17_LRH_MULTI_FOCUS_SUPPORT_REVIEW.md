@@ -2,10 +2,10 @@
 execution_id: 2026_10_30_06_48_17_LRH_MULTI_FOCUS_SUPPORT_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_MULTI_FOCUS_SUPPORT_REVIEW)[2026-10-27T05:20:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/825
-commit:
+commit: 58e4b822d42f1e2ca346e56b218ed49cfcd7c264
 created_at: 2026-10-30T06:48:17+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/825

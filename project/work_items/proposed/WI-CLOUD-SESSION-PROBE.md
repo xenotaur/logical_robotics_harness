@@ -34,7 +34,7 @@ acceptance:
   - "An execution record states, from commands run in a real claude.ai/code cloud session, whether a synced plugin's bin/ directory is on the Bash tool's PATH"
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
-  - "The record states whether an exact Bash(lrh conversation ...) allow rule in the session repository's .claude/settings.json ran the command without a classifier denial in auto mode"
+  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
   - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, whether it is complete or missing compacted messages, and which session id it carries, without reading or printing transcript content"
   - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
 required_evidence:
@@ -104,10 +104,25 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
    - `python3 -c "import yaml"`;
    - for each of the four variables, a check that prints only set or unset,
      plus each ID's prefix or format.
-3. On a single-repo cloud session whose repository's `.claude/settings.json`
-   allows `Bash(lrh conversation current-claude-session-id *)`, with `lrh`
-   installed by setup script, run that command in auto mode. Record whether
-   it was denied.
+3. Test an allow rule against a control, on single-repo cloud sessions in
+   auto mode, with `lrh` installed by setup script:
+   1. **Control.** With no LRH allow rule in the repository's
+      `.claude/settings.json`, run
+      `lrh conversation export-claude-session --out <scratchpad>/probe.md`,
+      the command the taurworks session was denied. Record whether the
+      classifier denied it.
+   2. **With the rule.** In a fresh session on a branch whose
+      `.claude/settings.json` allows
+      `Bash(lrh conversation export-claude-session *)`, run the same
+      command. Record whether it was denied.
+   3. If the command ran in either case, delete `probe.md` without opening
+      or printing it, and record its size only.
+
+   If the control isn't denied, record the allow-rule result as
+   inconclusive, not as a pass. `current-claude-session-id` alone isn't a
+   useful test: it reads environment variables and globs for the
+   transcript path without opening the file
+   (`claude_session.py:49-104`), so it may never be denied.
 4. From a clean local checkout of the session's repository, with the cloud
    session's branch pushed, run `claude --teleport <session-id>`. Then
    record:
@@ -125,9 +140,10 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 ## Non-Goals
 
 - Do not implement the bundled CLI, the cloud branch, or any skill change.
-- Do not run `export-claude-session` or record any transcript content.
-  Environment variables are reported as present or absent, plus ID format,
-  only.
+- Do not record any transcript content. The only export run is the
+  allow-rule test in step 3: written to the scratchpad, never opened,
+  printed or committed, and deleted afterwards. Environment variables are
+  reported as present or absent, plus ID format, only.
 - Do not change claude.ai account or environment settings beyond what the
   probe needs, and record anything that was changed.
 

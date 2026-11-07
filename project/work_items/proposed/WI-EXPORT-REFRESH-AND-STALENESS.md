@@ -33,9 +33,11 @@ forbidden_actions:
   - print_transcript_text
   - skills_install_force
 acceptance:
-  - "export-claude-session --refresh overwrites an existing destination only when that file is an LRH Claude export of the same source id whose recorded source byte count and hash show the recorded source is a byte prefix of the current transcript (the match_source_grew case); every other existing destination is refused with a clear error and left untouched"
+  - "export-claude-session records its render options (include_subagents and include_system_attachments) in the export manifest; existing manifest fields are unchanged, and inspect-export tolerates exports that predate the new fields"
+  - "export-claude-session --refresh overwrites an existing destination only when that file is an LRH Claude export of the same source id, whose recorded render options equal the current invocation's, and whose recorded source byte count and hash show the recorded source is a byte prefix of the current transcript (the match_source_grew case); every other existing destination, including one with no recorded render options, is refused with a clear error that names any differing flags, and is left untouched"
   - "--refresh with no existing destination behaves like a normal export; --refresh and --force are mutually exclusive"
   - "lrh-export-claude documents --refresh as not requiring the --force confirmation gate, because it can't overwrite a different export; --force still always waits for confirmation"
+  - "/lrh-closeout Step 8 and /lrh-work-remains item 11 take cloud status only from the cloud_session field of lrh conversation current-claude-session-id --format json, treating a missing field as not a cloud session, and never read CLAUDE_CODE_REMOTE themselves"
   - "/lrh-closeout Step 8 and /lrh-work-remains item 11, when the session is a cloud session, report 'no export' or 'export is N bytes stale' using inspect-export's grown-by count, and offer a refresh plus delivery; they never run the export themselves without the export skill's own gate"
   - "The /lrh-closeout report states when lrh sessions closeout-sync wrote to an archive that won't survive the session"
   - "Unit tests cover the refresh accept and refuse cases; lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass; rendered skill copies are regenerated without --force"
@@ -45,7 +47,9 @@ required_evidence:
   - test_output
 artifacts_expected:
   - src/lrh/conversations/claude_export.py
+  - src/lrh/conversations/export_manifest.py
   - tests/conversations_tests/claude_export_test.py
+  - tests/conversations_tests/export_manifest_test.py
   - src/lrh/skills/lrh-export-claude/SKILL.md
   - src/lrh/skills/lrh-closeout/SKILL.md
   - src/lrh/skills/lrh-work-remains/references/grounding-sources.md
@@ -71,6 +75,12 @@ is 1.5 seconds by default and 60 at most, teardown behavior is
 undocumented, and its output would land in the discarded container (audit
 §1.5). `inspect-export --source` already distinguishes `match_source_grew`
 from `mismatch`, so the CLI can tell a safe refresh from a real overwrite.
+That comparison covers the source only. An export's content also depends on
+`--include-subagents` and `--include-system-attachments`, and the manifest
+doesn't record either today (`claude_export.py:119-135`). Without them, a
+refresh with default flags could silently replace an export that included
+subagent transcripts with one that doesn't. So the manifest has to record
+the render options, and `--refresh` has to require them to match.
 `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 6.
 
 ### Duplication search
@@ -92,24 +102,36 @@ from `mismatch`, so the CLI can tell a safe refresh from a real overwrite.
 
 ## Required Changes
 
-1. Add `--refresh` to `export-claude-session` in
+1. Record `include_subagents` and `include_system_attachments` in the
+   export manifest (`export_manifest.ConversationExportManifest` and its
+   frontmatter), set from the invocation. Keep `inspect-export` working on
+   exports that lack them.
+2. Add `--refresh` to `export-claude-session` in
    `src/lrh/conversations/claude_export.py`. Before writing, read the
-   existing destination's frontmatter, check that the source ID matches, and
-   verify that the recorded source bytes are a prefix of the current source
-   using the inspector's own comparison. Otherwise refuse. Make
-   `--refresh` and `--force` mutually exclusive.
-2. Add tests for the accept, refuse-different-source, refuse-mismatch,
+   existing destination's frontmatter and check, in order:
+   - the source ID matches;
+   - the recorded render options are present and equal the current
+     invocation's;
+   - the recorded source bytes are a prefix of the current source, using
+     the inspector's own comparison.
+
+   Otherwise refuse, naming any flag that differs so the user can re-run
+   with matching flags. Make `--refresh` and `--force` mutually exclusive.
+3. Add tests for the accept, refuse-different-source, refuse-mismatch,
+   refuse-different-render-options, refuse-no-recorded-render-options,
    refuse-non-LRH-file, and no-existing-file cases.
-3. Update `lrh-export-claude`:
+4. Update `lrh-export-claude`:
    - Step 3: `--refresh` is not on the dangerous-flag list.
-   - Step 3's "destination already exists" note: suggest `--refresh` first.
-4. Update `/lrh-closeout` Step 8 and `/lrh-work-remains` item 11 with the
-   cloud-session stale-export check. Cloud status comes from
-   `current-claude-session-id`'s `cloud_session` field once
-   `WI-EXPORT-CLAUDE-CLOUD-BRANCH` ships, and from `CLAUDE_CODE_REMOTE`
-   until then.
-5. Document `--refresh` in `docs/reference/cli/conversation.md`, and
-   regenerate rendered copies.
+   - Step 3's "destination already exists" note: suggest `--refresh` first,
+     with the same render flags as the earlier export.
+5. Update `/lrh-closeout` Step 8 and `/lrh-work-remains` item 11 with the
+   cloud-session stale-export check. Cloud status comes only from the
+   `cloud_session` field of `current-claude-session-id --format json`
+   (Decision 4). Until `WI-EXPORT-CLAUDE-CLOUD-BRANCH` adds that field, a
+   missing field means "not a cloud session", so the check stays dormant
+   rather than reading `CLAUDE_CODE_REMOTE` in skill text.
+6. Document `--refresh` and the new manifest fields in
+   `docs/reference/cli/conversation.md`, and regenerate rendered copies.
 
 ## Non-Goals
 
@@ -120,7 +142,9 @@ from `mismatch`, so the CLI can tell a safe refresh from a real overwrite.
 
 ## Acceptance Criteria
 
-- `--refresh` accepts only the grown-same-source case, as shown by tests.
+- The manifest records the render options.
+- `--refresh` accepts only the grown-same-source case with matching render
+  options, as shown by tests.
 - `--force` keeps its confirmation gate; `--refresh` doesn't need one.
 - Closeout and work-remains flag missing or stale exports in cloud sessions.
 - `lrh validate`, `scripts/test`, `scripts/lint` and
@@ -137,7 +161,10 @@ from `mismatch`, so the CLI can tell a safe refresh from a real overwrite.
 
 ## Risk Notes
 
-- The prefix check needs the source byte count recorded at export time.
-  Exports without it must be refused rather than guessed.
+- The prefix check needs the source byte count recorded at export time, and
+  the options check needs the recorded render options. Exports without
+  either must be refused rather than guessed, so exports made before this
+  item ships can't be refreshed; re-exporting them still goes through
+  `--force` and its gate.
 - Closeout and work-remains must not read transcript content. The grown-by
   count from `inspect-export` is metadata only.

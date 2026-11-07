@@ -273,17 +273,27 @@ Make re-export safe without `--force`.**
    - Honors `LRH_SESSION_ARCHIVE_ROOT`.
    - Creates missing folders 0700 and writes the file 0600 from the first
      byte.
-   - Checks the manifest, and refuses to overwrite a different export.
+   - Checks the manifest. An identical existing file is a no-op; any other
+     existing file is refused by default.
+   - An explicit `--replace-older` replaces an older snapshot of the same
+     session, judged from the two manifests only. `--refresh`'s prefix
+     check can't run here: it needs the original transcript, which stayed
+     in the container.
    - Copies by default; deleting the download takes an explicit `--move`.
 
    This replaces the manual `mkdir`/`mv`/`chmod`. The download itself stays
    manual unless teleport proves out.
 7. **Snapshot timing: refresh without overwrite risk, and flag staleness.**
+   - Record the render options (`include_subagents`,
+     `include_system_attachments`) in the export manifest, which today
+     records neither (`claude_export.py:119-135`).
    - Add a `--refresh` mode to the exporter. It overwrites only an existing
-     export of the same source ID whose recorded source is a byte-prefix of
-     the current transcript (the `match_source_grew` case), and refuses
-     anything else. Because it can't destroy a different export, it doesn't
-     need the `--force` gate. The name promises exactly that.
+     export of the same source ID, with the same recorded render options,
+     whose recorded source is a byte-prefix of the current transcript (the
+     `match_source_grew` case), and refuses anything else. Because it can't
+     destroy a different export, or drop subagent or attachment content an
+     earlier export included, it doesn't need the `--force` gate. The name
+     promises exactly that.
    - `/lrh-closeout` Step 8 and `/lrh-work-remains` item 11 learn one cloud
      rule: in a cloud session, flag "no export" or "export is N bytes stale"
      (from `inspect-export`), and offer a refresh plus delivery. Don't use a
@@ -318,7 +328,9 @@ Make re-export safe without `--force`.**
   `CLAUDE_CODE_REMOTE_SESSION_ID` are set in a cloud session? The taurworks
   session showed that `CLAUDE_CODE_SESSION_ID` resolved.
 - Does a narrow `Bash(lrh conversation export-claude-session *)` allow rule
-  actually suppress the classifier there?
+  actually suppress the classifier there? The test needs a control: the
+  same command run in auto mode without the rule must be denied first, or
+  a pass shows nothing.
 - Does `claude --teleport` write a complete local transcript under
   `~/.claude/projects/`, and under which session ID? If it does, exporting
   locally after teleport skips the download.

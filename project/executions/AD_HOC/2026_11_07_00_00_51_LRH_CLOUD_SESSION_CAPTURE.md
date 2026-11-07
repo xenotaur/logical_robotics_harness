@@ -20,10 +20,11 @@ permission round trips in a Claude Code cloud session on `xenotaur/taurworks`
 
 - an evidence audit;
 - the design proposal `PROP-LRH-CLOUD-SESSION-CAPTURE`;
-- six companion work items.
+- seven companion work items: six in the first commit, and a seventh added
+  in the revision described under Result.
 
-The user confirmed the proposal and all six work items before anything was
-written, and chose a single PR for the set. That's why one execution record
+The user confirmed the proposal and the first six work items before anything
+was written, and chose a single PR for the set. That's why one execution record
 covers the whole set, instead of one per `/lrh-proposal` and
 `/lrh-work-item` run.
 
@@ -33,9 +34,10 @@ covers the whole set, instead of one per `/lrh-proposal` and
   each investigation question, cited to repo files, `lrh conversation ...
   --help` output, and Claude Code docs fetched 2026-11-06.
 - `project/design/proposals/proposed/lrh-cloud-session-capture/00_proposal.md`
-  (`PROP-LRH-CLOUD-SESSION-CAPTURE`): six decisions, the non-goals, an
-  implementation plan, and open questions.
-- `project/work_items/proposed/`, six items:
+  (`PROP-LRH-CLOUD-SESSION-CAPTURE`): seven decisions (six at first, plus
+  Decision 7 from the revision), the non-goals, an implementation plan, and
+  open questions.
+- `project/work_items/proposed/`, six items at first:
   - `WI-CLOUD-SESSION-PROBE`
   - `WI-LRH-CLI-RESOLUTION-REFERENCE`
   - `WI-EXPORT-ALLOWLIST-READY`
@@ -66,6 +68,29 @@ which steps could be automated. The user approved revising the PR:
   path rule, and the desktop app listed no cloud sessions among its 40 most
   recent.
 
+Review fixes, same session: the hosted reviewers' four threads and a
+substitute self-review of `6c15011a` (record
+`2026_11_07_06_32_39_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found nothing
+blocking. The user chose to fix all nine findings in one push:
+
+- **Bundled launcher.** `WI-PLUGIN-BUNDLED-CLI` no longer passes the copy
+  through `PYTHONPATH`, which `python3 -I` ignores. A bootstrap adds the
+  copy to `sys.path` itself, with tests against a shadowing working
+  directory and `PYTHONPATH`. The item now depends on
+  `WI-LRH-CLI-RESOLUTION-REFERENCE`.
+- **Refresh.** The manifest records the render options, and `--refresh`
+  requires them to match (Decision 6, audit §2.7,
+  `WI-EXPORT-REFRESH-AND-STALENESS`). Closeout and work-remains read cloud
+  status only from the CLI's `cloud_session` field.
+- **Import.** The "grown same-source" rule couldn't be checked without the
+  original transcript. It is replaced by "identical is a no-op, refuse
+  otherwise", plus an explicit, manifest-only `--replace-older` (Decision
+  7, audit §2.6, `WI-CLAUDE-EXPORT-LOCAL-IMPORT`).
+- **Probe.** The allow-rule test gains a control run without the rule.
+- **Allowlist.** The settings snippet is tied to the launcher name, in
+  Decision 3, `WI-EXPORT-ALLOWLIST-READY` and `WI-PLUGIN-BUNDLED-CLI`.
+- **This record** now reflects seven decisions and seven items.
+
 No code, skill, or documentation behavior changed.
 
 # Validation
@@ -79,6 +104,8 @@ No code, skill, or documentation behavior changed.
 - `lrh validate`: 0 errors, 0 warnings after the revision.
 - `lrh prompt check-execution --slug <slug> --work-item AD_HOC`: no prior
   record for `lrh-cloud-session-capture` or any of the six WI slugs.
+- After the review fixes: `lrh validate` and `lrh work-items readiness` for
+  the five changed items (results in the self-review record).
 
 # Follow-up
 
@@ -90,9 +117,12 @@ No code, skill, or documentation behavior changed.
   - whether to bundle PyYAML;
   - a `claude-cloud:` pointer;
   - whether `closeout-sync` should skip mirroring in cloud sessions;
-  - an `import-claude-export` command;
+  - whether teleport writes a complete local transcript (the probe answers
+    this);
+  - whether `lrh sessions sync --exports-dir` should later pick up
+    downloads;
   - Codex Cloud export;
-  - whether to group the six items under a workstream.
+  - whether to group the seven items under a workstream.
 - Coordinate with `WI-EXPORT-SKILL-FAMILY-RENAME` (skill paths) and
   `WI-CLOSEOUT-EXPORT-SCOPE` (the closeout Step 8 offer).
 - `session_transcript: pending`: update to this session's `claude-app:`

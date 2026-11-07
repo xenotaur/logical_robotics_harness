@@ -184,7 +184,9 @@ the rules match.**
   `lrh conversation export-claude-session *` and
   `lrh conversation inspect-export *`, plus an `ask` rule for `--force`.
   `/lrh-config-skills`, or a sibling command, may offer to write it, with
-  confirmation.
+  confirmation. Exact rules match the command word, so if the bundled
+  launcher (Decision 1) isn't named `lrh`, the snippet needs the same rules
+  for the launcher's name. `WI-PLUGIN-BUNDLED-CLI` owns that update.
 - **Docs:** state that multi-repo sessions still prompt.
 
 ### Decision 4: How the skill detects a cloud session
@@ -259,12 +261,18 @@ Options considered:
 
 **Chosen:**
 
+- **Recorded render options.** The export manifest records
+  `include_subagents` and `include_system_attachments`. Today it records
+  neither (`claude_export.py:119-135`), so nothing could tell an export that
+  included subagent transcripts from one that didn't.
 - **`--refresh` on `export-claude-session`.** It overwrites only an existing
-  export of the same source ID whose recorded source is a byte prefix of the
-  current transcript — the case `inspect-export` already reports as
-  `match_source_grew`. It refuses everything else. Because it can't destroy
-  a different export, it doesn't trigger the `--force` gate, and its name
-  promises exactly that.
+  export of the same source ID, with the same recorded render options,
+  whose recorded source is a byte prefix of the current transcript — the
+  case `inspect-export` already reports as `match_source_grew`. It refuses
+  everything else, including exports that predate the recorded options.
+  Because it can't destroy a different export, or quietly drop content an
+  earlier export included, it doesn't trigger the `--force` gate, and its
+  name promises exactly that.
 - **Staleness flags.** In a cloud session, `/lrh-closeout` Step 8 and
   `/lrh-work-remains` item 11 flag "no export" or "export is N bytes stale"
   (from `inspect-export`'s grown-by count), and offer a refresh plus
@@ -323,8 +331,14 @@ Options considered:
 - creates missing folders 0700 and writes the file 0600 from the first byte
   (not `copy2` then `chmod`, as `codex_archive.py:479-480` does);
 - checks the manifest;
-- refuses to overwrite a different export, but accepts an identical one or
-  a grown same-source one, matching `--refresh`;
+- treats an identical existing file as a no-op and refuses any other
+  existing file by default;
+- with an explicit `--replace-older`, replaces an older snapshot of the same
+  session: same `source_id` and recorded render options, with a later
+  `exported_at` and a larger `source_byte_count`. It can't use
+  `--refresh`'s prefix check, which needs the original transcript, and that
+  stayed in the cloud container. The flag's help says it is a manifest-only
+  check;
 - copies by default; deleting the download takes an explicit `--move`.
 
 The precedent is `lrh conversation import-codex-exports`
@@ -359,7 +373,8 @@ Open Questions.
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
    - whether a narrow `lrh conversation …` allow rule actually skips the
-     classifier;
+     classifier, tested against a command the classifier denies without the
+     rule;
    - whether teleporting the session writes a complete local transcript
      that `export-claude-session` can read, and under which session ID.
 
@@ -372,11 +387,16 @@ Open Questions.
    - the skill drops the subshell;
    - the allow/ask settings snippet, optionally offered by
      `/lrh-config-skills`.
-4. **`WI-EXPORT-REFRESH-AND-STALENESS`** — independent. The `--refresh`
-   mode, and the stale-export checks in closeout and work-remains.
-5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe. The exporter writes the
-   `bin/` launcher and the copied `src/lrh`, with a packaging test; settles
-   the launcher's name and whether to copy in PyYAML.
+4. **`WI-EXPORT-REFRESH-AND-STALENESS`** — independent. Recorded render
+   options in the manifest, the `--refresh` mode, and the stale-export
+   checks in closeout and work-remains. The checks read `cloud_session`
+   from item 6's CLI output and stay dormant until it exists.
+5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe and item 2. The exporter
+   writes the `bin/` launcher and the copied `src/lrh`, with a packaging
+   test. The launcher runs `python3 -I` and adds the copy to `sys.path`
+   itself, since `-I` ignores `PYTHONPATH`. Settles the launcher's name and
+   whether to copy in PyYAML, and extends item 3's snippet if the name
+   isn't `lrh`.
 6. **`WI-EXPORT-CLAUDE-CLOUD-BRANCH`** — after the probe, which settles the
    environment-variable facts. Adds the `cloud_session` and
    `remote_session_id` fields, and the skill's cloud branch: export with

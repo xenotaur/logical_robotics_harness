@@ -38,7 +38,8 @@ acceptance:
   - "lrh conversation import-claude-export <file> reads exported_at and source_id from the file's frontmatter and files it at the same path export-claude-session would have written for that export, using one path helper factored out of claude_export.py and shared by both commands; a test asserts both produce the same path for the same inputs"
   - "The archive root resolves through resolve_claude_archive_root, so --archive-root and LRH_SESSION_ARCHIVE_ROOT apply and a root inside the current Git worktree is rejected"
   - "Missing destination folders are created 0700 and the file is written 0600 from its first byte, never via copy2 then chmod, under a permissive umask; existing folders' modes are left unchanged; tests cover this"
-  - "The command refuses a file that isn't an LRH Claude export (missing or invalid manifest) and refuses to overwrite a different existing export; an identical existing file is a no-op success, and a grown same-source export is accepted under the same rule as export-claude-session --refresh"
+  - "The command refuses a file that isn't an LRH Claude export (missing or invalid manifest), and by default refuses to overwrite any existing file that isn't byte-identical; an identical existing file is a no-op success"
+  - "An explicit --replace-older flag overwrites an existing export only when both manifests have the same source_id and the same recorded render options, and the incoming manifest has a later exported_at and a larger source_byte_count; the help text and output say this is a manifest-only check that can't prove the older snapshot is a prefix of the newer one, because the original transcript stayed in the cloud container; without recorded render options in both files, --replace-older refuses"
   - "The source file is left in place by default, and deleted only with an explicit --move after the destination is written and checked; --dry-run reports the destination without writing"
   - "Output is metadata-only (destination, source id, manifest check result) and never prints transcript text"
   - "lrh-export-claude/SKILL.md stops citing claude_export.py line numbers for the path rule and names the helper instead; docs/reference/cli/conversation.md documents the command; lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass; rendered copies are regenerated without --force"
@@ -100,7 +101,7 @@ has the evidence.
 - Recommendation: Proceed
 
 ### Demand search
-- Work items: None found. Adjacent: WI-EXPORT-REFRESH-AND-STALENESS shares the grown-same-source rule; WI-EXPORT-CLAUDE-CLOUD-BRANCH reports this command.
+- Work items: None found. Adjacent: WI-EXPORT-REFRESH-AND-STALENESS adds the recorded render options that `--replace-older` compares; WI-EXPORT-CLAUDE-CLOUD-BRANCH reports this command.
 - Proposals: Found: PROP-LRH-CLOUD-SESSION-CAPTURE (Decision 7)
 - Backlog: No matching entries
 - Recommendation: No action
@@ -118,7 +119,8 @@ has the evidence.
    the export time, and the source ID. Use it from
    `run_convert_claude_session_cli`, with no change in behavior.
 2. Add the `import-claude-export` subcommand, registered next to
-   `import-codex-exports`, with `--archive-root`, `--dry-run` and `--move`.
+   `import-codex-exports`, with `--archive-root`, `--dry-run`, `--move` and
+   `--replace-older`.
    It:
    - parses the manifest;
    - computes the destination with the helper;
@@ -128,10 +130,19 @@ has the evidence.
    - deletes the source only with `--move`.
 3. Overwrite rules:
    - Identical existing file: no-op success.
-   - Grown same-source export: accept, using the same rule as `--refresh`.
-     If `WI-EXPORT-REFRESH-AND-STALENESS` hasn't landed yet, implement the
-     comparison once here and have that item reuse it.
-   - Anything else: refuse.
+   - Anything else: refuse by default, and say how to proceed.
+   - With `--replace-older`: overwrite only when both manifests carry the
+     same `source_id` and the same recorded render options, and the
+     incoming one has a later `exported_at` and a larger
+     `source_byte_count`. Otherwise refuse.
+
+   `--refresh`'s prefix check can't be reused here. It hashes a prefix of
+   the live transcript (`export_inspector.py:404-425`), and at import time
+   both files are exports, with the transcript left in the cloud container.
+   So `--replace-older` is an explicit flag whose help text says it's a
+   manifest-only check. The render-option fields come from
+   `WI-EXPORT-REFRESH-AND-STALENESS`; until they exist, `--replace-older`
+   refuses every file.
 4. Add tests in `tests/conversations_tests/claude_export_test.py`.
 5. Document the command in `docs/reference/cli/conversation.md`. Update
    `lrh-export-claude/SKILL.md` to name the helper instead of line numbers.
@@ -153,8 +164,9 @@ has the evidence.
   enforced by a shared helper and a test.
 - Permissions are 0700 for folders and 0600 for the file from the first
   byte, under a permissive umask.
-- Non-exports and conflicting exports are refused. Identical and grown
-  same-source files are handled.
+- Non-exports and conflicting exports are refused. Identical files are a
+  no-op. A later snapshot of the same session replaces an older one only
+  with `--replace-older`, under the manifest-only rule.
 - The source is kept unless `--move`. `--dry-run` writes nothing.
 - No transcript text is printed.
 - `lrh validate`, `scripts/test`, `scripts/lint` and

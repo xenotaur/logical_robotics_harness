@@ -21,6 +21,7 @@ related_design:
   - project/work_items/resolved/WI-SKILLS-CLAUDE-PLUGIN-EXPORT.md
 depends_on:
   - WI-CLOUD-SESSION-PROBE
+  - WI-LRH-CLI-RESOLUTION-REFERENCE
 blocked_by: []
 expected_actions:
   - edit_file
@@ -37,6 +38,8 @@ forbidden_actions:
 acceptance:
   - "WI-CLOUD-SESSION-PROBE has resolved and confirmed that a synced plugin's bin/ is on PATH in cloud sessions; if it did not, this item is abandoned or rescoped instead of implemented"
   - "lrh skills export --target claude-plugin writes plugins/lrh/bin/<launcher> and a copy of the lrh package from the same source tree, and the launcher runs that copy with python3 without installing, cloning, or downloading anything at run time"
+  - "The launcher runs Python in isolated mode (python3 -I) and puts the copied package first on sys.path from inside Python, computed from the launcher's own resolved location; it never relies on PYTHONPATH, which -I ignores. Tests show it imports the copy, not another lrh, when the working directory contains its own lrh/ package and when PYTHONPATH points at a different lrh"
+  - "If the launcher isn't named lrh, the published allow/ask settings snippet from WI-EXPORT-ALLOWLIST-READY gains matching rules for the launcher name, in the same change"
   - "The launcher's name and the PyYAML decision (bundle it or rely on the image) are recorded in the implementation's execution record, with the PATH-shadowing trade-off for desktop users stated"
   - "The shared CLI-resolution reference from WI-LRH-CLI-RESOLUTION-REFERENCE names the launcher in its resolution order"
   - "The packaging test fails when the committed plugin's copied CLI differs from src/lrh, the export stays within claude.ai's 5,000-file and 200 MB limits, and claude plugin validate passes"
@@ -99,9 +102,13 @@ plugin in cloud sessions is undocumented.
 1. Extend the `claude-plugin` target in `src/lrh/skills/exporter.py`:
    - write the `lrh` package (minus tests and anything the CLI doesn't need)
      under the plugin root;
-   - write an executable launcher in `plugins/lrh/bin/` that runs
-     `python3 -I -m lrh.cli.main "$@"` with that copy on `PYTHONPATH`,
-     resolved relative to the launcher's own location.
+   - write an executable launcher in `plugins/lrh/bin/`. It runs a small
+     bootstrap with `python3 -I`, so the working directory, `PYTHONPATH` and
+     user site-packages can't supply a different `lrh`. The bootstrap
+     resolves its own location, inserts the copied package's root at the
+     front of `sys.path`, and runs `lrh.cli.main` (for example through
+     `runpy.run_module(..., run_name="__main__")`) with the original
+     arguments. Don't pass the copy through `PYTHONPATH`: `-I` ignores it.
 2. Decide and record:
    - the launcher name, `lrh` versus a distinct name, given that `bin/`
      could shadow a local `lrh`;
@@ -113,8 +120,15 @@ plugin in cloud sessions is undocumented.
    `docs/how-to/use-lrh-with-agent-assistants.md` and
    `docs/reference/cli/skills.md`) to describe the launcher and to keep the
    setup script as the fallback.
-5. Update the shared CLI-resolution reference so its order names the
-   launcher.
+5. Update the shared CLI-resolution reference (created by
+   `WI-LRH-CLI-RESOLUTION-REFERENCE`, hence the dependency) so its order
+   names the launcher.
+6. If the launcher isn't named `lrh`, extend the allow/ask settings snippet
+   published by `WI-EXPORT-ALLOWLIST-READY` with the same three allow rules
+   and the `--force` ask rule for the launcher name. Exact Bash rules match
+   the command word, so `Bash(lrh conversation … *)` doesn't cover
+   `<launcher> conversation …`. If that item hasn't landed yet, record the
+   launcher name where it will see it (its Required Changes 3).
 
 ## Non-Goals
 
@@ -127,6 +141,9 @@ plugin in cloud sessions is undocumented.
 
 - The plugin ships a working launcher, and its copied CLI matches `src/lrh`,
   enforced by test.
+- The launcher imports the copy, not another `lrh`, in isolated mode, as
+  shown by tests with a shadowing working directory and `PYTHONPATH`.
+- The settings snippet covers the launcher name.
 - The export stays within claude.ai's limits, and `claude plugin validate`
   passes.
 - A cloud session runs `<launcher> conversation --help` with no setup
@@ -150,6 +167,7 @@ plugin in cloud sessions is undocumented.
   diffs noisier. The sync test keeps them honest.
 - A launcher named `lrh` could shadow an editable install in desktop
   sessions and run different code than the user expects.
-- The repo has no `python3 -I` precedent for the launcher. Check that it
-  still works when the session's working directory contains its own `lrh/`
-  package.
+- The repo has no `python3 -I` precedent for the launcher. `-I` drops the
+  script's directory, the working directory, `PYTHONPATH` and user
+  site-packages from `sys.path`, which is why the bootstrap must add the
+  copy's root itself. The tests above guard this.

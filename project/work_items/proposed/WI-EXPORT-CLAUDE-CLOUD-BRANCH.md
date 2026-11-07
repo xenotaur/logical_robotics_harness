@@ -37,9 +37,9 @@ forbidden_actions:
 acceptance:
   - "lrh conversation current-claude-session-id --format json adds cloud_session (true only when CLAUDE_CODE_REMOTE == 'true') and remote_session_id (CLAUDE_CODE_REMOTE_SESSION_ID or null), stays metadata-only, and existing fields and --field values are unchanged; unit tests cover set, unset and non-'true' values"
   - "lrh-export-claude reads cloud status only from that JSON output, never from the environment directly"
-  - "When cloud_session is true, the skill still exports to the archive, and its Step 3 statement and Step 6 report say plainly that the archive copy is lost when the session ends"
-  - "When cloud_session is true and the session offers a file-delivery tool (checked at run time, never assumed), the skill copies the export to a deliverable location with mode 600 and offers it; when no such tool exists, it says so and doesn't improvise"
-  - "The cloud report includes the one-line 'chmod 600 <file>' to run after download, and the local re-verify command 'lrh conversation inspect-export <file>'"
+  - "When cloud_session is true and the session offers a file-delivery tool (checked at run time, never assumed), the skill exports with --out <delivery-dir>/<source-id>.md straight to a location that tool can send from (the session scratchpad, never a path inside the repository working tree), verifies it with inspect-export, and offers it; there is no in-container archive write and no copy step"
+  - "When cloud_session is true and no file-delivery tool exists, the skill exports to the default archive, says plainly in Step 3 and Step 6 that the copy is lost when the session ends, and doesn't improvise a delivery route"
+  - "The cloud report gives the one local command that files the download, 'lrh conversation import-claude-export <file>' (WI-CLAUDE-EXPORT-LOCAL-IMPORT), falling back to 'chmod 600 <file>' when lrh isn't installed locally or the import command hasn't shipped yet"
   - "Existing gates are unchanged: --force always waits, model-initiated exports wait, no transcript text is printed, and nothing is committed; lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass; rendered copies are regenerated without --force"
 required_evidence:
   - manual_review
@@ -60,9 +60,10 @@ artifacts_expected:
 
 Have `current-claude-session-id` report whether the session is a cloud
 session, from the documented `CLAUDE_CODE_REMOTE`, along with the cloud
-session ID. Give `lrh-export-claude` a cloud branch: it says the archive
-copy is temporary, offers delivery when the session can deliver files, and
-tells the user how to restore 0600 after download.
+session ID. Give `lrh-export-claude` a cloud branch. When the session can
+deliver files, the skill exports straight to a deliverable location and
+offers the file, then tells the user the one local command that files it.
+When the session can't, the skill says the archive copy is temporary.
 
 ## Problem / Context
 
@@ -74,7 +75,9 @@ file's 0600 mode. `CLAUDE_CODE_REMOTE=true` is the documented cloud signal,
 and `CLAUDE_CODE_REMOTE_SESSION_ID` carries the `cse_`-prefixed ID; LRH
 reads neither today (`claude_session.py:14,55-56`). No way to download a
 file from a cloud session is documented, so delivery has to be a run-time
-capability check. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decisions 4 and 5. This
+capability check. Because the in-container archive is thrown away with the
+container, exporting straight to the delivery location saves a copy step and
+a command to approve. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decisions 4, 5 and 7. This
 item depends on `WI-CLOUD-SESSION-PROBE` to confirm which variables are
 actually set.
 
@@ -93,8 +96,11 @@ actually set.
 ## Scope
 
 - Two metadata-only fields on `current-claude-session-id`.
-- A cloud branch in `lrh-export-claude`: an ephemeral-archive notice,
-  conditional delivery, and the chmod and re-verify guidance.
+- A cloud branch in `lrh-export-claude`:
+  - a direct `--out` export to the delivery location, when the session can
+    deliver files;
+  - otherwise, an ephemeral-archive notice;
+  - in the report, the local import command.
 
 ## Required Changes
 
@@ -102,13 +108,16 @@ actually set.
    `remote_session_id` to the resolved identity and the JSON output. Keep
    the text output and `--field` choices backward compatible. Add tests.
 2. In `src/lrh/skills/lrh-export-claude/SKILL.md`, add the cloud branch:
-   - **Steps 1 and 3:** record `cloud_session` from the JSON, and add the
-     ephemeral-archive note to what is stated before writing.
-   - **New delivery step, after Step 5:** if a file-delivery tool is
-     available, copy the verified export with mode 600 and offer it.
-   - **Step 6 report:** add the delivered path (if any), the
-     `chmod 600 <file>` line, and the local `inspect-export` re-verify
-     command.
+   - **Step 1:** record `cloud_session` from the JSON.
+   - **Step 2:** when it is true and a file-delivery tool is available,
+     choose `--out <delivery-dir>/<source-id>.md` instead of the archive.
+     The delivery directory is outside the repository working tree.
+   - **Step 3:** state the delivery destination. Without a delivery tool,
+     state the ephemeral-archive note.
+   - **New step, after Step 5:** offer the verified file for download.
+   - **Step 6 report:** add the delivered path, the
+     `lrh conversation import-claude-export <file>` line, and the
+     `chmod 600 <file>` fallback.
 3. Document the new fields in `docs/reference/cli/conversation.md`, and the
    cloud behavior in `docs/how-to/use-lrh-with-agent-assistants.md` §5.
 4. Regenerate rendered copies and the plugin tree.
@@ -117,17 +126,20 @@ actually set.
 
 - Do not define a `claude-cloud:` `session_transcript:` pointer. That is an
   open question in the proposal.
-- Do not add an `import-claude-export` command.
-- Do not change the default archive root, or skip the archive write in the
-  cloud.
+- Do not implement `import-claude-export`. That is
+  `WI-CLAUDE-EXPORT-LOCAL-IMPORT`; this item only names it in the report.
+- Do not change the default archive root. Only the cloud-with-delivery case
+  bypasses it, through `--out`.
 - Do not read Claude Code's internal storage directly.
 
 ## Acceptance Criteria
 
 - The new JSON fields work as specified, with tests for each variable state.
-- The skill branches on the CLI output only, states that the archive is
-  ephemeral, delivers only when a tool exists, and gives the chmod and
-  re-verify guidance.
+- The skill branches on the CLI output only.
+- With a delivery tool, it exports straight to the delivery location and
+  offers the file.
+- Without one, it states that the archive is ephemeral.
+- The report names the local import command, with the `chmod` fallback.
 - All existing gates and privacy rules are unchanged.
 - `lrh validate`, `scripts/test`, `scripts/lint` and
   `scripts/format --check --diff` pass.

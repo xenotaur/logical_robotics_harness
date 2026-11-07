@@ -44,13 +44,39 @@ covers the whole set, instead of one per `/lrh-proposal` and
   - `WI-EXPORT-CLAUDE-CLOUD-BRANCH` (depends on the probe)
 - PR: https://github.com/xenotaur/logical_robotics_harness/pull/863
 
+Revision, same session: the user described the delivery flow two real
+cloud sessions used (copy to the scratchpad, offer download, download, then
+a manual local `mkdir -p` / `mv` / `chmod 600` into the archive) and asked
+which steps could be automated. The user approved revising the PR:
+
+- **Decision 5 revised.** In a cloud session with a file-delivery tool, the
+  skill exports with `--out` straight to the delivery location instead of
+  writing to the in-container archive and then copying.
+- **Decision 7 added.** A local `lrh conversation import-claude-export`
+  command files the download. The alternatives recorded with it: manual
+  commands, picking downloads up in `lrh sessions sync`, a folder watcher,
+  teleport, and the desktop app's Export.
+- **Seventh work item added:** `WI-CLAUDE-EXPORT-LOCAL-IMPORT`.
+- **Teleport added to `WI-CLOUD-SESSION-PROBE`**, as the only candidate for
+  skipping the download.
+- **`WI-EXPORT-CLAUDE-CLOUD-BRANCH` revised** to match Decision 5, with the
+  import command in its report.
+- **Audit §1.4, §2 and the alternatives table updated.** The update records
+  two findings: `SKILL.md:296` cites a stale line range for the exporter's
+  path rule, and the desktop app listed no cloud sessions among its 40 most
+  recent.
+
 No code, skill, or documentation behavior changed.
 
 # Validation
 
 - `lrh validate`: 0 errors, 0 warnings, after the proposal and again after
   the work items.
-- `lrh work-items readiness <ID>`: `prompt_ready: yes` for all six.
+- `lrh work-items readiness <ID>`: `prompt_ready: yes` for all six, and
+  again after the revision for the new and changed items
+  (`WI-CLAUDE-EXPORT-LOCAL-IMPORT`, `WI-CLOUD-SESSION-PROBE`,
+  `WI-EXPORT-CLAUDE-CLOUD-BRANCH`).
+- `lrh validate`: 0 errors, 0 warnings after the revision.
 - `lrh prompt check-execution --slug <slug> --work-item AD_HOC`: no prior
   record for `lrh-cloud-session-capture` or any of the six WI slugs.
 

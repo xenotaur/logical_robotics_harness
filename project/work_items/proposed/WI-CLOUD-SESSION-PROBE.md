@@ -35,6 +35,7 @@ acceptance:
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
   - "The record states whether an exact Bash(lrh conversation ...) allow rule in the session repository's .claude/settings.json ran the command without a classifier denial in auto mode"
+  - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, whether it is complete or missing compacted messages, and which session id it carries, without reading or printing transcript content"
   - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
 required_evidence:
   - manual_review
@@ -49,14 +50,16 @@ artifacts_expected:
 
 ## Summary
 
-Run a real Claude Code cloud session and record four facts that
+Run a real Claude Code cloud session and record five facts that
 `PROP-LRH-CLOUD-SESSION-CAPTURE` relies on but Claude Code's documentation
 doesn't settle:
 
 - whether a synced plugin's `bin/` is on PATH;
 - the Python and PyYAML runtime in the default image;
 - which session-ID environment variables are set;
-- whether an exact allow rule bypasses the auto-mode classifier.
+- whether an exact allow rule bypasses the auto-mode classifier;
+- whether teleporting the session writes a complete local transcript, which
+  would let the export run locally and skip the download.
 
 ## Problem / Context
 
@@ -105,8 +108,18 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
    allows `Bash(lrh conversation current-claude-session-id *)`, with `lrh`
    installed by setup script, run that command in auto mode. Record whether
    it was denied.
-4. Write the execution record under `project/executions/WI-CLOUD-SESSION-PROBE/`.
-5. Update the audit's open-questions section and the proposal's
+4. From a clean local checkout of the session's repository, with the cloud
+   session's branch pushed, run `claude --teleport <session-id>`. Then
+   record:
+   - whether a new `*.jsonl` file appears under `~/.claude/projects/`, by
+     name and size only;
+   - its session ID;
+   - whether `lrh conversation current-claude-session-id` resolves it;
+   - whether the cloud session had been compacted.
+
+   Don't open or print the transcript.
+5. Write the execution record under `project/executions/WI-CLOUD-SESSION-PROBE/`.
+6. Update the audit's open-questions section and the proposal's
    `## Open Questions` with the answers.
 
 ## Non-Goals
@@ -120,7 +133,7 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 
 ## Acceptance Criteria
 
-- The execution record answers each of the four questions with the command
+- The execution record answers each of the five questions with the command
   run and what it showed, or says plainly that a question couldn't be
   answered, and why.
 - The audit and the proposal's Open Questions reflect the answers.

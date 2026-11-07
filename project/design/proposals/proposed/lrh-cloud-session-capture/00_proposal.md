@@ -29,8 +29,11 @@ Make `/lrh-export-claude` work in Claude Code cloud sessions
   with a setup-script install as the fallback.
 - The export commands can be pre-approved by exact allow rules.
 - The CLI reports whether the session is a cloud session.
-- In a cloud session the skill treats its archive copy as temporary and
-  offers to deliver the export to the user.
+- In a cloud session the skill writes the export straight to a location
+  the session can deliver from, and offers it for download.
+- A local `lrh conversation import-claude-export` command files the
+  downloaded export into the private archive, replacing manual `mkdir`,
+  `mv` and `chmod`.
 - A re-export that only adds to an earlier export no longer needs
   `--force`.
 
@@ -213,21 +216,34 @@ Facts this decision rests on:
 
 Options considered:
 
-- **Write only to the archive.** Rejected: the copy is lost silently.
-- **Write only to a delivery location.** Rejected: it creates a second code
-  path, and `inspect-export` has nothing stable to check against.
+- **Write only to the in-container archive.** Rejected: the copy is lost
+  silently.
+- **Write to the archive, then copy to a delivery location.** This was the
+  first draft of this decision. Rejected after the delivery flow used in
+  two real cloud sessions was reviewed: the in-container archive is thrown
+  away with the container, so it adds a second file and a second command to
+  approve, and protects nothing.
+- **Write straight to a delivery location with `--out`.** Chosen. It is the
+  same exporter code path. The file is 0600 from its first byte
+  (`claude_export.py:159-180`), and `inspect-export --source` works against
+  it as it does against an archive file.
 - **Commit to a private branch.** Rejected: it violates the
   never-commit-exports rule.
 
-**Chosen:** in a cloud session, still export to the archive, so there is one
-code path and inspection still works. Then:
+**Chosen:** in a cloud session, when the session offers a file-delivery tool
+(checked at run time, never assumed):
 
-- State plainly that the archive copy is lost when the session ends.
-- Only if the session offers a file-delivery tool (checked at run time,
-  never assumed), copy the export to a deliverable location with mode 600
-  and offer it.
-- The report includes the one-line `chmod 600 <file>` to run after download,
-  and the local re-verify command `lrh conversation inspect-export <file>`.
+- The skill exports with `--out <delivery-dir>/<source-id>.md`. The delivery
+  directory is the session's scratchpad, or another location that tool can
+  send from, and never a path inside the repository working tree.
+- It verifies the file with `inspect-export`, then offers it for download.
+- The report gives the one local command that files the download
+  (`lrh conversation import-claude-export <file>`, Decision 7). The fallback
+  when `lrh` isn't installed locally is `chmod 600 <file>`.
+
+When there is no delivery tool, the skill exports to the default archive as
+it does today, says plainly that the copy is lost when the session ends, and
+does not improvise a delivery route.
 
 ### Decision 6: Snapshot timing and re-export
 
@@ -256,6 +272,64 @@ Options considered:
 - **Closeout report.** It says when `lrh sessions closeout-sync` wrote to an
   archive that won't survive the session.
 
+### Decision 7: How a downloaded export reaches the local archive
+
+The download itself can't be automated: the browser does it, and Claude
+Code documents no download, export, or API route for cloud transcripts.
+Today the user files the download by hand, for example `mkdir -p` of
+`~/.local/share/lrh/session-archive/claude/exports/YYYY/MM`, then `mv` from
+`~/Downloads`, then `chmod 600`.
+
+Options considered:
+
+- **Manual commands, or the skill printing them pre-filled.** Rejected.
+  - `mkdir -p` under a 022 umask creates the folders 0755.
+  - The file stays readable by others until the `chmod`.
+  - `LRH_SESSION_ARCHIVE_ROOT` is ignored.
+  - Nothing checks the file.
+  - Pre-filled commands would copy the exporter's path rule into skill
+    text. That rule is the export's UTC year and month plus the sanitized
+    source ID, at `claude_export.py:505-515`. The skill already refuses to
+    copy it, and its line citation for that rule (`SKILL.md:296`, which
+    cites `488-498`) has already gone stale.
+- **A local import command.** Chosen.
+- **Pick up exports from `~/Downloads` in `lrh sessions sync` or its weekly
+  launchd schedule.** Deferred.
+  - The file could sit unprotected for up to a week.
+  - `sync` deliberately assumes no default exports location.
+  - It would reuse the import command's filing code anyway.
+- **A folder watcher that files downloads on arrival.** Rejected: a
+  background process moving files silently, Mac-only, and unlike LRH's
+  render-for-inspection `lrh sessions schedule`.
+- **Teleport the cloud session (`claude --teleport`) and export locally.**
+  This would skip the download entirely. Not chosen yet:
+  - It needs a clean checkout of the same repository, a pushed branch, and
+    the same account.
+  - Compacted messages "aren't copied".
+  - Whether it writes a local transcript file, and under which session ID,
+    is undocumented.
+
+  Added to `WI-CLOUD-SESSION-PROBE`.
+- **The desktop app's session Export.** Not viable now. None of the 40 most
+  recent sessions the desktop app listed on 2026-11-06 was a cloud session.
+
+**Chosen:** add `lrh conversation import-claude-export <file>`. It:
+
+- reads `exported_at` and `source_id` from the file's own frontmatter;
+- computes the destination with a helper shared with the exporter, by
+  factoring out `claude_export.py:505-515`;
+- resolves the root through `resolve_claude_archive_root`, so
+  `LRH_SESSION_ARCHIVE_ROOT` and `--archive-root` apply;
+- creates missing folders 0700 and writes the file 0600 from the first byte
+  (not `copy2` then `chmod`, as `codex_archive.py:479-480` does);
+- checks the manifest;
+- refuses to overwrite a different export, but accepts an identical one or
+  a grown same-source one, matching `--refresh`;
+- copies by default; deleting the download takes an explicit `--move`.
+
+The precedent is `lrh conversation import-codex-exports`
+(`codex_archive.py:224`).
+
 ## Non-Goals
 
 - Does not add Codex Cloud transcript export. That needs a transport LRH
@@ -276,7 +350,7 @@ Options considered:
 
 ## Implementation Plan
 
-Medium scope, six work items. No workstream unless the user wants one; see
+Medium scope, seven work items. No workstream unless the user wants one; see
 Open Questions.
 
 1. **`WI-CLOUD-SESSION-PROBE`** — first. Run a real cloud session and check:
@@ -285,7 +359,9 @@ Open Questions.
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
    - whether a narrow `lrh conversation …` allow rule actually skips the
-     classifier.
+     classifier;
+   - whether teleporting the session writes a complete local transcript
+     that `export-claude-session` can read, and under which session ID.
 
    Record the results as an execution record, and update the audit.
 2. **`WI-LRH-CLI-RESOLUTION-REFERENCE`** — independent. One shared
@@ -303,8 +379,12 @@ Open Questions.
    the launcher's name and whether to copy in PyYAML.
 6. **`WI-EXPORT-CLAUDE-CLOUD-BRANCH`** — after the probe, which settles the
    environment-variable facts. Adds the `cloud_session` and
-   `remote_session_id` fields, the skill's cloud branch, the delivery step,
-   and the `chmod` reminder.
+   `remote_session_id` fields, and the skill's cloud branch: export with
+   `--out` to the delivery location, offer the file, and report the local
+   import command.
+7. **`WI-CLAUDE-EXPORT-LOCAL-IMPORT`** — independent. Adds
+   `lrh conversation import-claude-export` and the path helper it shares
+   with the exporter, and fixes the stale `SKILL.md:296` line citation.
 
 Coordination: if `WI-EXPORT-SKILL-FAMILY-RENAME` lands first, items 2 and 6
 target the renamed skill paths.
@@ -336,9 +416,12 @@ target the renamed skill paths.
   pointer?
 - Should `lrh sessions closeout-sync` skip mirroring, rather than only
   report, when `cloud_session` is true?
-- Is an `lrh conversation import-claude-export` command worth adding, to
-  move a downloaded export into the local archive with mode 0600?
+- Does teleporting a cloud session (`claude --teleport`) write a complete
+  local transcript? If it does, exporting locally after teleport would skip
+  the download entirely (the probe answers this; see Decision 7).
+- Should `lrh sessions sync --exports-dir` later pick up LRH exports from a
+  downloads folder, reusing the import command's filing code?
 - How could Codex Cloud tasks be exported, given there is no local
   app-server? `/lrh-closeout` already names a `codex-cloud:` pointer that
   nothing produces.
-- Should these six items be grouped under a workstream?
+- Should these seven items be grouped under a workstream?

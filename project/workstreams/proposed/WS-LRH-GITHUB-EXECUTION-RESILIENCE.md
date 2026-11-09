@@ -53,7 +53,7 @@ path traceable without coupling LRH to a particular vendor executor.
 ### Duplication search
 
 - In-repo: Related backlog entry at `project/design/backlog.md:1071-1075` and
-  existing approval wording in `src/lrh/skills/lrh-codex-export/SKILL.md`; no
+  existing approval wording in `src/lrh/skills/lrh-export-codex/SKILL.md`; no
   existing proposed workstream covers this combined scope.
 - Sibling repos: None identified.
 - External libraries: None identified; this is workflow guidance and LRH error

@@ -58,7 +58,7 @@ lrh conversation current-codex-thread-id --format json
 
 Reports the current Codex task/thread id and the matching LRH execution-record
 pointer without exporting, reading, or printing transcript content. This is the
-metadata-only resolver used by `/lrh-session-id-codex`, `/lrh-codex-export`,
+metadata-only resolver used by `/lrh-session-id-codex`, `/lrh-export-codex`,
 `export-codex-thread`, and `archive-codex-thread`.
 
 The session pointer form is:
@@ -219,7 +219,7 @@ lrh conversation archive-codex-thread --thread-id THREAD_ID --scratch
 Exports a Codex thread through the same app-server adapter as
 `export-codex-thread`, but chooses the output paths automatically and writes an
 `attempt.json` marker for every attempt. This is the durable default used by
-`/lrh-codex-export`.
+`/lrh-export-codex`.
 
 The archive root resolves in this order:
 

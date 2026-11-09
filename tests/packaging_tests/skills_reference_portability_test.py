@@ -20,7 +20,7 @@ TARGET_ROOTS = (
     REPO_ROOT / ".gemini" / "plugins" / "lrh" / "skills",
 )
 AFFECTED_SKILLS = (
-    "lrh-codex-export",
+    "lrh-export-codex",
     "lrh-session-id-codex",
     "lrh-config-skills",
     "lrh-doc-audit",
@@ -52,7 +52,7 @@ class SkillsReferencePortabilityTest(unittest.TestCase):
                     self.assertIn("optional", content.lower())
 
     def test_codex_export_missing_reference_is_not_runtime_failure(self) -> None:
-        content = (SOURCE_ROOT / "lrh-codex-export" / "SKILL.md").read_text()
+        content = (SOURCE_ROOT / "lrh-export-codex" / "SKILL.md").read_text()
         self.assertIn("lrh conversation --help", content)
         self.assertIn(
             "missing LRH-owned documentation file as an export failure", content
@@ -93,7 +93,7 @@ class SkillsReferencePortabilityTest(unittest.TestCase):
             )
 
             self.assertTrue(
-                (installed_root / "lrh-codex-export" / "SKILL.md").is_file()
+                (installed_root / "lrh-export-codex" / "SKILL.md").is_file()
             )
             self.assertFalse(
                 (

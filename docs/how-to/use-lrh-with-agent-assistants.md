@@ -199,7 +199,7 @@ need local tools must be carried out elsewhere. Instruction-centric skills such
 as `lrh-design`, `lrh-proposal`, and `lrh-work-item` are the best fit.
 
 Manual-only skills (`lrh-land`, `lrh-execute`, `lrh-confirm-fixes`,
-`lrh-self-review`, `lrh-codex-export`) are left out of the default export.
+`lrh-self-review`, `lrh-export-codex`) are left out of the default export.
 ChatGPT has no known equivalent of their explicit-only invocation policy, so an
 uploaded copy could be selected automatically. Export one only by naming it
 with `--skill`, which also prints a manual-only notice.

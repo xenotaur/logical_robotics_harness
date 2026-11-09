@@ -2751,7 +2751,10 @@ def _no_project_directory_error(
     or followed by a repoint to ``project`` for a custom ``project_dir``. A
     file or symlink at ``<repo>/project`` blocks init, which then cannot
     create the templates beneath it, so only a repoint is offered and the
-    message names what is in the way and says to move it aside.
+    message names what is in the way and says to move it aside. A symlink
+    there that leads outside the checkout is treated the same way: Meta will
+    not resolve a project directory outside the repository, so neither init
+    nor a repoint to ``project`` would clear the 409.
     """
 
     name = shlex.quote(registry_name)
@@ -2770,11 +2773,20 @@ def _no_project_directory_error(
     )
     # A dangling symlink also blocks init: exists() is False, but the
     # templates still cannot be created beneath it.
-    default_blocked = (
-        default_path.exists() or default_path.is_symlink()
-    ) and not default_path.is_dir()
+    escapes = default_path.is_symlink() and not default_path.resolve().is_relative_to(
+        repo.resolve()
+    )
+    default_blocked = escapes or (
+        (default_path.exists() or default_path.is_symlink())
+        and not default_path.is_dir()
+    )
     if default_blocked:
-        blocker = "a symlink" if default_path.is_symlink() else "a file"
+        if escapes:
+            blocker = "a symlink that leads outside the checkout"
+        elif default_path.is_symlink():
+            blocker = "a symlink"
+        else:
+            blocker = "a file"
         message += (
             f' "lrh project init" cannot create "{default_path}" while '
             f"{blocker} is there; move it aside first, or point the project at "

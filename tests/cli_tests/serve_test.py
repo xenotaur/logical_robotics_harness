@@ -1339,6 +1339,7 @@ class TestLrhServeRoutes(unittest.TestCase):
             ("blocked", "control", "file"),
             ("ready", "control", "dir"),
             ("dangling", "control", "symlink"),
+            ("escaping", "control", "outside"),
         ):
             repo = root / "repos" / name
             repo.mkdir(parents=True)
@@ -1346,6 +1347,10 @@ class TestLrhServeRoutes(unittest.TestCase):
                 (repo / "project").write_text("not a directory\n", encoding="utf-8")
             elif occupant == "symlink":
                 (repo / "project").symlink_to(repo / "nowhere")
+            elif occupant == "outside":
+                outside = root / "outside-the-checkout"
+                outside.mkdir()
+                (repo / "project").symlink_to(outside)
             else:
                 (repo / "project").mkdir()
             _write_project_record(
@@ -1362,6 +1367,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "blocked": [repoint],
                 "ready": [repoint, f"lrh meta set {name} --project-dir project"],
                 "dangling": [repoint],
+                "escaping": [repoint],
             }[name]
             with self.subTest(project=name, api=True):
                 status, _content_type, body = self._read_error(
@@ -1375,8 +1381,11 @@ class TestLrhServeRoutes(unittest.TestCase):
                     self.assertIn("exists but is not a directory", payload["message"])
                 else:
                     self.assertIn("does not exist", payload["message"])
-                if name in ("occupied", "blocked", "dangling"):
-                    blocker = "a symlink" if name == "dangling" else "a file"
+                if name in ("occupied", "blocked", "dangling", "escaping"):
+                    blocker = {
+                        "dangling": "a symlink",
+                        "escaping": "a symlink that leads outside the checkout",
+                    }.get(name, "a file")
                     self.assertIn(
                         f"while {blocker} is there; move it aside",
                         payload["message"],

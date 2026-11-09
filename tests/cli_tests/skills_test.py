@@ -817,6 +817,67 @@ class SkillsExportCliTest(unittest.TestCase):
         self.assertIn("no bundles written", result.stdout)
         self.assertFalse((work / "bundles").exists())
 
+    def test_skills_export_claude_plugin_writes_marketplace_tree(self) -> None:
+        work = self._temp_dir()
+        (work / "README.md").write_text("keep\n")
+        result = self._run_in(
+            work, "skills", "export", "--target", "claude-plugin", "--out", "."
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("exported: lrh-land", result.stdout)
+        self.assertIn("marketplace:", result.stdout)
+        self.assertTrue((work / ".claude-plugin" / "marketplace.json").is_file())
+        self.assertTrue(
+            (work / "plugins" / "lrh" / ".claude-plugin" / "plugin.json").is_file()
+        )
+        # Manual-only skills are part of the plugin, unlike a chatgpt export.
+        self.assertTrue(
+            (work / "plugins" / "lrh" / "skills" / "lrh-land" / "SKILL.md").is_file()
+        )
+        self.assertEqual(
+            sorted(path.name for path in work.iterdir()),
+            [".claude-plugin", "README.md", "plugins"],
+        )
+
+    def test_skills_export_claude_plugin_rejects_skill_selection(self) -> None:
+        work = self._temp_dir()
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "claude-plugin",
+            "--out",
+            "out",
+            "--skill",
+            "lrh-design",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not supported for the claude-plugin target", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((work / "out").exists())
+
+    def test_skills_export_claude_plugin_validation_failure_exits_one(self) -> None:
+        work = self._temp_dir()
+        bad_skill = work / "source" / "bad-skill"
+        bad_skill.mkdir(parents=True)
+        (bad_skill / "SKILL.md").write_text("no frontmatter\n")
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "claude-plugin",
+            "--source",
+            str(work / "source"),
+            "--out",
+            "out",
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertIn("error: bad-skill:", result.stdout)
+        self.assertIn("no plugin written", result.stdout)
+        self.assertFalse((work / "out").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

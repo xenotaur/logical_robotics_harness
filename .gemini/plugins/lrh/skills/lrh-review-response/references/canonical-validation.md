@@ -87,6 +87,14 @@ edited skills with the one-skill scratch-source recipe in CONTRIBUTING.md's
 "Claude Code skills" section instead. Then verify all three targets still
 match `src/lrh/skills/` with the test above.
 
+In the LRH repository itself, also regenerate the committed Claude plugin
+marketplace, which the installer does not touch, and check it with
+`tests/packaging_tests/skills_claude_plugin_sync_test.py`:
+
+```bash
+lrh skills export --target claude-plugin --source current-repo --out .
+```
+
 ---
 
 ## Evidence to record in the execution record body

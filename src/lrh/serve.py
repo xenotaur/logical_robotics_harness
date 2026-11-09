@@ -2749,9 +2749,9 @@ def _no_project_directory_error(
     ``lrh project init`` always creates ``<repo>/project``, so it is offered
     only when that path is free: on its own when the record resolves to it,
     or followed by a repoint to ``project`` for a custom ``project_dir``. A
-    file at ``<repo>/project`` blocks init, which then cannot create the
-    templates beneath it, so only a repoint is offered and the message says
-    to move the file aside.
+    file or symlink at ``<repo>/project`` blocks init, which then cannot
+    create the templates beneath it, so only a repoint is offered and the
+    message names what is in the way and says to move it aside.
     """
 
     name = shlex.quote(registry_name)
@@ -2774,10 +2774,11 @@ def _no_project_directory_error(
         default_path.exists() or default_path.is_symlink()
     ) and not default_path.is_dir()
     if default_blocked:
+        blocker = "a symlink" if default_path.is_symlink() else "a file"
         message += (
-            f' "lrh project init" cannot create "{default_path}" while a file '
-            "is there; move the file aside first, or point the project at an "
-            "existing project directory."
+            f' "lrh project init" cannot create "{default_path}" while '
+            f"{blocker} is there; move it aside first, or point the project at "
+            "an existing project directory."
         )
         next_actions: tuple[str, ...] = (repoint,)
     elif is_default:

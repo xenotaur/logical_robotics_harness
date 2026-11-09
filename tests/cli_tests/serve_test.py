@@ -1376,7 +1376,11 @@ class TestLrhServeRoutes(unittest.TestCase):
                 else:
                     self.assertIn("does not exist", payload["message"])
                 if name in ("occupied", "blocked", "dangling"):
-                    self.assertIn("move the file aside", payload["message"])
+                    blocker = "a symlink" if name == "dangling" else "a file"
+                    self.assertIn(
+                        f"while {blocker} is there; move it aside",
+                        payload["message"],
+                    )
             with self.subTest(project=name, page=True):
                 status, _content_type, body = self._read_error(
                     base_url + f"/project/{name}/dependency-maps"

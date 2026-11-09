@@ -40,6 +40,7 @@ further:
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import sys
 from typing import Sequence
@@ -259,12 +260,29 @@ def scan_test_files(
 ) -> list[TestGuardrailViolation]:
     """Scan directories for test files and return all violations."""
     all_violations: list[TestGuardrailViolation] = []
+    ignored = frozenset(
+        {
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            "node_modules",
+        }
+    )
 
     for target in target_dirs:
         if target.is_file() and target.name.endswith("_test.py"):
             all_violations.extend(check_test_file(target))
         elif target.is_dir():
-            for test_file in sorted(target.rglob("*_test.py")):
+            test_files: list[pathlib.Path] = []
+            for root, dirs, files in os.walk(target):
+                dirs[:] = [d for d in dirs if d not in ignored]
+                for f in files:
+                    if f.endswith("_test.py"):
+                        test_files.append(pathlib.Path(root) / f)
+            for test_file in sorted(test_files):
                 all_violations.extend(check_test_file(test_file))
 
     return all_violations

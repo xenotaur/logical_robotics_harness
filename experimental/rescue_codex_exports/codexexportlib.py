@@ -1,8 +1,8 @@
 """Shared helpers for finding and validating Codex export directories.
 
-``/lrh-codex-export``'s routine capture path writes each export under a
+``/lrh-export-codex``'s routine capture path writes each export under a
 private ``mktemp -d`` directory (see
-``src/lrh/skills/lrh-codex-export/SKILL.md`` Step 2), which on macOS resolves
+``src/lrh/skills/lrh-export-codex/SKILL.md`` Step 2), which on macOS resolves
 under ``/var/folders/.../T/...`` -- OS-managed scratch that can be reclaimed
 at any time. This module is read-only: it locates candidate export
 directories under an arbitrary root and classifies each as valid, partial, or

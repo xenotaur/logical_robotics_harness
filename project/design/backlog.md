@@ -1309,9 +1309,11 @@ burndown when any of:
 3. harness differentiation needs to reach into guidance *content*, not just
    skill packaging;
 4. prosoc cleans up its own `packet/loader.py`/`utils/cards/validate_status.py`
-   `FAMILIES`-dict duplication and/or makes `assemble.py`'s
-   guidance-composition step pluggable — either would lower the cost of a
-   future LRH adoption enough to reopen this.
+   `FAMILIES`-dict duplication (done: `WI-UNIFY-CARD-FAMILIES-REGISTRY`,
+   prosoc PR #144, merged 2026-11-11 — both now build their `FAMILIES`
+   dicts from a shared `family_registry.py` registry) and/or makes
+   `assemble.py`'s guidance-composition step pluggable — either would
+   lower the cost of a future LRH adoption enough to reopen this.
 
 If any of those fire, the recommended next step is prototyping directly in
 LRH — define LRH's own family registry and a from-scratch LRH `assemble`

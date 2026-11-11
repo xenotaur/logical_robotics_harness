@@ -10,6 +10,7 @@ invoke or probe the desktop toolchain, and that every ``--desktop`` mode fails
 import os
 import pathlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -17,6 +18,7 @@ import tempfile
 import textwrap
 import tomllib
 import unittest
+from unittest import mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DESKTOP_DIR = REPO_ROOT / "apps" / "desktop"
@@ -167,6 +169,26 @@ class DesktopModesTestBase(unittest.TestCase):
         self.xdo_header = self.root / "xdo.h"
         self.xdo_header.write_text("", encoding="utf-8")
 
+    def _tools_dir(self) -> pathlib.Path:
+        """Fill in python/black/ruff/pip the interpreter's directory lacks.
+
+        Some interpreters (e.g. Homebrew's) ship only ``python3`` in their
+        directory, so a sanitized PATH built from it alone loses the tools the
+        scripts call. Link ``python`` to the running interpreter and the rest
+        from the caller's PATH, so these tests do not depend on that layout.
+        """
+        tools = self.root / "tools"
+        tools.mkdir(exist_ok=True)
+        interpreter_dir = pathlib.Path(sys.executable).parent
+        for name in ("python", "black", "ruff", "pip"):
+            link = tools / name
+            if (interpreter_dir / name).exists() or link.exists():
+                continue
+            target = sys.executable if name == "python" else shutil.which(name)
+            if target:
+                link.symlink_to(target)
+        return tools
+
     def _run(
         self,
         argv: list[str],
@@ -192,7 +214,12 @@ class DesktopModesTestBase(unittest.TestCase):
             path_entries.append(str(fake_python_path.parent))
         # The real interpreter's directory supplies python/ruff/black/pip for
         # lint, format, and version; system dirs supply sh, sed, grep, uname.
-        path_entries += [str(pathlib.Path(sys.executable).parent), "/usr/bin", "/bin"]
+        path_entries += [
+            str(self._tools_dir()),
+            str(pathlib.Path(sys.executable).parent),
+            "/usr/bin",
+            "/bin",
+        ]
         env = {
             "PATH": os.pathsep.join(path_entries),
             "HOME": str(self.home),
@@ -440,6 +467,56 @@ class DevelopDesktopFlagsTest(DesktopModesTestBase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("--install-rust requires --desktop", result.stderr)
         self.assertEqual(self.log.read_text(encoding="utf-8"), "")
+
+
+class ToolsDirTest(DesktopModesTestBase):
+    """``_tools_dir`` links in only what the interpreter's directory lacks."""
+
+    def _fake_interpreter(self, present: tuple[str, ...]) -> pathlib.Path:
+        interpreter_dir = self.root / "interp" / "bin"
+        interpreter_dir.mkdir(parents=True)
+        for name in present:
+            _write_executable(interpreter_dir / name, "exit 0\n")
+        return interpreter_dir / "python3"
+
+    def _tools_dir_with(
+        self, interpreter: pathlib.Path, found: dict[str, str]
+    ) -> pathlib.Path:
+        with (
+            mock.patch.object(sys, "executable", str(interpreter)),
+            mock.patch.object(shutil, "which", side_effect=found.get),
+        ):
+            return self._tools_dir()
+
+    def test_homebrew_layout_links_python_and_the_missing_tools(self) -> None:
+        interpreter = self._fake_interpreter(("python3",))
+        found = {
+            "black": "/somewhere/bin/black",
+            "ruff": "/somewhere/bin/ruff",
+            "pip": "/somewhere/bin/pip",
+        }
+
+        tools = self._tools_dir_with(interpreter, found)
+
+        self.assertEqual(
+            {path.name: os.readlink(path) for path in tools.iterdir()},
+            {"python": str(interpreter), **found},
+        )
+
+    def test_tools_already_beside_the_interpreter_are_not_linked(self) -> None:
+        interpreter = self._fake_interpreter(("python3", "python", "black", "ruff"))
+        found = {"black": "/x/black", "ruff": "/x/ruff", "pip": "/x/pip"}
+
+        tools = self._tools_dir_with(interpreter, found)
+
+        self.assertEqual([path.name for path in tools.iterdir()], ["pip"])
+
+    def test_a_tool_missing_from_path_is_left_out(self) -> None:
+        interpreter = self._fake_interpreter(("python3", "python"))
+
+        tools = self._tools_dir_with(interpreter, {"ruff": "/x/ruff"})
+
+        self.assertEqual([path.name for path in tools.iterdir()], ["ruff"])
 
 
 if __name__ == "__main__":

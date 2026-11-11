@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -1037,6 +1038,463 @@ class TestChatGPTSkillRenderer(unittest.TestCase):
             "demo", {"SKILL.md": b"# plain\n"}
         )
         self.assertEqual(rendered["SKILL.md"], b"# plain\n")
+
+
+_MANUAL_SKILL_MD = """---
+name: {name}
+description: Manual-only test skill.
+argument-hint: "[pr-url]"
+disable-model-invocation: true
+when_to_use: Only when typed.
+---
+
+# {name}
+
+Run $ARGUMENTS by hand.
+"""
+
+
+class TestClaudePluginExport(_SkillTreeMixin, unittest.TestCase):
+    def _export(self, source: Path, out: Path) -> exporter.ExportReport:
+        return exporter.export_skills(
+            out_dir=out, source=source, target=exporter.ExportTarget.CLAUDE_PLUGIN
+        )
+
+    def _snapshot(self, root: Path) -> dict[str, bytes | str]:
+        snapshot: dict[str, bytes | str] = {}
+        for path in sorted(root.rglob("*")):
+            relative = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                snapshot[relative] = f"symlink:{os.readlink(path)}"
+            elif path.is_file():
+                snapshot[relative] = path.read_bytes()
+            else:
+                snapshot[relative] = "dir"
+        return snapshot
+
+    def _plugin_skills(self, out: Path) -> list[str]:
+        return sorted(
+            path.name
+            for path in (out / exporter.CLAUDE_PLUGIN_DIR / "skills").iterdir()
+        )
+
+    def test_writes_marketplace_and_plugin_manifests(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+
+        report = self._export(source, out)
+
+        self.assertFalse(report.has_failures)
+        marketplace = json.loads((out / exporter.CLAUDE_MARKETPLACE_PATH).read_text())
+        self.assertEqual(
+            marketplace["plugins"],
+            [
+                {
+                    "name": "lrh",
+                    "source": "./plugins/lrh",
+                    "description": marketplace["plugins"][0]["description"],
+                }
+            ],
+        )
+        self.assertIn("name", marketplace["owner"])
+        plugin = json.loads(
+            (
+                out / exporter.CLAUDE_PLUGIN_DIR / ".claude-plugin" / "plugin.json"
+            ).read_text()
+        )
+        self.assertEqual(plugin["name"], "lrh")
+        self.assertNotIn("version", plugin)
+        self.assertNotIn("version", marketplace["plugins"][0])
+        self.assertEqual(
+            self._result(report, "alpha").archive_path,
+            out / exporter.CLAUDE_PLUGIN_DIR / "skills" / "alpha",
+        )
+
+    def test_manual_only_skills_are_included_with_frontmatter_unchanged(
+        self,
+    ) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        manual = self._write_skill(
+            source, "manual", skill_md=_MANUAL_SKILL_MD.format(name="manual")
+        )
+        out = self._make_out()
+
+        report = self._export(source, out)
+
+        self.assertEqual(self._plugin_skills(out), ["alpha", "manual"])
+        self.assertEqual(
+            self._result(report, "manual").status, exporter.ExportStatus.EXPORTED
+        )
+        skills = out / exporter.CLAUDE_PLUGIN_DIR / "skills"
+        self.assertEqual(
+            (skills / "manual" / "SKILL.md").read_bytes(),
+            (manual / "SKILL.md").read_bytes(),
+        )
+        self.assertEqual(
+            (skills / "alpha" / "SKILL.md").read_bytes(),
+            (source / "alpha" / "SKILL.md").read_bytes(),
+        )
+
+    def test_excludes_agents_hidden_and_non_bundle_entries(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "alpha",
+            extra_files={
+                "agents/openai.yaml": "policy:\n  allow_implicit_invocation: false\n",
+                "references/guide.md": "guide\n",
+                "scripts/run.py": "print('hi')\n",
+                "assets/logo.txt": "logo\n",
+                "references/.DS_Store": "junk",
+                "examples/demo.md": "demo\n",
+            },
+        )
+        (source / "_shared").mkdir()
+        (source / "_shared" / "note.md").write_text("shared\n")
+        out = self._make_out()
+
+        report = self._export(source, out)
+
+        skill_dir = out / exporter.CLAUDE_PLUGIN_DIR / "skills" / "alpha"
+        self.assertEqual(
+            sorted(installer._collect_fs_files(skill_dir)),
+            [
+                "SKILL.md",
+                "assets/logo.txt",
+                "references/guide.md",
+                "scripts/run.py",
+            ],
+        )
+        self.assertEqual(self._plugin_skills(out), ["alpha"])
+        self.assertFalse((out / exporter.CLAUDE_PLUGIN_DIR / "bin").exists())
+        notice = self._notice(self._result(report, "alpha"), "skipped_entry")
+        self.assertIn("not included in the plugin", notice.message)
+        self.assertIn("`examples`", notice.message)
+        self.assertNotIn("agents", notice.message)
+
+    def test_export_is_deterministic_and_matches_in_memory_render(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha", extra_files={"references/a.md": "a\n"})
+        self._write_skill(source, "beta")
+        first = self._make_out()
+        second = self._make_out()
+
+        self._export(source, first)
+        self._export(source, second)
+        self._export(source, second)
+
+        self.assertEqual(self._snapshot(first), self._snapshot(second))
+        tree = exporter.render_claude_plugin_tree(source)
+        written = {
+            path.relative_to(first).as_posix(): path.read_bytes()
+            for path in first.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(written, tree)
+
+    def test_canonical_source_is_not_modified(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha", extra_files={"agents/openai.yaml": "{}\n"})
+        before = self._snapshot(source)
+
+        self._export(source, self._make_out())
+
+        self.assertEqual(self._snapshot(source), before)
+
+    def test_reexport_removes_stale_skills_and_files(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha", extra_files={"references/old.md": "old\n"})
+        self._write_skill(source, "beta")
+        out = self._make_out()
+        self._export(source, out)
+
+        shutil.rmtree(source / "beta")
+        (source / "alpha" / "references" / "old.md").unlink()
+        self._write_skill(source, "gamma")
+        report = self._export(source, out)
+
+        self.assertEqual(self._plugin_skills(out), ["alpha", "gamma"])
+        self.assertEqual(report.removed, ("beta",))
+        self.assertFalse(
+            (
+                out / exporter.CLAUDE_PLUGIN_DIR / "skills" / "alpha" / "references"
+            ).exists()
+        )
+        self.assertIn("removed (stale): beta", exporter.format_export_report(report))
+
+    def test_unrelated_output_files_are_untouched(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        unrelated = {
+            "README.md": "readme\n",
+            ".claude-plugin/plugin.json": "{}\n",
+            "plugins/other/keep.md": "other plugin\n",
+            "plugins/lrh-extra.md": "sibling\n",
+            "src/code.py": "pass\n",
+        }
+        for relative_path, content in unrelated.items():
+            target = out / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        before = self._snapshot(out)
+
+        self._export(source, out)
+        self._export(source, out)
+
+        after = self._snapshot(out)
+        managed = (exporter.CLAUDE_MARKETPLACE_PATH, exporter.CLAUDE_PLUGIN_DIR)
+
+        def unmanaged(snapshot: dict[str, bytes | str]) -> dict[str, bytes | str]:
+            return {
+                path: value
+                for path, value in snapshot.items()
+                if not any(path == m or path.startswith(f"{m}/") for m in managed)
+            }
+
+        self.assertEqual(unmanaged(after), before)
+
+    def test_export_into_directory_containing_source(self) -> None:
+        out = self._make_out()
+        source = out / "src" / "lrh" / "skills"
+        source.mkdir(parents=True)
+        self._write_skill(source, "alpha")
+        before = self._snapshot(source)
+
+        report = self._export(source, out)
+
+        self.assertFalse(report.has_failures)
+        self.assertEqual(self._snapshot(source), before)
+        self.assertEqual(self._plugin_skills(out), ["alpha"])
+
+    def test_source_inside_plugin_directory_is_rejected(self) -> None:
+        out = self._make_out()
+        source = out / exporter.CLAUDE_PLUGIN_DIR / "skills"
+        source.mkdir(parents=True)
+        self._write_skill(source, "alpha")
+        before = self._snapshot(out)
+
+        with self.assertRaisesRegex(exporter.SkillExportError, "replaces"):
+            self._export(source, out)
+        self.assertEqual(self._snapshot(out), before)
+
+    def test_source_containing_a_written_folder_is_rejected(self) -> None:
+        for written in ("plugins", ".claude-plugin"):
+            with self.subTest(source=written):
+                out = self._make_out()
+                source = out / written
+                source.mkdir(parents=True)
+                self._write_skill(source, "alpha")
+                before = self._snapshot(out)
+
+                with self.assertRaisesRegex(
+                    exporter.SkillExportError, "inside the skill source"
+                ):
+                    self._export(source, out)
+                self.assertEqual(self._snapshot(out), before)
+
+    def test_symlinked_or_file_destinations_are_rejected(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        elsewhere = self._make_out()
+        elsewhere.mkdir()
+        for relative_path in ("plugins", ".claude-plugin", "plugins/lrh"):
+            with self.subTest(path=relative_path):
+                out = self._make_out()
+                link = out / relative_path
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(elsewhere, target_is_directory=True)
+                with self.assertRaisesRegex(exporter.SkillExportError, "symlink"):
+                    self._export(source, out)
+                self.assertEqual(list(elsewhere.iterdir()), [])
+        out = self._make_out()
+        (out / "plugins").mkdir(parents=True)
+        (out / "plugins" / "lrh").write_text("not a directory\n")
+        with self.assertRaisesRegex(exporter.SkillExportError, "not a directory"):
+            self._export(source, out)
+        out = self._make_out()
+        (out / exporter.CLAUDE_MARKETPLACE_PATH).mkdir(parents=True)
+        with self.assertRaisesRegex(exporter.SkillExportError, "is a directory"):
+            self._export(source, out)
+
+    def test_skill_selection_is_rejected(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        with self.assertRaisesRegex(exporter.SkillExportError, "not supported"):
+            exporter.export_skills(
+                out_dir=out,
+                source=source,
+                skill_names=["alpha"],
+                target="claude-plugin",
+            )
+        self.assertFalse(out.exists())
+
+    def test_validation_failure_writes_nothing_and_keeps_previous_tree(
+        self,
+    ) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        self._export(source, out)
+        before = self._snapshot(out)
+        self._write_skill(source, "broken", skill_md="no frontmatter\n")
+        self._write_skill(
+            source,
+            "quoted",
+            skill_md=_MANUAL_SKILL_MD.format(name="quoted").replace(
+                "disable-model-invocation: true", 'disable-model-invocation: "true"'
+            ),
+        )
+
+        report = self._export(source, out)
+
+        self.assertTrue(report.has_failures)
+        self.assertEqual(
+            self._result(report, "quoted").status, exporter.ExportStatus.FAILED
+        )
+        self.assertEqual(self._snapshot(out), before)
+        self.assertIn("no plugin written", exporter.format_export_report(report))
+        with self.assertRaises(exporter.SkillExportError):
+            exporter.render_claude_plugin_tree(source)
+
+    def test_plugin_limits_fail_before_writing(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha", extra_files={"references/a.md": "a\n"})
+        for constant, pattern in (
+            ("MAX_PLUGIN_FILE_COUNT", "files; limit is 2"),
+            ("MAX_PLUGIN_BYTES", "bytes; limit is 2"),
+        ):
+            with self.subTest(limit=constant):
+                out = self._make_out()
+                with mock.patch.object(exporter, constant, 2):
+                    with self.assertRaisesRegex(exporter.SkillExportError, pattern):
+                        self._export(source, out)
+                self.assertFalse(out.exists())
+
+    def test_top_level_bin_is_rejected(self) -> None:
+        tree = {
+            f"{exporter.CLAUDE_PLUGIN_DIR}/bin/tool": b"#!/bin/sh\n",
+            f"{exporter.CLAUDE_PLUGIN_DIR}/skills/bin/SKILL.md": b"ok\n",
+        }
+        errors = exporter._plugin_limit_errors(tree)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("bin/", errors[0])
+
+    def test_staging_failure_keeps_previous_tree(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        self._export(source, out)
+        before = self._snapshot(out)
+        self._write_skill(source, "beta")
+
+        with mock.patch.object(
+            exporter, "_stage_archive", side_effect=OSError("disk full")
+        ):
+            with self.assertRaisesRegex(exporter.SkillExportError, "disk full"):
+                self._export(source, out)
+
+        self.assertEqual(self._snapshot(out), before)
+
+    def test_staging_failure_on_fresh_output_leaves_nothing(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+
+        with mock.patch.object(
+            exporter, "_stage_archive", side_effect=OSError("disk full")
+        ):
+            with self.assertRaises(exporter.SkillExportError):
+                self._export(source, out)
+
+        self.assertFalse(out.exists())
+
+    def test_publish_failure_restores_previous_tree(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        self._export(source, out)
+        before = self._snapshot(out)
+        self._write_skill(source, "beta")
+
+        with mock.patch.object(
+            exporter.os, "replace", side_effect=OSError("replace failed")
+        ):
+            with self.assertRaisesRegex(exporter.SkillExportError, "replace failed"):
+                self._export(source, out)
+
+        self.assertEqual(self._snapshot(out), before)
+
+    def test_publish_failure_on_fresh_output_leaves_nothing(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+
+        with mock.patch.object(
+            exporter.os, "replace", side_effect=OSError("replace failed")
+        ):
+            with self.assertRaises(exporter.SkillExportError):
+                self._export(source, out)
+
+        self.assertFalse(out.exists())
+
+    def test_failed_restore_reports_where_previous_plugin_is(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        self._export(source, out)
+        real_rename = os.rename
+        calls: list[str] = []
+
+        def rename(src: object, dst: object) -> None:
+            calls.append(Path(str(src)).name)
+            # Allow moving the old plugin aside; fail the swap and the restore.
+            if len(calls) == 1:
+                real_rename(src, dst)
+                return
+            raise OSError(f"rename {len(calls)} failed")
+
+        with mock.patch.object(exporter.os, "rename", side_effect=rename):
+            with self.assertRaisesRegex(
+                exporter.SkillExportError, "restoring the previous plugin also failed"
+            ):
+                self._export(source, out)
+
+        plugins = out / "plugins"
+        leftovers = sorted(path.name for path in plugins.iterdir())
+        self.assertEqual(len(leftovers), 1)
+        self.assertTrue(leftovers[0].startswith(".lrh-previous-"))
+        self.assertTrue((plugins / leftovers[0] / "skills" / "alpha").is_dir())
+
+    def test_stale_report_ignores_hidden_entries(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha")
+        out = self._make_out()
+        self._export(source, out)
+        (out / exporter.CLAUDE_PLUGIN_DIR / "skills" / ".DS_Store").write_text("x")
+
+        report = self._export(source, out)
+
+        self.assertEqual(report.removed, ())
+        self.assertFalse(
+            (out / exporter.CLAUDE_PLUGIN_DIR / "skills" / ".DS_Store").exists()
+        )
+
+
+class TestClaudePluginSkillRenderer(unittest.TestCase):
+    def test_renderer_satisfies_skill_renderer_protocol(self) -> None:
+        renderer: installer.SkillRenderer = exporter.ClaudePluginSkillRenderer()
+        source_files = {
+            "SKILL.md": _MANUAL_SKILL_MD.format(name="manual").encode("utf-8"),
+            "agents/openai.yaml": b"{}\n",
+            "references/a.md": b"a\n",
+        }
+        rendered = renderer.render("manual", source_files)
+        self.assertEqual(sorted(rendered), ["SKILL.md", "references/a.md"])
+        self.assertEqual(rendered["SKILL.md"], source_files["SKILL.md"])
 
 
 if __name__ == "__main__":

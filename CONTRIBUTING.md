@@ -222,8 +222,8 @@ Key expectations:
 
 ## Claude Code skills
 
-LRH keeps one canonical skill source and three committed, generated install
-targets:
+LRH keeps one canonical skill source, three committed, generated install
+targets, and a committed, generated Claude plugin marketplace:
 
 - **`src/lrh/skills/<name>/`** — canonical source, distributed as Python
   package data via `pyproject.toml`. This is the authoritative version.
@@ -233,11 +233,16 @@ targets:
   installer.
 - **`.gemini/plugins/lrh/skills/<name>/`** — self-hosted Antigravity copy,
   rendered by the installer (plus `.gemini/plugins/lrh/plugin.json`).
+- **`plugins/lrh/skills/<name>/`** — Claude plugin copy that claude.ai syncs
+  into Claude Code cloud sessions, written by `lrh skills export` together
+  with `plugins/lrh/.claude-plugin/plugin.json` and
+  `.claude-plugin/marketplace.json`.
 
 **Sync requirement:** When adding or modifying a skill, update
-`src/lrh/skills/<name>/` first, then regenerate all three targets in the same
-PR with the installer. Do not hand-copy: the Codex and Antigravity renderers
-rewrite frontmatter.
+`src/lrh/skills/<name>/` first, then, in the same PR, regenerate the three
+install targets with the installer and the plugin marketplace with the
+exporter. Do not hand-copy: the Codex and Antigravity renderers rewrite
+frontmatter, and the exporter writes the plugin manifests.
 
 `--force` deletes each differing target skill directory and rewrites it from
 `src`, so any local-only file inside it is lost. Always preview the exact
@@ -261,14 +266,25 @@ lrh skills install --local --target all --source "$tmp" --force --diff
 lrh skills install --local --target all --source "$tmp" --force
 ```
 
-To delete or rename a skill, remove its directory from all four locations by
-hand; the installer never removes skills from a target.
+Then regenerate the plugin marketplace. The export always rebuilds the whole
+plugin from `src`, writes only `.claude-plugin/marketplace.json` and
+`plugins/lrh/`, and removes skills that no longer exist in `src`:
 
-CI enforces this: `tests/packaging_tests/skills_mirror_sync_test.py` fails
-unless every committed target matches the installer's render of `src`, file
-by file, with the same set of skills. It reads the working tree, so a
-personal, uncommitted skill directory in one of these targets also fails it
-locally.
+```bash
+lrh skills export --target claude-plugin --source current-repo --out .
+```
+
+To delete or rename a skill, remove its directory from `src` and the three
+install targets by hand, since the installer never removes skills from a
+target, then rerun the export.
+
+CI enforces this. `tests/packaging_tests/skills_mirror_sync_test.py` fails
+unless every committed install target matches the installer's render of
+`src`, file by file, with the same set of skills, and
+`tests/packaging_tests/skills_claude_plugin_sync_test.py` fails unless the
+committed marketplace matches a fresh export. Both read the working tree, so
+a personal, uncommitted skill directory in one of these locations also fails
+them locally.
 
 To install LRH skills globally (making them available in any project on
 your machine), run `lrh skills install`.

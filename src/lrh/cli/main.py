@@ -301,20 +301,25 @@ def main() -> None:
     skills_export_parser = skills_subparsers.add_parser(
         "export",
         help=(
-            "Export LRH skills as upload bundles for hosted assistants"
-            " (one deterministic ZIP per skill)."
+            "Export LRH skills for hosted assistants: one deterministic ZIP per"
+            " skill (chatgpt), or a Claude plugin marketplace tree"
+            " (claude-plugin)."
         ),
     )
     skills_export_parser.add_argument(
         "--target",
-        choices=("chatgpt",),
+        choices=("chatgpt", "claude-plugin"),
         required=True,
         help="hosted assistant to export for",
     )
     skills_export_parser.add_argument(
         "--out",
         required=True,
-        help="directory to write <skill-name>.zip bundles into",
+        help=(
+            "directory to write into: <skill-name>.zip bundles (chatgpt), or"
+            " .claude-plugin/marketplace.json and plugins/lrh/ (claude-plugin),"
+            " leaving anything else there untouched"
+        ),
     )
     skills_export_parser.add_argument(
         "--source",
@@ -331,8 +336,8 @@ def main() -> None:
         metavar="NAME",
         default=None,
         help=(
-            "export only this skill (repeatable); manual-only skills are exported"
-            " only when named here"
+            "chatgpt only: export only this skill (repeatable); manual-only"
+            " skills are exported only when named here"
         ),
     )
 

@@ -667,6 +667,56 @@ class TestInstallSkills(unittest.TestCase):
                 skills_dir=self._make_skills_dir(), source=source_dir
             )
 
+    def _make_dangling_skill_root(self) -> tuple[Path, str, Path]:
+        """Install skills, then replace one skill dir with a dangling symlink."""
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        gone_dir = Path(tempfile.mkdtemp())
+        shutil.rmtree(gone_dir)
+        shutil.rmtree(skill_dir)
+        skill_dir.symlink_to(gone_dir, target_is_directory=True)
+        self.assertTrue(skill_dir.is_symlink())
+        self.assertFalse(skill_dir.exists())
+        return skills_dir, skill_name, gone_dir
+
+    def test_dangling_symlinked_skill_root_detected_as_user_modified(self) -> None:
+        skills_dir, skill_name, gone_dir = self._make_dangling_skill_root()
+        skill_dir = skills_dir / skill_name
+
+        report = installer.install_skills(skills_dir=skills_dir)
+
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.USER_MODIFIED)
+        self.assertTrue(skill_dir.is_symlink())
+        self.assertEqual(skill_dir.readlink(), gone_dir)
+
+    def test_dangling_symlinked_skill_root_forced_dry_run_leaves_link(self) -> None:
+        skills_dir, skill_name, gone_dir = self._make_dangling_skill_root()
+        skill_dir = skills_dir / skill_name
+
+        report = installer.install_skills(
+            skills_dir=skills_dir, dry_run=True, force=True
+        )
+
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.FORCED)
+        self.assertTrue(skill_dir.is_symlink())
+        self.assertEqual(skill_dir.readlink(), gone_dir)
+
+    def test_dangling_symlinked_skill_root_replaced_with_force(self) -> None:
+        skills_dir, skill_name, _ = self._make_dangling_skill_root()
+        skill_dir = skills_dir / skill_name
+
+        report = installer.install_skills(skills_dir=skills_dir, force=True)
+
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.FORCED)
+        self.assertFalse(skill_dir.is_symlink())
+        self.assertTrue((skill_dir / "SKILL.md").is_file())
+
 
 class TestResolveInstallTargets(unittest.TestCase):
     def test_claude_user_target(self) -> None:
@@ -1375,6 +1425,28 @@ class TestDiffSkill(unittest.TestCase):
         self.assertIn("installed skill directory is a symlink", diff_text)
         self.assertNotIn("secret-root-contents", diff_text)
 
+    def _make_dangling_skill_root(self) -> tuple[Path, str, Path]:
+        """Install skills, then replace one skill dir with a dangling symlink."""
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        gone_dir = Path(tempfile.mkdtemp())
+        shutil.rmtree(gone_dir)
+        shutil.rmtree(skill_dir)
+        skill_dir.symlink_to(gone_dir, target_is_directory=True)
+        self.assertTrue(skill_dir.is_symlink())
+        self.assertFalse(skill_dir.exists())
+        return skills_dir, skill_name, gone_dir
+
+    def test_diff_dangling_symlinked_skill_root_reports_symlink(self) -> None:
+        skills_dir, skill_name, _ = self._make_dangling_skill_root()
+
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+
+        self.assertIn("installed skill directory is a symlink", diff_text)
+
 
 class TestFormatReport(unittest.TestCase):
     def _make_report(
@@ -1565,6 +1637,21 @@ class TestInspectSkills(unittest.TestCase):
         outside_dir.mkdir(parents=True)
         (outside_dir / "SKILL.md").write_text("sample skill\n")
         (skills_dir / "sample-skill").symlink_to(outside_dir, target_is_directory=True)
+
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.MODIFIED
+        )
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_dangling_symlinked_target_copy_modified(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        shutil.rmtree(skills_dir / "sample-skill")
+        gone_dir = self._make_skills_dir()
+        (skills_dir / "sample-skill").symlink_to(gone_dir, target_is_directory=True)
 
         report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
 

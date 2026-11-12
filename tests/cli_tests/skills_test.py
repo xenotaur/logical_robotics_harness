@@ -579,11 +579,21 @@ class SkillsInstallCliTest(unittest.TestCase):
         )
 
     def _snapshot_tree(self, root: pathlib.Path) -> dict[str, bytes | None]:
-        """Map every path under root to its bytes (None for directories)."""
-        return {
-            str(path.relative_to(root)): (None if path.is_dir() else path.read_bytes())
-            for path in sorted(root.rglob("*"))
-        }
+        """Map every path under root to its bytes (None for directories).
+
+        Symlinks map to their link target, so a dangling link is captured
+        rather than read through.
+        """
+        snapshot: dict[str, bytes | None] = {}
+        for path in sorted(root.rglob("*")):
+            if path.is_symlink():
+                value: bytes | None = b"symlink:" + os.fsencode(os.readlink(path))
+            elif path.is_dir():
+                value = None
+            else:
+                value = path.read_bytes()
+            snapshot[str(path.relative_to(root))] = value
+        return snapshot
 
     def test_skills_install_diff_never_creates_missing_target(self) -> None:
         with tempfile.TemporaryDirectory() as fake_cwd:
@@ -644,6 +654,35 @@ class SkillsInstallCliTest(unittest.TestCase):
             )
             self.assertIn("--- diff:", diff_result.stdout)
             self.assertIn("+# codex local change", diff_result.stdout)
+            self.assertEqual(self._snapshot_tree(root), before)
+
+    def test_skills_install_diff_reports_dangling_symlinked_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            root = pathlib.Path(fake_cwd)
+            install_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "codex"
+            )
+            self.assertEqual(install_result.returncode, 0, msg=install_result.stderr)
+            skill_dir = next(
+                path
+                for path in sorted((root / ".agents" / "skills").iterdir())
+                if path.is_dir()
+            )
+            shutil.rmtree(skill_dir)
+            skill_dir.symlink_to(root / "gone", target_is_directory=True)
+            before = self._snapshot_tree(root)
+
+            diff_result = self._run_install_in(
+                fake_cwd, "--local", "--target", "codex", "--diff"
+            )
+
+            self.assertEqual(diff_result.returncode, 0, msg=diff_result.stderr)
+            self.assertIn(
+                f"warning: {skill_dir.name} has local modifications",
+                diff_result.stdout,
+            )
+            self.assertNotIn(f"would install: {skill_dir.name}", diff_result.stdout)
+            self.assertIn("installed skill directory is a symlink", diff_result.stdout)
             self.assertEqual(self._snapshot_tree(root), before)
 
     def test_skills_install_invalid_target_rejected(self) -> None:

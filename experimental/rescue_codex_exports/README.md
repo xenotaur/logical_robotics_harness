@@ -1,14 +1,14 @@
 # Rescue Codex Exports
 
-Stopgap tooling for `/lrh-codex-export` captures left in OS temporary
+Stopgap tooling for `/lrh-export-codex` captures left in OS temporary
 storage, and for consolidating any personal export archive into one durable
 location.
 
 ## Why this exists
 
-`/lrh-codex-export`'s routine capture path writes each export under
+`/lrh-export-codex`'s routine capture path writes each export under
 `mktemp -d "${TMPDIR:-/tmp}/lrh-codex-export-$EXPORT_ID.XXXXXX"`
-(`src/lrh/skills/lrh-codex-export/SKILL.md` Step 2), which on macOS resolves
+(`src/lrh/skills/lrh-export-codex/SKILL.md` Step 2), which on macOS resolves
 under `/var/folders/.../T/...` — OS-managed scratch the system can reclaim at
 any time. That defeats the point of a durable, `claude /export`-style private
 capture: a successful export can vanish before anyone reads it.

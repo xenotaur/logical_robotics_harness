@@ -2,13 +2,13 @@
 
 Use this guide when a Codex task contains useful context that should be kept as
 a private, non-authoritative transcript for later review. The normal user-facing
-entry point is `/lrh-codex-export`, which wraps
+entry point is `/lrh-export-codex`, which wraps
 `lrh conversation archive-codex-thread` and immediately verifies the
 result with `lrh conversation inspect-export`.
 
 ## When to use this
 
-Use `/lrh-codex-export` when you need a durable private capture of:
+Use `/lrh-export-codex` when you need a durable private capture of:
 
 - a design or implementation session whose reasoning may matter later;
 - a review-response or closeout session with useful command and validation
@@ -53,7 +53,7 @@ Codex session without creating an early archive attempt.
 In Codex, run:
 
 ```text
-/lrh-codex-export
+/lrh-export-codex
 ```
 
 When `CODEX_THREAD_ID` is available, the skill resolves it through the same
@@ -61,7 +61,7 @@ shared resolver used by `/lrh-session-id-codex`. If the environment does not
 expose a thread id, provide one explicitly:
 
 ```text
-/lrh-codex-export 019fc43f-e2d9-7503-88cb-9d9a8136c111
+/lrh-export-codex 019fc43f-e2d9-7503-88cb-9d9a8136c111
 ```
 
 The skill creates a private output directory in LRH's durable local session

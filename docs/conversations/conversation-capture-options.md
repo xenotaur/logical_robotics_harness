@@ -5,7 +5,7 @@
 Use this guide when useful LRH work starts in a human/AI conversation and you need to preserve enough context for later review. Conversation material can help explain why a change was requested, how alternatives were considered, what commands were run, or what follow-up should become durable project work.
 
 Conversation capture is currently a review-first workflow. LRH provides
-Codex app-task export through `/lrh-codex-export`, file-based local conversion,
+Codex app-task export through `/lrh-export-codex`, file-based local conversion,
 manifest inspection, and explicit local archive viewing for Codex conversation
 exports, but it does not provide managed conversation storage or automated
 promotion into authoritative project state.
@@ -33,7 +33,7 @@ Do not capture conversations just because they exist. Capture only the material 
 | Manual copy/paste of selected conversation excerpts into reviewable Markdown | Available | Use a private scratch file, PR description, design draft, work-item draft, evidence note, or execution record as appropriate. |
 | Prompt execution records | Available | Use the prompt workflow and `lrh prompt check-execution` / `lrh prompt record-execution` or the repository helper script when a prompt drives meaningful work. |
 | Sensitivity scanning helper library | Available for local adapters | `lrh.conversations.sensitivity` is used by current conversion commands as a heuristic scan, not as a safety certification. |
-| Codex app task export | Available | Use `/lrh-codex-export [THREAD_ID]` in Codex, or run `lrh conversation archive-codex-thread --thread-id THREAD_ID` directly for the durable archive default; use `lrh conversation export-codex-thread` only when you need explicit `--out` / `--raw-out` paths. |
+| Codex app task export | Available | Use `/lrh-export-codex [THREAD_ID]` in Codex, or run `lrh conversation archive-codex-thread --thread-id THREAD_ID` directly for the durable archive default; use `lrh conversation export-codex-thread` only when you need explicit `--out` / `--raw-out` paths. |
 | Codex file export to Markdown | Available | Use `lrh conversation convert-codex-file INPUT.txt --out OUTPUT.md` for explicit local source files. |
 | Codex export inspection | Available | Use `lrh conversation inspect-export EXPORT.md` to verify manifest shape, transcript statistics, and optional source hash without printing transcript body text. |
 | Codex archive viewing | Available | Use `lrh serve --codex-archive-root PATH` to browse explicitly configured local Markdown export roots. |
@@ -68,7 +68,7 @@ Recommended private-export practices:
 5. Link to the private location only where your team policy allows it.
 
 For Codex exports written as Markdown with the LRH manifest contract, use
-`/lrh-codex-export` when capturing from a live Codex app task. The skill wraps
+`/lrh-export-codex` when capturing from a live Codex app task. The skill wraps
 `lrh conversation archive-codex-thread`, writes into the durable private
 session archive, runs `lrh conversation inspect-export`, and reports metadata
 only.

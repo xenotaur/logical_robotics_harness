@@ -154,7 +154,7 @@ folded into this item's own scope — see Non-Goals.
   this item — `import-codex-exports` copies, not moves, and deciding when
   it's safe to delete the originals is a separate, deliberate step the user
   should take after independently confirming the imports.
-- Do not modify the routine `/lrh-codex-export` capture path itself — it
+- Do not modify the routine `/lrh-export-codex` capture path itself — it
   already writes correctly; this item only consolidates already-stranded
   content.
 - Do not attempt to reconcile `~/.lrh/private/` naming with the documented

@@ -7,7 +7,7 @@ real Codex task can be read from a supported API path and saved as private local
 data for later LRH rendering.
 
 This spike is not the production exporter. It is a short-lived investigation
-that should produce enough evidence to decide whether `/lrh-codex-export` should
+that should produce enough evidence to decide whether `/lrh-export-codex` should
 be implemented as:
 
 - a Codex skill that uses model-visible Codex app thread tools;
@@ -97,7 +97,7 @@ Steps:
 ## Decision Criteria
 
 - If Phase 1 succeeds and Phase 3 fails, build a skill-backed
-  `/lrh-codex-export` first and keep CLI support as a later adapter.
+  `/lrh-export-codex` first and keep CLI support as a later adapter.
 - If Phase 1 and Phase 3 both succeed, build an LRH CLI/library adapter for
   `lrh conversation export-codex-thread`.
 - If Phase 1 fails, stop and redesign; the current app surface is insufficient.

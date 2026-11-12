@@ -55,7 +55,7 @@ only a missing or incompatible CLI command is a runtime blocker.
 The relevant CLI guarantees are:
 
 - `current-codex-thread-id` uses the same shared resolver contract as
-  `/lrh-codex-export` and the Codex export CLIs.
+  `/lrh-export-codex` and the Codex export CLIs.
 - `--thread-id` overrides `CODEX_THREAD_ID`.
 - missing and whitespace-only ids are rejected clearly.
 - terminal output is metadata-only.
@@ -67,7 +67,7 @@ The relevant CLI guarantees are:
 
 Follow these rules for every run:
 
-1. Do not run `/lrh-codex-export` unless the user explicitly asks to export or
+1. Do not run `/lrh-export-codex` unless the user explicitly asks to export or
    archive the transcript.
 2. Do not inspect undocumented Codex app storage internals.
 3. Do not print transcript text or line-preview export artifacts.
@@ -118,4 +118,4 @@ Report both:
 ### Step 3 -- Close out
 
 Tell the user that no transcript was exported. If they later need a private
-archive capture, use `/lrh-codex-export` explicitly.
+archive capture, use `/lrh-export-codex` explicitly.

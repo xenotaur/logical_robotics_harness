@@ -149,7 +149,9 @@ follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.
 - An allow rule for `export-claude-session *` also allows `--out` anywhere.
   The skill's own gates still govern `--force` and exports the model starts
   on its own, and the `ask` rule adds a harness-level checkpoint for
-  `--force`.
+  `--force`. "Anywhere" includes a path inside the repository working tree,
+  where a later commit could pick up the export. Only the skill's text
+  guards against that, so the documented snippet must say so.
 - Whether an exact rule actually suppresses the classifier in the cloud is a
   `WI-CLOUD-SESSION-PROBE` question. If it doesn't, the CLI change is still
   worth keeping, but revisit the docs claim.

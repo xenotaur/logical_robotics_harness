@@ -91,6 +91,32 @@ blocking. The user chose to fix all nine findings in one push:
   Decision 3, `WI-EXPORT-ALLOWLIST-READY` and `WI-PLUGIN-BUNDLED-CLI`.
 - **This record** now reflects seven decisions and seven items.
 
+Second review fixes, 2026-11-11: `/lrh-confirm-fixes` resolved the three
+remaining threads at `1293bed1`. Its substitute self-review of `26d7f5de`
+(record `2026_11_09_05_07_28_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+seven non-blocking issues, and the user chose to fix all of them:
+
+- **Probe.** The control command gains `--current`; without it the CLI
+  exits 2. The teleport step runs `current-claude-session-id` inside the
+  teleported session and records compaction status in place of an
+  unmeasurable completeness check.
+- **Resolution order (Decision 2, audit §2.2,
+  `WI-LRH-CLI-RESOLUTION-REFERENCE`).** The order is now: an LRH
+  checkout, then the bundled launcher, then `lrh` on PATH, so a lagging
+  setup-script install can't shadow the bundle. `WI-PLUGIN-BUNDLED-CLI`
+  confirms or revises it.
+- **Stale-export check.** It takes the export's path from the export
+  skill's own report in the session (Decision 6,
+  `WI-EXPORT-REFRESH-AND-STALENESS`).
+- **`--refresh`.** It treats an unchanged export as a no-op.
+- **One timestamp.** The exporter uses a single timestamp for the archive
+  month and for `exported_at` (Decision 7,
+  `WI-CLAUDE-EXPORT-LOCAL-IMPORT`).
+- **Metadata.** The proposal's `updated_on`, the cloud-branch item's
+  decision list, and the PR description are updated.
+- **Allowlist.** `WI-EXPORT-ALLOWLIST-READY` now says an allowed `--out`
+  can point inside the working tree.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

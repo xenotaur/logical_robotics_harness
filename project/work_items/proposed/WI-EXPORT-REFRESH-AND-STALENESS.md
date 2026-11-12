@@ -35,10 +35,10 @@ forbidden_actions:
 acceptance:
   - "export-claude-session records its render options (include_subagents and include_system_attachments) in the export manifest; existing manifest fields are unchanged, and inspect-export tolerates exports that predate the new fields"
   - "export-claude-session --refresh overwrites an existing destination only when that file is an LRH Claude export of the same source id, whose recorded render options equal the current invocation's, and whose recorded source byte count and hash show the recorded source is a byte prefix of the current transcript (the match_source_grew case); every other existing destination, including one with no recorded render options, is refused with a clear error that names any differing flags, and is left untouched"
-  - "--refresh with no existing destination behaves like a normal export; --refresh and --force are mutually exclusive"
+  - "--refresh with no existing destination behaves like a normal export; when the existing export already matches the current transcript exactly (inspect-export's match case) with the same render options, --refresh is a no-op success that reports the export as current and leaves the file untouched; --refresh and --force are mutually exclusive"
   - "lrh-export-claude documents --refresh as not requiring the --force confirmation gate, because it can't overwrite a different export; --force still always waits for confirmation"
   - "/lrh-closeout Step 8 and /lrh-work-remains item 11 take cloud status only from the cloud_session field of lrh conversation current-claude-session-id --format json, treating a missing field as not a cloud session, and never read CLAUDE_CODE_REMOTE themselves"
-  - "/lrh-closeout Step 8 and /lrh-work-remains item 11, when the session is a cloud session, report 'no export' or 'export is N bytes stale' using inspect-export's grown-by count, and offer a refresh plus delivery; they never run the export themselves without the export skill's own gate"
+  - "/lrh-closeout Step 8 and /lrh-work-remains item 11, when the session is a cloud session, find the existing export from the path lrh-export-claude reported earlier in this session (its delivered path or archive path), never by recomputing the archive path in skill text; they report 'no export found in this session' when there is no such report or the file is gone, and otherwise 'export is N bytes stale' using inspect-export's grown-by count; they offer a refresh plus delivery, and never run the export themselves without the export skill's own gate"
   - "The /lrh-closeout report states when lrh sessions closeout-sync wrote to an archive that won't survive the session"
   - "Unit tests cover the refresh accept and refuse cases; lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass; rendered skill copies are regenerated without --force"
 required_evidence:
@@ -115,9 +115,13 @@ the render options, and `--refresh` has to require them to match.
    - the recorded source bytes are a prefix of the current source, using
      the inspector's own comparison.
 
-   Otherwise refuse, naming any flag that differs so the user can re-run
-   with matching flags. Make `--refresh` and `--force` mutually exclusive.
-3. Add tests for the accept, refuse-different-source, refuse-mismatch,
+   If the source has grown (`match_source_grew`), overwrite. If it is
+   unchanged (`match`), leave the file untouched and report that the export
+   is already current. Otherwise refuse, naming any flag that differs so
+   the user can re-run with matching flags. Make `--refresh` and `--force`
+   mutually exclusive.
+3. Add tests for the accept-grown, unchanged-no-op,
+   refuse-different-source, refuse-mismatch,
    refuse-different-render-options, refuse-no-recorded-render-options,
    refuse-non-LRH-file, and no-existing-file cases.
 4. Update `lrh-export-claude`:
@@ -130,6 +134,16 @@ the render options, and `--refresh` has to require them to match.
    (Decision 4). Until `WI-EXPORT-CLAUDE-CLOUD-BRANCH` adds that field, a
    missing field means "not a cloud session", so the check stays dormant
    rather than reading `CLAUDE_CODE_REMOTE` in skill text.
+
+   The check finds the export from the path `lrh-export-claude` reported in
+   its Step 6 earlier in this session. With a delivery tool that is
+   `<delivery-dir>/<source-id>.md`; without one it is the archive path the
+   CLI printed. The skill text must not recompute the archive path, which
+   lives only in `claude_export.py:505-515` (the export skill already
+   refuses to copy it). With no such report, or if the file is gone,
+   report "no export found in this session". That is safe to offer on,
+   because `--refresh` refuses a mismatched file and an unchanged one is a
+   no-op.
 6. Document `--refresh` and the new manifest fields in
    `docs/reference/cli/conversation.md`, and regenerate rendered copies.
 
@@ -143,8 +157,11 @@ the render options, and `--refresh` has to require them to match.
 ## Acceptance Criteria
 
 - The manifest records the render options.
-- `--refresh` accepts only the grown-same-source case with matching render
-  options, as shown by tests.
+- `--refresh` overwrites only the grown-same-source case with matching
+  render options, treats an unchanged export as a no-op, and refuses the
+  rest, as shown by tests.
+- The stale-export check takes the export's path from the export skill's
+  own report, never from recomputing it.
 - `--force` keeps its confirmation gate; `--refresh` doesn't need one.
 - Closeout and work-remains flag missing or stale exports in cloud sessions.
 - `lrh validate`, `scripts/test`, `scripts/lint` and
@@ -168,3 +185,8 @@ the render options, and `--refresh` has to require them to match.
   `--force` and its gate.
 - Closeout and work-remains must not read transcript content. The grown-by
   count from `inspect-export` is metadata only.
+- The export skill's earlier report can drop out of context after
+  compaction, so the check then says "no export found in this session"
+  even though one exists. That errs toward offering a refresh, which is
+  safe. If it proves noisy, a later read-only CLI lookup built on
+  `WI-CLAUDE-EXPORT-LOCAL-IMPORT`'s shared path helper could replace it.

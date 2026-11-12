@@ -34,7 +34,7 @@ forbidden_actions:
   - print_transcript_text
   - skills_install_force
 acceptance:
-  - "A single shared reference, with a master copy under src/lrh/skills/_shared/ and synced copies in each consuming skill's references/, defines the lrh resolution order: lrh on PATH; then the plugin's bundled launcher, as a named placeholder until WI-PLUGIN-BUNDLED-CLI ships; then PYTHONPATH=src python3 -m lrh.cli.main only when the working directory is an LRH checkout; otherwise stop"
+  - "A single shared reference, with a master copy under src/lrh/skills/_shared/ and synced copies in each consuming skill's references/, defines the lrh resolution order: PYTHONPATH=src python3 -m lrh.cli.main only when the working directory is an LRH checkout; then the plugin's bundled launcher, as a named placeholder until WI-PLUGIN-BUNDLED-CLI ships; then lrh on PATH; otherwise stop. It states why the launcher precedes PATH (a setup-script install can lag the plugin by about seven days) and the desktop trade-off (the launcher also beats a newer local install)"
   - "The stop path prints the exact setup-script install line and the docs anchor, and never discovers, clones or installs LRH on its own"
   - "Any one-time bootstrap clone is described only as a separate step the user confirms, named for what it does"
   - "lrh-export-claude, lrh-codex-export and lrh-antigravity-export replace their inline 'Running lrh' sections with a pointer to the shared reference"
@@ -95,7 +95,8 @@ snapshot-cache drift (audit §1.1).
 
 1. Add `src/lrh/skills/_shared/lrh-cli-resolution.md`, with the
    synced-copy header used by `prior-art-check.md`. It defines the
-   resolution order and the stop message, which includes
+   resolution order (Decision 2: LRH checkout, then the bundled-launcher
+   slot, then `lrh` on PATH) with its rationale, and the stop message, which includes
    `pip install "git+https://github.com/xenotaur/logical_robotics_harness.git@<ref>"`
    and the docs anchor.
 2. Copy it into each consuming skill's `references/`, and replace the inline

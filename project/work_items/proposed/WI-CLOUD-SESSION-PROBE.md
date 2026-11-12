@@ -35,7 +35,7 @@ acceptance:
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
   - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
-  - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, whether it is complete or missing compacted messages, and which session id it carries, without reading or printing transcript content"
+  - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, which session id it carries, whether current-claude-session-id run inside the teleported session resolves it, and whether the cloud session had been compacted (and so is documented to lose compacted messages), without reading or printing transcript content"
   - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
 required_evidence:
   - manual_review
@@ -108,31 +108,44 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
    auto mode, with `lrh` installed by setup script:
    1. **Control.** With no LRH allow rule in the repository's
       `.claude/settings.json`, run
-      `lrh conversation export-claude-session --out <scratchpad>/probe.md`,
-      the command the taurworks session was denied. Record whether the
-      classifier denied it.
+      `lrh conversation export-claude-session --current --out <scratchpad>/probe.md`.
+      The CLI requires a session selector, so without `--current` it exits
+      2 and writes nothing, and the test would show nothing. This is the
+      same kind of action the taurworks session was denied: the CLI
+      reading the session's own Claude data. Record whether the classifier
+      denied it.
    2. **With the rule.** In a fresh session on a branch whose
       `.claude/settings.json` allows
       `Bash(lrh conversation export-claude-session *)`, run the same
       command. Record whether it was denied.
-   3. If the command ran in either case, delete `probe.md` without opening
-      or printing it, and record its size only.
+   3. If the command ran in either case, record its exit status and
+      `probe.md`'s size, then delete `probe.md` without opening or
+      printing it. A run that exits non-zero, or writes no file, counts as
+      inconclusive, not as a pass.
 
    If the control isn't denied, record the allow-rule result as
    inconclusive, not as a pass. `current-claude-session-id` alone isn't a
    useful test: it reads environment variables and globs for the
    transcript path without opening the file
-   (`claude_session.py:49-104`), so it may never be denied.
+   (`claude_session.py:47-118`), so it may never be denied.
 4. From a clean local checkout of the session's repository, with the cloud
    session's branch pushed, run `claude --teleport <session-id>`. Then
    record:
    - whether a new `*.jsonl` file appears under `~/.claude/projects/`, by
      name and size only;
    - its session ID;
-   - whether `lrh conversation current-claude-session-id` resolves it;
-   - whether the cloud session had been compacted.
+   - whether `lrh conversation current-claude-session-id`, run through the
+     Bash tool *inside the teleported Claude Code session*, resolves it. A
+     plain local shell can't test this: the command needs
+     `CLAUDE_CODE_SESSION_ID`, which only a Claude Code session sets
+     (`claude_session.py:63-69`);
+   - whether the cloud session had been compacted before the teleport.
 
-   Don't open or print the transcript.
+   Don't open or print the transcript. Completeness isn't measured
+   directly, since that would need the content. Record compaction status
+   instead: Claude Code documents that compacted messages aren't copied by
+   teleport, so a compacted session's local transcript is known to be
+   incomplete.
 5. Write the execution record under `project/executions/WI-CLOUD-SESSION-PROBE/`.
 6. Update the audit's open-questions section and the proposal's
    `## Open Questions` with the answers.

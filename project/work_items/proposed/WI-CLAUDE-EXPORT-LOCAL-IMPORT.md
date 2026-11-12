@@ -36,6 +36,7 @@ forbidden_actions:
   - delete_source_without_flag
 acceptance:
   - "lrh conversation import-claude-export <file> reads exported_at and source_id from the file's frontmatter and files it at the same path export-claude-session would have written for that export, using one path helper factored out of claude_export.py and shared by both commands; a test asserts both produce the same path for the same inputs"
+  - "export-claude-session computes one UTC timestamp per run and uses it both for the default path's year and month and for the manifest's exported_at, so the two can't disagree at a month boundary; a test pins the clock at a month boundary and shows the archive path matches the exported_at month"
   - "The archive root resolves through resolve_claude_archive_root, so --archive-root and LRH_SESSION_ARCHIVE_ROOT apply and a root inside the current Git worktree is rejected"
   - "Missing destination folders are created 0700 and the file is written 0600 from its first byte, never via copy2 then chmod, under a permissive umask; existing folders' modes are left unchanged; tests cover this"
   - "The command refuses a file that isn't an LRH Claude export (missing or invalid manifest), and by default refuses to overwrite any existing file that isn't byte-identical; an identical existing file is a no-op success"
@@ -117,7 +118,14 @@ has the evidence.
 1. In `src/lrh/conversations/claude_export.py`, factor the default-path
    computation (lines 505-515) into a helper that takes the archive root,
    the export time, and the source ID. Use it from
-   `run_convert_claude_session_cli`, with no change in behavior.
+   `run_convert_claude_session_cli`. One behavior change is intended: the
+   path's year and month come from `now_utc` (`claude_export.py:505-507`),
+   while the manifest's `exported_at` comes from a separate
+   `datetime.now` call (`:109-110`). The two can fall in different months
+   at a UTC month boundary, which would break the import command's "same
+   path" guarantee. Have the CLI compute one timestamp and pass it to the
+   helper and, through the existing `exported_at=` parameter (`:51`), to
+   the manifest. Paths are otherwise unchanged.
 2. Add the `import-claude-export` subcommand, registered next to
    `import-codex-exports`, with `--archive-root`, `--dry-run`, `--move` and
    `--replace-older`.
@@ -187,5 +195,10 @@ has the evidence.
 - Exports written before `exported_at` existed, or with a malformed value,
   must be refused with a clear error rather than filed under a guessed
   month.
-- The helper refactor must not change existing export paths. Add a
-  regression test before refactoring.
+- The helper refactor must not change existing export paths, apart from
+  the single-timestamp fix. Add a regression test before refactoring.
+- Exports made before the single-timestamp fix can, rarely, carry an
+  `exported_at` in a different month than their archive folder. Importing
+  one files it under the `exported_at` month, which is the rule from then
+  on. A duplicate is possible only if the same export was also archived
+  locally at the old path.

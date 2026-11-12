@@ -228,9 +228,11 @@ Make re-export safe without `--force`.**
      pinned to a ref, with the roughly seven-day cache drift stated.
 2. **Missing-CLI recovery never discovers or clones on its own.** Replace the
    three copied "Running `lrh`" sections with one shared reference:
-   - Use `lrh` when it is on PATH.
-   - Else use the bundled shim, once that ships.
-   - Else use `PYTHONPATH=src` only inside an LRH checkout.
+   - Inside an LRH checkout, use `PYTHONPATH=src`.
+   - Else use the bundled shim, once that ships. It comes before PATH
+     because a setup-script install can lag the plugin by about seven
+     days, and should not shadow the bundle.
+   - Else use `lrh` when it is on PATH.
    - Else stop, and print the exact setup-script line and the docs anchor. A
      one-time bootstrap clone is allowed only as an explicit, separately
      confirmed step, named for what it does (for example "clone LRH into the

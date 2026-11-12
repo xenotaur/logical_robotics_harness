@@ -89,7 +89,7 @@ actually set.
 
 ### Demand search
 - Work items: None found. Adjacent: WI-LRH-EXPORT-DISPATCHER may later reuse `cloud_session`.
-- Proposals: Found: PROP-LRH-CLOUD-SESSION-CAPTURE (Decisions 4 and 5)
+- Proposals: Found: PROP-LRH-CLOUD-SESSION-CAPTURE (Decisions 4, 5 and 7)
 - Backlog: No matching entries
 - Recommendation: No action
 

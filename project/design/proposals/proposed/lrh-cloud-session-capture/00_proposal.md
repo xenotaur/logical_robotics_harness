@@ -4,7 +4,7 @@ type: design_proposal
 title: "Transcript capture from Claude Code cloud sessions"
 status: proposed
 created_on: 2026-11-06
-updated_on: 2026-11-06
+updated_on: 2026-11-11
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -143,10 +143,20 @@ Options considered:
   rejected for the reasons in Decision 1.
 - **Stop with an exact remedy.** This is chosen. One shared reference
   replaces the three copied "Running `lrh`" sections. It checks, in order:
-  1. `lrh` on PATH;
+  1. `PYTHONPATH=src python3 -m lrh.cli.main`, only inside an LRH checkout,
+     which keeps the skills' existing advice to prefer the checkout's own
+     code over a possibly different editable install;
   2. the plugin's bundled launcher, once it ships;
-  3. `PYTHONPATH=src python3 -m lrh.cli.main`, only inside an LRH checkout;
+  3. `lrh` on PATH;
   4. otherwise, stop and print the setup-script line and the docs anchor.
+
+  The launcher comes before `lrh` on PATH because it ships from the same
+  commit as the plugin's skills, while a setup-script install can lag them
+  by up to about seven days. Putting PATH first would let that stale
+  install shadow the bundle and undo Decision 1. The cost: in a desktop
+  session with the plugin enabled, the launcher also beats a newer local
+  install. `WI-PLUGIN-BUNDLED-CLI` confirms or revises this order once it
+  settles the launcher's name, and records that trade-off.
 
 A one-time bootstrap clone stays possible, but only as its own step that
 the user confirms, named for what it does ("clone LRH into the
@@ -268,15 +278,19 @@ Options considered:
 - **`--refresh` on `export-claude-session`.** It overwrites only an existing
   export of the same source ID, with the same recorded render options,
   whose recorded source is a byte prefix of the current transcript — the
-  case `inspect-export` already reports as `match_source_grew`. It refuses
-  everything else, including exports that predate the recorded options.
+  case `inspect-export` already reports as `match_source_grew`. An export
+  that already matches the transcript exactly (`match`) is a no-op. It
+  refuses everything else, including exports that predate the recorded
+  options.
   Because it can't destroy a different export, or quietly drop content an
   earlier export included, it doesn't trigger the `--force` gate, and its
   name promises exactly that.
 - **Staleness flags.** In a cloud session, `/lrh-closeout` Step 8 and
   `/lrh-work-remains` item 11 flag "no export" or "export is N bytes stale"
   (from `inspect-export`'s grown-by count), and offer a refresh plus
-  delivery.
+  delivery. They find the export from the path `lrh-export-claude` reported
+  earlier in the session, never by recomputing the archive path in skill
+  text.
 - **Closeout report.** It says when `lrh sessions closeout-sync` wrote to an
   archive that won't survive the session.
 
@@ -325,7 +339,10 @@ Options considered:
 
 - reads `exported_at` and `source_id` from the file's own frontmatter;
 - computes the destination with a helper shared with the exporter, by
-  factoring out `claude_export.py:505-515`;
+  factoring out `claude_export.py:505-515`. The exporter is changed to take
+  its path's year and month and its manifest `exported_at` from one
+  timestamp; today they come from two clock reads (`:109-110` and
+  `:505-507`), which can disagree at a month boundary;
 - resolves the root through `resolve_claude_archive_root`, so
   `LRH_SESSION_ARCHIVE_ROOT` and `--archive-root` apply;
 - creates missing folders 0700 and writes the file 0600 from the first byte

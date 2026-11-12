@@ -41,7 +41,7 @@ acceptance:
   - "The launcher runs Python in isolated mode (python3 -I) and puts the copied package first on sys.path from inside Python, computed from the launcher's own resolved location; it never relies on PYTHONPATH, which -I ignores. Tests show it imports the copy, not another lrh, when the working directory contains its own lrh/ package and when PYTHONPATH points at a different lrh"
   - "If the launcher isn't named lrh, the published allow/ask settings snippet from WI-EXPORT-ALLOWLIST-READY gains matching rules for the launcher name, in the same change"
   - "The launcher's name and the PyYAML decision (bundle it or rely on the image) are recorded in the implementation's execution record, with the PATH-shadowing trade-off for desktop users stated"
-  - "The shared CLI-resolution reference from WI-LRH-CLI-RESOLUTION-REFERENCE names the launcher in its resolution order"
+  - "The shared CLI-resolution reference from WI-LRH-CLI-RESOLUTION-REFERENCE names the launcher in its resolution order, and the execution record confirms or revises Decision 2's order (launcher before lrh on PATH), stating the desktop trade-off that the launcher also beats a newer local install"
   - "The packaging test fails when the committed plugin's copied CLI differs from src/lrh, the export stays within claude.ai's 5,000-file and 200 MB limits, and claude plugin validate passes"
   - "A manual cloud-session check runs '<launcher> conversation --help' successfully with no setup script, recorded in the execution record"
 required_evidence:
@@ -122,7 +122,10 @@ plugin in cloud sessions is undocumented.
    setup script as the fallback.
 5. Update the shared CLI-resolution reference (created by
    `WI-LRH-CLI-RESOLUTION-REFERENCE`, hence the dependency) so its order
-   names the launcher.
+   names the launcher. Confirm or revise Decision 2's order, which puts
+   the launcher before `lrh` on PATH so a lagging setup-script install
+   can't shadow the bundle in cloud. Record the desktop cost: with the
+   plugin enabled, the launcher also beats a newer local install.
 6. If the launcher isn't named `lrh`, extend the allow/ask settings snippet
    published by `WI-EXPORT-ALLOWLIST-READY` with the same three allow rules
    and the `--force` ask rule for the launcher name. Exact Bash rules match

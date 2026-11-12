@@ -101,7 +101,9 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 2. In that session, run:
    - `command -v lrh-probe`;
    - `python3 --version`;
-   - `python3 -c "import yaml"`;
+   - `python3 -I -c "import yaml"`, in isolated mode like the bundled
+     launcher, so a PyYAML present only in user site-packages doesn't
+     pass;
    - for each of the four variables, a check that prints only set or unset,
      plus each ID's prefix or format.
 3. Test an allow rule against a control, on single-repo cloud sessions in

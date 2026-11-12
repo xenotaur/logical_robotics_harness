@@ -99,7 +99,9 @@ follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.
 1. In `src/lrh/conversations/claude_export.py`, create missing parent
    directories with mode 0700. Use a helper that creates each missing level
    with an explicit mode and chmods only the directories it created, so a
-   permissive umask can't widen them. Add tests in
+   permissive umask can't widen them. `WI-CLAUDE-EXPORT-LOCAL-IMPORT` also
+   creates 0700 folders in this module: share one helper. If that item
+   landed first, reuse its helper. Add tests in
    `tests/conversations_tests/claude_export_test.py`.
 2. In `src/lrh/skills/lrh-export-claude/SKILL.md` Step 4, replace the
    subshell blocks with plain commands. Note that the CLI now owns the file

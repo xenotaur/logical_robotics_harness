@@ -38,7 +38,7 @@ acceptance:
   - "--refresh with no existing destination behaves like a normal export; when the existing export already matches the current transcript exactly (inspect-export's match case) with the same render options, --refresh is a no-op success that reports the export as current and leaves the file untouched; --refresh and --force are mutually exclusive"
   - "lrh-export-claude documents --refresh as not requiring the --force confirmation gate, because it can't overwrite a different export; --force still always waits for confirmation"
   - "/lrh-closeout Step 8 and /lrh-work-remains item 11 take cloud status only from the cloud_session field of lrh conversation current-claude-session-id --format json, treating a missing field as not a cloud session, and never read CLAUDE_CODE_REMOTE themselves"
-  - "/lrh-closeout Step 8 and /lrh-work-remains item 11, when the session is a cloud session, find the existing export from the path lrh-export-claude reported earlier in this session (its delivered path or archive path), never by recomputing the archive path in skill text; they report 'no export found in this session' when there is no such report or the file is gone, and otherwise 'export is N bytes stale' using inspect-export's grown-by count; they offer a refresh plus delivery, and never run the export themselves without the export skill's own gate"
+  - "/lrh-closeout Step 8 and /lrh-work-remains item 11, when the session is a cloud session, find the existing export from the path lrh-export-claude reported earlier in this session (its delivered path or archive path), never by recomputing the archive path in skill text; they report 'no export found in this session' when there is no such report or the file is gone, and otherwise 'export is N bytes stale' using inspect-export's grown-by count; they offer a refresh plus delivery, where the refresh passes the reported path with --out so a UTC month rollover since the first export can't turn it into a second export at a new default path; they never run the export themselves without the export skill's own gate"
   - "The /lrh-closeout report states when lrh sessions closeout-sync wrote to an archive that won't survive the session"
   - "Unit tests cover the refresh accept and refuse cases; lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass; rendered skill copies are regenerated without --force"
 required_evidence:
@@ -141,9 +141,13 @@ the render options, and `--refresh` has to require them to match.
    CLI printed. The skill text must not recompute the archive path, which
    lives only in `claude_export.py:505-515` (the export skill already
    refuses to copy it). With no such report, or if the file is gone,
-   report "no export found in this session". That is safe to offer on,
-   because `--refresh` refuses a mismatched file and an unchanged one is a
-   no-op.
+   report "no export found in this session". The offered refresh passes the
+   reported path with `--out`. The default archive path takes its year and
+   month from the clock at run time (`claude_export.py:505-515`), so if
+   the month rolled over, a default-path `--refresh` would find no file
+   and write a second export instead of refreshing the first. Offering a
+   refresh is safe either way: with no file it is a normal export, a
+   mismatched file is refused, and an unchanged one is a no-op.
 6. Document `--refresh` and the new manifest fields in
    `docs/reference/cli/conversation.md`, and regenerate rendered copies.
 

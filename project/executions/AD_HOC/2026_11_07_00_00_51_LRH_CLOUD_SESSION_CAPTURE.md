@@ -117,6 +117,22 @@ seven non-blocking issues, and the user chose to fix all of them:
 - **Allowlist.** `WI-EXPORT-ALLOWLIST-READY` now says an allowed `--out`
   can point inside the working tree.
 
+Third review fixes, 2026-11-12: a second `/lrh-confirm-fixes` run found
+no open threads and green CI at `6120e073`. Its substitute self-review
+(record `2026_11_12_06_03_03_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+four non-blocking issues, and the user chose to fix all of them:
+
+- **Import dependency.** `WI-CLAUDE-EXPORT-LOCAL-IMPORT` now depends on
+  `WI-EXPORT-REFRESH-AND-STALENESS`, so `--replace-older` doesn't ship
+  before the render-option fields it compares. The proposal's plan item
+  7 now says so.
+- **Refresh path.** The offered stale-export refresh passes the reported
+  path with `--out`, so a month rollover can't create a second export.
+- **Probe.** The PyYAML check runs `python3 -I`, like the launcher.
+- **Directory helper.** `WI-EXPORT-ALLOWLIST-READY` and
+  `WI-CLAUDE-EXPORT-LOCAL-IMPORT` cross-reference one shared 0700
+  directory helper.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

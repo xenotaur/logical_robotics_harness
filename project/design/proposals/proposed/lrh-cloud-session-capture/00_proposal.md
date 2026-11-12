@@ -419,7 +419,8 @@ Open Questions.
    `remote_session_id` fields, and the skill's cloud branch: export with
    `--out` to the delivery location, offer the file, and report the local
    import command.
-7. **`WI-CLAUDE-EXPORT-LOCAL-IMPORT`** — independent. Adds
+7. **`WI-CLAUDE-EXPORT-LOCAL-IMPORT`** — after item 4, whose recorded
+   render options `--replace-older` compares. Adds
    `lrh conversation import-claude-export` and the path helper it shares
    with the exporter, and fixes the stale `SKILL.md:296` line citation.
 

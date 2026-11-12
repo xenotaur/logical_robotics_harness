@@ -19,7 +19,8 @@ related_design:
   - project/design/proposals/proposed/lrh-cloud-session-capture/00_proposal.md
   - project/audits/2026-11-06-cloud-session-export-audit.md
   - project/design/proposals/adopted/lrh-claude-conversation-exporter/00_proposal.md
-depends_on: []
+depends_on:
+  - WI-EXPORT-REFRESH-AND-STALENESS
 blocked_by: []
 expected_actions:
   - add_cli_command
@@ -102,7 +103,7 @@ has the evidence.
 - Recommendation: Proceed
 
 ### Demand search
-- Work items: None found. Adjacent: WI-EXPORT-REFRESH-AND-STALENESS adds the recorded render options that `--replace-older` compares; WI-EXPORT-CLAUDE-CLOUD-BRANCH reports this command.
+- Work items: None found. Dependency: WI-EXPORT-REFRESH-AND-STALENESS adds the recorded render options that `--replace-older` compares. Adjacent: WI-EXPORT-CLAUDE-CLOUD-BRANCH reports this command; WI-EXPORT-ALLOWLIST-READY adds a 0700 directory helper to `claude_export.py` that this item should share.
 - Proposals: Found: PROP-LRH-CLOUD-SESSION-CAPTURE (Decision 7)
 - Backlog: No matching entries
 - Recommendation: No action
@@ -132,7 +133,9 @@ has the evidence.
    It:
    - parses the manifest;
    - computes the destination with the helper;
-   - creates folders 0700;
+   - creates folders 0700, reusing the directory helper from
+     `WI-EXPORT-ALLOWLIST-READY` if it has landed, or adding it here for
+     that item to reuse;
    - writes the file 0600 through the existing private-write pattern;
    - checks the written copy;
    - deletes the source only with `--move`.
@@ -148,9 +151,15 @@ has the evidence.
    the live transcript (`export_inspector.py:404-425`), and at import time
    both files are exports, with the transcript left in the cloud container.
    So `--replace-older` is an explicit flag whose help text says it's a
-   manifest-only check. The render-option fields come from
-   `WI-EXPORT-REFRESH-AND-STALENESS`; until they exist, `--replace-older`
-   refuses every file.
+   manifest-only check. The render-option fields, and their parsing in
+   `ConversationExportManifest.from_mapping` (`export_manifest.py:171-193`,
+   which reads only a fixed field list), come from
+   `WI-EXPORT-REFRESH-AND-STALENESS`. That is why this item depends on it:
+   landing first would ship `--replace-older` as a flag that refuses every
+   file. Read the fields through the manifest class, and test a real
+   replacement, not only refusals.
+   A file without the fields, such as an export made before that item
+   shipped, is still refused.
 4. Add tests in `tests/conversations_tests/claude_export_test.py`.
 5. Document the command in `docs/reference/cli/conversation.md`. Update
    `lrh-export-claude/SKILL.md` to name the helper instead of line numbers.

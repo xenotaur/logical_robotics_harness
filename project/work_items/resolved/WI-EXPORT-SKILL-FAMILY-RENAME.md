@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #865 (commit d5ab89ae): renamed lrh-codex-export to lrh-export-codex and lrh-antigravity-export to lrh-export-antigravity, kept both old names as deprecated stubs that hand off with the same arguments and cannot be auto-selected on Claude, Codex or Antigravity, installed all four to every target (lrh-export-antigravity now on Antigravity) and to the committed Claude plugin tree, and updated references; the lrh-codex-export-<timestamp> artifact prefix is unchanged.'
 blocked_reason: null
 blocked: false
 id: WI-EXPORT-SKILL-FAMILY-RENAME
 title: "Rename lrh-codex-export and lrh-antigravity-export to lrh-export-codex and lrh-export-antigravity, with deprecated stubs"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

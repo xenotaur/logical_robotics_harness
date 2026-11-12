@@ -2,14 +2,14 @@
 execution_id: 2026_11_09_05_05_30_WI_EXPORT_SKILL_FAMILY_RENAME
 prompt_id: PROMPT(WI-EXPORT-SKILL-FAMILY-RENAME:WI_EXPORT_SKILL_FAMILY_RENAME)[2026-10-28T07:41:27+00:00]
 work_item: WI-EXPORT-SKILL-FAMILY-RENAME
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/865
-commit:
+commit: d5ab89aefbc9481f78f256148cca6e7213a8fe37
 created_at: 2026-11-09T05:05:30+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXPORT-SKILL-FAMILY-RENAME.md
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

@@ -2,14 +2,14 @@
 execution_id: 2026_11_09_05_05_30_WI_EXPORT_SKILL_FAMILY_RENAME_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXPORT_SKILL_FAMILY_RENAME_SELFREVIEW)[2026-11-09T05:05:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_11_09_05_05_30_WI_EXPORT_SKILL_FAMILY_RENAME
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/865
-commit:
+commit: d5ab89aefbc9481f78f256148cca6e7213a8fe37
 created_at: 2026-11-09T05:05:30+00:00
 agent: claude_app
 instruction_source: "PR #865 pre-push working-tree diff (git diff origin/main, before commit d2fedcf3)"
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

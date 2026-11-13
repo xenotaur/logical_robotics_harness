@@ -2,10 +2,10 @@
 execution_id: 2026_10_22_06_47_52_WS_TAURSCRIPTS_MAINTAINABILITY
 prompt_id: PROMPT(AD_HOC:WS_TAURSCRIPTS_MAINTAINABILITY)[2026-10-22T01:03:21+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/848
-commit: 6b01c284
+commit: 32003ec3ee94233554f19a6458a16d66417ddcec
 agent: codex
 instruction_source: project/workstreams/proposed/WS-TAURSCRIPTS-MAINTAINABILITY.md
 session_transcript: pending

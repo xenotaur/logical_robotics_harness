@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/872
 commit:
 created_at: 2026-11-13T00:35:32+00:00
 agent: claude_app
-instruction_source: /lrh-self-review diff-mode from /lrh-implement Step 7.5 for WI-LRH-CLOSEOUT-NO-EXECUTION-RECORD
+instruction_source: lrh-self-review diff-mode from /lrh-implement Step 7.5 for WI-LRH-CLOSEOUT-NO-EXECUTION-RECORD
 session_transcript: pending
 ---
 

@@ -65,6 +65,34 @@ and credentials as the normal run. A five-iteration paired GraphQL/`gh pr list`
 test also failed consistently in an affected normal sandbox, while a known-good
 session passed all five iterations.
 
+### Replayable sanitized invocations
+
+These are the complete GitHub invocations used for the comparison. They omit
+only credentials, authorization headers, and response bodies:
+
+```sh
+gh api -X GET repos/xenotaur/logical_robotics_harness/pulls \
+  -f state=open -f per_page=5 \
+  --jq '.[] | [.number,.head.ref,.base.ref,.title] | @tsv'
+# normal sandbox: exit 1 (DNS/connection failure)
+# approved execution: exit 0 (five pull-request records returned)
+
+gh api graphql \
+  -f query='query { viewer { login } }' \
+  >/dev/null
+# normal sandbox: exit 1 (DNS/connection failure)
+# approved execution: exit 0 (success)
+
+GH_DEBUG=api gh pr list \
+  -R xenotaur/logical_robotics_harness \
+  --state open \
+  --limit 5 \
+  --json number,headRefName,baseRefName,title \
+  >/dev/null
+# normal sandbox: exit 1 (`lookup api.github.com: no such host`)
+# approved execution: exit 0 (HTTP 200; success)
+```
+
 ## Additional observations
 
 - `dig` in the affected normal sandbox reported `bind: Operation not

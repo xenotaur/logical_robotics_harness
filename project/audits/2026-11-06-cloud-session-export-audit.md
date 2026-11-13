@@ -67,8 +67,12 @@ does not guess.
   plugin already carries. No `src/lrh` file exceeds 256 KiB.
 - **Bundling is small.** `src/lrh` is 3.3 MB and 269 files. claude.ai's plugin
   limit is 5,000 files and 200 MB (same doc §5). The only runtime dependency is
-  `PyYAML` (`pyproject.toml`). `inspect-export` imports it
-  (`src/lrh/conversations/export_inspector.py`). In the taurworks session
+  `PyYAML` (`pyproject.toml`), and every CLI command needs it.
+  `lrh.cli.main` imports `lrh.agent_skills_status` at top level, and that
+  module imports `yaml` (`src/lrh/agent_skills_status.py:29`). So a
+  bundled launcher without PyYAML in the image fails on any command,
+  including `current-claude-session-id`, not just `inspect-export`. In
+  the taurworks session
   `PYTHONPATH=src python3 -m lrh.cli.main conversation inspect-export`
   succeeded, so that image had PyYAML. That is one observation, not a
   guarantee.

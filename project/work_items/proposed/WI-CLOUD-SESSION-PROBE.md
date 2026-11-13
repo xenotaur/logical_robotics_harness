@@ -32,7 +32,7 @@ forbidden_actions:
   - modify_user_settings
 acceptance:
   - "An execution record states, from commands run in a real claude.ai/code cloud session, whether ${CLAUDE_PLUGIN_ROOT} in a synced plugin's SKILL.md text is substituted with the plugin's path, whether the same placeholder in a references/ file reaches Claude as literal text, and whether python3 -I runs a script under the plugin's scripts/ by that path; the probe plugin has no top-level bin/, which claude.ai won't install"
-  - "The record states, in auto mode, whether a plugin skill's allowed-tools rule written with ${CLAUDE_PLUGIN_ROOT} ran the probe script without a permission prompt or classifier review, for both the quoted and unquoted path forms, with a control skill that has no allowed-tools; if the control also runs without review, the result is recorded as inconclusive; it also states whether the grant still applied to a model-initiated run of skill A made after a confirming reply"
+  - "The record states, in auto mode, whether a plugin skill's allowed-tools rule written with ${CLAUDE_PLUGIN_ROOT} ran the probe script without a permission prompt or classifier review, for both the quoted and unquoted path forms, with a control skill that has no allowed-tools; if the control also runs without review, the result is recorded as inconclusive; it also states, for skill D (invoked in one turn, waiting in its own text, and confirmed in the next turn without being invoked again), whether the grant still applied after the confirming reply, and, for skill E, whether a rule ending in a trailing ' *' (the shape lrh-export-claude would ship) ran without review"
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
   - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
@@ -60,7 +60,8 @@ doesn't settle:
   script under the plugin's `scripts/` runs by that path;
 - whether the skill's own `allowed-tools` rule for that script avoids a
   prompt and classifier review in auto mode, for a skill inside a synced
-  plugin, and whether the grant survives a confirming reply;
+  plugin; whether a rule ending in ` *` still works; and whether the grant
+  survives a confirming reply when the skill itself waits;
 - the Python and PyYAML runtime in the default image;
 - which session-ID environment variables are set;
 - whether an exact allow rule bypasses the auto-mode classifier;
@@ -113,30 +114,53 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
    - skill B, the same with the path double-quoted in both the command and
      the rule;
    - skill C, the same command with no `allowed-tools`, as the control;
+   - skill D, the same as A, except that its SKILL.md says to show the
+     command and wait for the user to reply "yes" before running it. This
+     mirrors `lrh-export-claude`'s gated cases: invoked first, then
+     waiting, then running in a later turn;
+   - skill E, the same as A, except that it runs
+     `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_probe.py --probe extra`
+     with the rule
+     `Bash(python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_probe.py --probe *)`.
+     That is the shape `lrh-export-claude` would ship: an interpreter, an
+     absolute path, and a trailing wildcard. Auto mode drops "wildcarded
+     interpreters" (`permission-modes.md`), and whether that catches this
+     shape isn't documented;
    - in skill A, a `references/path.md` file that holds the line
      `${CLAUDE_PLUGIN_ROOT}/scripts/lrh_probe.py`, which the skill asks
      Claude to read and quote back exactly.
 
-   The rules name the exact command line, `--probe` included, with no
-   wildcard. A `*` "matches any text, including spaces", and a trailing
-   ` *` matches the bare command only when it is the rule's only wildcard
-   (`permissions.md`). An exact rule keeps the probe from reporting a
-   false "no match", or a match broader than intended.
+   The rules for A to D name the exact command line, `--probe` included,
+   with no wildcard. A `*` "matches any text, including spaces", and a
+   trailing ` *` matches the bare command only when it is the rule's only
+   wildcard (`permissions.md`). An exact rule keeps those probes from
+   reporting a false "no match", or a match broader than intended. Skill
+   E passes an extra argument, so its single trailing wildcard has
+   something to match.
 
    Enable it on claude.ai and start a fresh cloud session. Plugins reach a
    session only when it is created.
-2. In that session, in auto mode, run skills A, B and C. Record:
+2. In that session, in auto mode, run skills A, B, C and E, then the
+   skill D sequence. Record:
    - the exact command line each skill produced, which shows whether
      `${CLAUDE_PLUGIN_ROOT}` was substituted, plus the script's output and
      exit status;
    - for each, whether the call ran with no prompt and no classifier
      review, was reviewed and allowed, or was denied. If C also ran with no
      review, the `allowed-tools` result is inconclusive, not a pass;
-   - a confirm-then-run turn. Ask Claude to propose running skill A and
-     wait for a yes. After replying "yes", record whether the script ran
-     with no review. The docs say the grant clears at the user's next
-     message, which is what `lrh-export-claude`'s confirmation gates rely
-     on;
+   - for E, whether the trailing-wildcard rule ran the script with no
+     review. If A passes but E doesn't, the shipped rule shape isn't
+     usable, which `WI-PLUGIN-BUNDLED-CLI` depends on;
+   - the skill D sequence:
+     1. Invoke D in one turn. It shows the command and waits.
+     2. Reply "yes" in the next turn, without invoking D again.
+     3. Record in which turn the Skill tool was invoked, and whether the
+        script then ran with no review.
+
+     Invoking a skill again re-applies its grant (`skills.md`), so a run
+     that follows a fresh invocation doesn't test this. The docs say the
+     grant clears at the user's next message, so the expected result is
+     that the run is reviewed;
    - the text Claude quoted from `references/path.md`: a literal
      `${CLAUDE_PLUGIN_ROOT}` confirms that supporting files aren't
      substituted;

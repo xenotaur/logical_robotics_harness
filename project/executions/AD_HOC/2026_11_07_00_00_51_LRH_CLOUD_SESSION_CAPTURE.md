@@ -218,6 +218,24 @@ chose to fix all seven:
   - Setup installs are to use the `git+https` form, since the proxy
     blocks archive fetches of unattached repositories.
 
+Seventh review fixes, 2026-11-13: a sixth `/lrh-confirm-fixes` run found
+no open threads and green CI at `f537e2e3`. Its substitute self-review
+(record `2026_11_13_19_14_52_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+nothing blocking: two should-fix findings in the probe and one nit. The
+user chose to fix all three:
+
+- **Probe skill D.** Its own text waits for "yes", it is invoked in one
+  turn, and the reply comes in the next turn without invoking it again.
+  The old confirm-then-run step invoked the skill after the reply, which
+  re-applies the grant.
+- **Probe skill E.** It tests the shipped rule shape: an interpreter, an
+  absolute path and a trailing ` *`. `WI-PLUGIN-BUNDLED-CLI` and Decision
+  3 now add the `allowed-tools` rules only if E passes.
+- **PyYAML.** Every CLI command needs it, through `lrh.agent_skills_status`,
+  not just `inspect-export`. A launcher without it would crash instead of
+  falling through. The audit, the proposal's open question and
+  `WI-PLUGIN-BUNDLED-CLI` say so.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

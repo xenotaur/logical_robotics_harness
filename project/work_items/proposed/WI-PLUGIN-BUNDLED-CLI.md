@@ -41,7 +41,7 @@ acceptance:
   - "lrh skills export --target claude-plugin writes a bootstrap (plugins/lrh/scripts/lrh_cli.py, or a name recorded in the execution record) and a copy of the lrh package under plugins/lrh/scripts/, from the same source tree; it writes no top-level bin/, and the exporter's existing refusal of a top-level bin/ (exporter.py:596-597) and its test stay in place"
   - "The launcher path ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py appears in each consuming SKILL.md body (the line WI-LRH-CLI-RESOLUTION-REFERENCE adds), never only in a references/ file, because Claude Code substitutes it only in SKILL.md content and allowed-tools rules; skills run the CLI as python3 -I <that path> <subcommand> ..., so nothing depends on the executable bit, and nothing is installed, cloned, or downloaded at run time"
   - "The bootstrap puts the copied package first on sys.path from inside Python, computed from its own resolved location; it never relies on PYTHONPATH, which -I ignores. Tests show it imports the copy, not another lrh, when the working directory contains its own lrh/ package and when PYTHONPATH points at a different lrh"
-  - "If the probe confirmed the grant holds in cloud auto mode, lrh-export-claude's frontmatter declares allowed-tools rules for exactly python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation followed by current-claude-session-id *, export-claude-session * and inspect-export *, written in the quoting form the probe showed matches the SKILL.md command; the skill's --force and model-initiated confirmation gates are unchanged; the docs say the grant lasts until the user's next message, so it covers a user-typed invocation without --force, while a run that waits for confirmation (model-initiated, including the closeout and work-remains refresh offer, or any --force) goes to the classifier in auto mode; if the probe showed the grant doesn't hold, no allowed-tools rules are added and the docs point teams needing pre-approval to the setup-script route"
+  - "If the probe confirmed the grant holds in cloud auto mode for a rule ending in a trailing ' *' (probe skill E, the shape shipped here), lrh-export-claude's frontmatter declares allowed-tools rules for exactly python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation followed by current-claude-session-id *, export-claude-session * and inspect-export *, written in the quoting form the probe showed matches the SKILL.md command; the skill's --force and model-initiated confirmation gates are unchanged; the docs say the grant lasts until the user's next message, so it covers a user-typed invocation without --force, while a run that waits for confirmation (model-initiated, including the closeout and work-remains refresh offer, or any --force) goes to the classifier in auto mode; if the probe showed the grant doesn't hold, no allowed-tools rules are added and the docs point teams needing pre-approval to the setup-script route"
   - "The plugin export keeps allowed-tools in the plugin copy of lrh-export-claude (only the portable-bundle target strips it, exporter.py:36-48), shown by a test"
   - "The execution record confirms or revises Decision 2's order (launcher before lrh on PATH), stating the desktop trade-off that the launcher also beats a newer local install, and records the file names and the PyYAML decision (bundle it or rely on the image)"
   - "The packaging test fails when the committed plugin's copied CLI differs from src/lrh, the export stays within claude.ai's 5,000-file and 200 MB limits, and claude plugin validate passes"
@@ -175,11 +175,23 @@ a cloud session.
      evaluate deny, then ask, then allow.
    - Confirm with a test that the plugin export keeps `allowed-tools`.
      Only the portable-bundle target strips it (`exporter.py:36-48`).
-   - If the probe showed the grant doesn't hold, add no rules, and point
-     teams needing pre-approval to the setup-script route.
+   - Add the rules only if probe skill E showed that a rule ending in
+     ` *` runs without review. The shipped rules need that trailing
+     wildcard, because the export's arguments vary. If only the exact
+     rules (skills A and B) worked, or the grant doesn't hold at all, add
+     no rules, and point teams needing pre-approval to the setup-script
+     route.
 4. Decide and record:
    - the bootstrap and vendor-folder names;
-   - whether to bundle PyYAML, informed by the probe's image findings;
+   - whether to bundle PyYAML, informed by the probe's image findings.
+     Every launcher command needs it, not just `inspect-export`:
+     `lrh.cli.main` imports `lrh.agent_skills_status` at top level, and
+     that module imports `yaml` (`src/lrh/agent_skills_status.py:29`). If
+     the bundle relies on the image and PyYAML is missing, the resolution
+     step's file test still picks the launcher, which then crashes rather
+     than falling through. Either bundle PyYAML, or have the resolution
+     step treat a launcher that fails to import as unavailable, and test
+     that path;
    - whether Decision 2's order (launcher before `lrh` on PATH) stands,
      with the desktop cost that the launcher also beats a newer local
      install.

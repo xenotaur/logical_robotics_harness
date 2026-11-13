@@ -295,7 +295,9 @@ Options considered:
       follows a confirmation, so the grant has normally cleared by then.
       A repository ask rule still prompts where one exists.
   - `WI-PLUGIN-BUNDLED-CLI` adds the rules once `WI-CLOUD-SESSION-PROBE`
-    confirms they match and survive cloud auto mode.
+    confirms that a rule of this shape matches and survives cloud auto
+    mode. The shape is an interpreter, an absolute path and a trailing
+    ` *`, and auto mode drops "wildcarded interpreters".
 - **Setup-script route:** publish an exact-rule settings snippet, and
   change the commands so the rules match:
 
@@ -515,8 +517,10 @@ Open Questions.
      whether `python3 -I` runs a script under the plugin's `scripts/`;
    - whether the skill's `allowed-tools` rule for that script runs it
      without a prompt or classifier check in cloud auto mode, quoted and
-     unquoted, for a skill inside a synced plugin, and whether the grant
-     is gone in the turn after a confirming reply;
+     unquoted, for a skill inside a synced plugin; whether a rule ending in
+     ` *`, the shape that would ship, still works; and whether the grant is
+     gone when a skill that waits in its own text is confirmed in the next
+     turn;
    - whether `python3 >= 3.11` and PyYAML are present;
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
@@ -594,7 +598,9 @@ target the renamed skill paths.
   `allowed-tools` grant again? Invoking a skill again re-applies its grant
   (`skills.md`). Any design must keep a re-invocation from counting as its
   own confirmation.
-- Should the bundle include PyYAML, or rely on the image? The one taurworks
+- Should the bundle include PyYAML, or rely on the image? Every CLI
+  command imports it at startup, so a launcher without it crashes instead
+  of falling through to `lrh` on PATH. The one taurworks
   observation found it present.
 - Should `remote_session_id` back a `claude-cloud:` `session_transcript:`
   pointer?

@@ -518,6 +518,48 @@ On success it prints a concise deterministic summary with the output path,
 source ID, source SHA-256, privacy, sensitivity status, and warning count.
 Potential sensitive findings are also reported as warnings on stderr.
 
+## `lrh conversation current-antigravity-conversation-id`
+
+```bash
+lrh conversation current-antigravity-conversation-id
+lrh conversation current-antigravity-conversation-id --field session-transcript
+lrh conversation current-antigravity-conversation-id --format json
+lrh conversation current-antigravity-conversation-id --latest
+lrh conversation current-antigravity-conversation-id --conversation-id CONVERSATION_ID
+```
+
+Reports the current Antigravity conversation ID and the matching LRH execution-record
+pointer without exporting, reading, or printing transcript content. This is the
+metadata-only resolver used by `/lrh-session-id-antigravity`.
+
+The session pointer form is:
+
+```yaml
+session_transcript: antigravity-app:<conversation-id>
+```
+
+This value is an Antigravity conversation UUID. It is not an export attempt ID,
+archive directory, transcript Markdown path, or timestamp.
+
+### Options
+
+- `--conversation-id ID` — explicit Antigravity conversation ID (UUID) to report.
+- `--latest` — discover the most recently modified transcript file under
+  `<app-data-dir>/brain/*/.system_generated/logs/` and report its parent
+  conversation ID. Emits a warning to stderr indicating filesystem recency fallback.
+- `--app-data-dir APP_DATA_DIR` — path to Antigravity's application data directory
+  (default: `$ANTIGRAVITY_APP_DATA_DIR` or `~/.gemini/antigravity`).
+- `--format text|json` — output format. Text is the default.
+- `--field all|conversation-id|session-transcript|transcript-path` — single-field text
+  output for scripts and closeout records.
+
+### Exit behavior
+
+The command returns `0` on success and `2` when the conversation ID cannot be resolved
+(`ANTIGRAVITY_CONVERSATION_ID` is unset and neither `--conversation-id` nor `--latest`
+was supplied, or when the ID is not a valid 36-character UUID). Terminal output is
+metadata-only and does not include transcript body text.
+
 ## `lrh conversation current-claude-session-id`
 
 ```bash

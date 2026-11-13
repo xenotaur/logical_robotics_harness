@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #872 (commit 416843d5)'
 blocked_reason: null
 blocked: false
 id: WI-LRH-CLOSEOUT-NO-EXECUTION-RECORD
 title: Give /lrh-closeout a documented path for a merged PR with no execution record
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

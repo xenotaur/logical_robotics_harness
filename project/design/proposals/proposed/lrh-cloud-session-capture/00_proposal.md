@@ -177,6 +177,12 @@ keep a setup-script install as the other documented route.**
   prompt" (Decision 3). Whether that holds in cloud auto mode is a probe
   question. Until it is confirmed, teams that need pre-approved exports use
   the setup-script route.
+  The grant covers less than it might seem: it "clears when you send your
+  next message" (`skills.md`). `lrh-export-claude` waits for confirmation
+  on model-initiated invocations and on every `--force`, so the user's
+  confirming reply clears the grant before the export runs. The grant
+  therefore covers a user-typed invocation without `--force`, and not the
+  closeout or work-remains refresh offer.
 - **Gating.** It waits on a cloud probe (`WI-CLOUD-SESSION-PROBE`), because
   path substitution for a synced plugin's skills has been seen once and
   isn't documented for cloud sessions.
@@ -232,10 +238,16 @@ Facts this decision rests on (sources in the audit, §1.2):
   its permission rules.
 - A plugin's `settings.json` can't declare permissions, but a skill's
   `allowed-tools` frontmatter can. It pre-approves the listed tools for the
-  turn that invokes the skill, `${CLAUDE_PLUGIN_ROOT}` is substituted in its
-  Bash rules, and a synced skill's grant "goes through the normal
-  permission flow". Auto mode drops only broad allow rules, such as
+  turn that invokes the skill, and the grant clears when the user sends
+  their next message. Invoking the skill again re-applies it for that
+  turn. `${CLAUDE_PLUGIN_ROOT}` is substituted in its Bash rules. The docs
+  say a synced skill's grant "goes through the normal permission flow",
+  but "synced skill" there means a skill enabled on the claude.ai account.
+  Whether the same holds for a skill inside a synced plugin isn't stated,
+  so the probe tests it. Auto mode drops only broad allow rules, such as
   blanket `Bash(*)` or wildcarded interpreters.
+- A `*` in a Bash rule "matches any text, including spaces"
+  (`permissions.md`), so no rule can wildcard a single path segment.
 - Rules are evaluated deny, then ask, then allow, so a repository's ask
   rule still prompts when a skill grant matches.
 - The classifier never reads `autoMode` configuration from project
@@ -243,12 +255,22 @@ Facts this decision rests on (sources in the audit, §1.2):
 
 Options considered:
 
-- **Plugin `settings.json` permissions.** Not supported: only `agent` and
-  `subagentStatusLine` take effect.
+- **Plugin `settings.json` permissions.** Not supported. The plugins
+  reference fetched on 2026-11-12 said only `agent` and
+  `subagentStatusLine` take effect there. The pages fetched on 2026-11-13
+  no longer document plugin settings, and none lets them grant
+  permissions.
 - **The plugin skill's own `allowed-tools`.** Chosen for the plugin
   launcher, pending the probe. It needs no client-repository settings, so
   it plausibly also works in multi-repo sessions and project threads. It
-  applies only during the turn that invokes the skill.
+  applies only during the turn that invokes the skill, so it covers a
+  user-typed invocation without `--force`, and not a run that waits for
+  confirmation.
+- **A repository allow rule for the launcher's path, with a wildcard for
+  the account segment.** Rejected. The `*` matches any text, so the rule
+  would also approve a file with the launcher's name reached by `../..`,
+  including one written into the working tree. Auto mode may also drop an
+  interpreter rule with a wildcard.
 - **`autoMode.environment` trusted sources.** Not read from project
   settings, and user settings don't reach cloud sessions.
 - **Exact allow rules in the client repository's `.claude/settings.json`.**
@@ -261,9 +283,17 @@ Options considered:
   `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation`
   followed by `current-claude-session-id *`, `export-claude-session *`
   or `inspect-export *`.
-  - These rules also match a command with `--force`. Where a repository's
-    ask rule exists, it still prompts. Elsewhere, the skill's own `--force`
-    confirmation gate is the only checkpoint, and it stays unchanged.
+  - Scope: the grant lasts until the user's next message. The skill's
+    confirmation gates for model-initiated invocations and for every
+    `--force` stay unchanged. The reply that passes a gate also clears
+    the grant, so those runs go to the classifier in auto mode. That
+    includes the closeout and work-remains refresh offer.
+    - Whether the skill should re-invoke itself after a confirmation, so
+      the confirmed run gets the grant again, is an open question. A
+      re-invocation must never count as its own confirmation.
+    - The rules would also match `--force`, but a `--force` run always
+      follows a confirmation, so the grant has normally cleared by then.
+      A repository ask rule still prompts where one exists.
   - `WI-PLUGIN-BUNDLED-CLI` adds the rules once `WI-CLOUD-SESSION-PROBE`
     confirms they match and survive cloud auto mode.
 - **Setup-script route:** publish an exact-rule settings snippet, and
@@ -288,11 +318,11 @@ Options considered:
   - It doesn't cover the plugin launcher. `Bash()` rules match the whole
     command line, and the launcher runs by an absolute path that contains
     the account ID in cloud. The skill's own `allowed-tools` covers that
-    route instead. claude.ai's skills guide warns that "a wildcard before
-    the path would approve more than you intend". `WI-CLOUD-SESSION-PROBE`
-    records whether a repository rule with a wildcard only for the account
-    segment matches, as a fallback datum. Whether to publish such a rule is
-    an open question.
+    route instead. LRH won't publish a repository rule with a wildcard for
+    the account segment: a `*` "matches any text, including spaces"
+    (`permissions.md`), so the rule would approve any file with the
+    launcher's name, and claude.ai's skills guide warns that "a wildcard
+    before the path would approve more than you intend".
 
 ### Decision 4: How the skill detects a cloud session
 
@@ -485,14 +515,14 @@ Open Questions.
      whether `python3 -I` runs a script under the plugin's `scripts/`;
    - whether the skill's `allowed-tools` rule for that script runs it
      without a prompt or classifier check in cloud auto mode, quoted and
-     unquoted;
+     unquoted, for a skill inside a synced plugin, and whether the grant
+     is gone in the turn after a confirming reply;
    - whether `python3 >= 3.11` and PyYAML are present;
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
    - whether a narrow `lrh conversation …` allow rule actually skips the
      classifier, tested against a command the classifier denies without the
-     rule, and whether a rule for the launcher's absolute path can match
-     with a wildcard only for the account segment;
+     rule;
    - whether teleporting the session writes a complete local transcript
      that `export-claude-session` can read, and under which session ID.
 
@@ -559,10 +589,11 @@ target the renamed skill paths.
 - Does the skill's own `allowed-tools` grant for the launcher hold in cloud
   auto mode? (The probe answers this; Decision 3's plugin route depends on
   it.)
-- If that grant doesn't hold, should LRH publish a repository allow rule
-  for the launcher's path, with a wildcard for the account segment, if the
-  probe shows one matches? It would approve any synced plugin called `lrh`
-  with that file, which claude.ai's skills guide warns against.
+- Should `lrh-export-claude` re-invoke itself after a confirmation, so
+  that a confirmed run, such as the closeout refresh offer, gets the
+  `allowed-tools` grant again? Invoking a skill again re-applies its grant
+  (`skills.md`). Any design must keep a re-invocation from counting as its
+  own confirmation.
 - Should the bundle include PyYAML, or rely on the image? The one taurworks
   observation found it present.
 - Should `remote_session_id` back a `claude-cloud:` `session_transcript:`

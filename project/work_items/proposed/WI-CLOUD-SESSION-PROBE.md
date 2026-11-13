@@ -32,10 +32,10 @@ forbidden_actions:
   - modify_user_settings
 acceptance:
   - "An execution record states, from commands run in a real claude.ai/code cloud session, whether ${CLAUDE_PLUGIN_ROOT} in a synced plugin's SKILL.md text is substituted with the plugin's path, whether the same placeholder in a references/ file reaches Claude as literal text, and whether python3 -I runs a script under the plugin's scripts/ by that path; the probe plugin has no top-level bin/, which claude.ai won't install"
-  - "The record states, in auto mode, whether a plugin skill's allowed-tools rule written with ${CLAUDE_PLUGIN_ROOT} ran the probe script without a permission prompt or classifier review, for both the quoted and unquoted path forms, with a control skill that has no allowed-tools; if the control also runs without review, the result is recorded as inconclusive"
+  - "The record states, in auto mode, whether a plugin skill's allowed-tools rule written with ${CLAUDE_PLUGIN_ROOT} ran the probe script without a permission prompt or classifier review, for both the quoted and unquoted path forms, with a control skill that has no allowed-tools; if the control also runs without review, the result is recorded as inconclusive; it also states whether the grant still applied to a model-initiated run of skill A made after a confirming reply"
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
-  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass; it also states whether an allow rule naming the probe script's absolute path, with a wildcard only for the account segment, matched, using a rule whose only wildcard is the account segment and the exact command line the skill produced"
+  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
   - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, which session id it carries, whether current-claude-session-id run inside the teleported session resolves it, and whether the cloud session had been compacted (and so is documented to lose compacted messages), without reading or printing transcript content"
   - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
 required_evidence:
@@ -59,7 +59,8 @@ doesn't settle:
   SKILL.md text, and left literal in a `references/` file, and whether a
   script under the plugin's `scripts/` runs by that path;
 - whether the skill's own `allowed-tools` rule for that script avoids a
-  prompt and classifier review in auto mode;
+  prompt and classifier review in auto mode, for a skill inside a synced
+  plugin, and whether the grant survives a confirming reply;
 - the Python and PyYAML runtime in the default image;
 - which session-ID environment variables are set;
 - whether an exact allow rule bypasses the auto-mode classifier;
@@ -116,9 +117,11 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
      `${CLAUDE_PLUGIN_ROOT}/scripts/lrh_probe.py`, which the skill asks
      Claude to read and quote back exactly.
 
-   The rules have no trailing wildcard. With two wildcards, a trailing ` *`
-   wouldn't match a call with no arguments (`permissions.md`), and the
-   probe would give a false "no match".
+   The rules name the exact command line, `--probe` included, with no
+   wildcard. A `*` "matches any text, including spaces", and a trailing
+   ` *` matches the bare command only when it is the rule's only wildcard
+   (`permissions.md`). An exact rule keeps the probe from reporting a
+   false "no match", or a match broader than intended.
 
    Enable it on claude.ai and start a fresh cloud session. Plugins reach a
    session only when it is created.
@@ -129,6 +132,11 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
    - for each, whether the call ran with no prompt and no classifier
      review, was reviewed and allowed, or was denied. If C also ran with no
      review, the `allowed-tools` result is inconclusive, not a pass;
+   - a confirm-then-run turn. Ask Claude to propose running skill A and
+     wait for a yes. After replying "yes", record whether the script ran
+     with no review. The docs say the grant clears at the user's next
+     message, which is what `lrh-export-claude`'s confirmation gates rely
+     on;
    - the text Claude quoted from `references/path.md`: a literal
      `${CLAUDE_PLUGIN_ROOT}` confirms that supporting files aren't
      substituted;
@@ -159,16 +167,6 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
       `probe.md`'s size, then delete `probe.md` without opening or
       printing it. A run that exits non-zero, or writes no file, counts as
       inconclusive, not as a pass.
-
-   4. **Launcher path, repository rule.** In a fresh session whose
-      `.claude/settings.json` allows
-      `Bash(python3 -I /root/.claude/plugins/synced/*/lrh-cloud-probe/scripts/lrh_probe.py --probe)`,
-      run control skill C. Adjust the rule to the exact command line, and
-      quoting, that step 2 observed, keeping the account segment as the
-      only wildcard. Record whether the rule matched (no prompt or
-      classifier check) or not. This shows whether the account segment can
-      be wildcarded, as a fallback if the skill's own grant doesn't hold.
-      It is not a recommendation to publish such a rule.
 
    If the control isn't denied, record the allow-rule result as
    inconclusive, not as a pass. `current-claude-session-id` alone isn't a
@@ -209,7 +207,7 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 
 ## Acceptance Criteria
 
-- The execution record answers each of the five questions with the command
+- The execution record answers each of the six questions with the command
   run and what it showed, or says plainly that a question couldn't be
   answered, and why.
 - The audit and the proposal's Open Questions reflect the answers.

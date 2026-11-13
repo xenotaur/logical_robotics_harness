@@ -41,11 +41,11 @@ acceptance:
   - "lrh skills export --target claude-plugin writes a bootstrap (plugins/lrh/scripts/lrh_cli.py, or a name recorded in the execution record) and a copy of the lrh package under plugins/lrh/scripts/, from the same source tree; it writes no top-level bin/, and the exporter's existing refusal of a top-level bin/ (exporter.py:596-597) and its test stay in place"
   - "The launcher path ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py appears in each consuming SKILL.md body (the line WI-LRH-CLI-RESOLUTION-REFERENCE adds), never only in a references/ file, because Claude Code substitutes it only in SKILL.md content and allowed-tools rules; skills run the CLI as python3 -I <that path> <subcommand> ..., so nothing depends on the executable bit, and nothing is installed, cloned, or downloaded at run time"
   - "The bootstrap puts the copied package first on sys.path from inside Python, computed from its own resolved location; it never relies on PYTHONPATH, which -I ignores. Tests show it imports the copy, not another lrh, when the working directory contains its own lrh/ package and when PYTHONPATH points at a different lrh"
-  - "If the probe confirmed the grant holds in cloud auto mode, lrh-export-claude's frontmatter declares allowed-tools rules for exactly python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation followed by current-claude-session-id *, export-claude-session * and inspect-export *, written in the quoting form the probe showed matches the SKILL.md command; the skill's --force and model-initiated confirmation gates are unchanged, and the docs say the grant also matches --force, so where no repository ask rule exists the skill's own gate is the only checkpoint; if the probe showed the grant doesn't hold, no allowed-tools rules are added and the docs point teams needing pre-approval to the setup-script route"
+  - "If the probe confirmed the grant holds in cloud auto mode, lrh-export-claude's frontmatter declares allowed-tools rules for exactly python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation followed by current-claude-session-id *, export-claude-session * and inspect-export *, written in the quoting form the probe showed matches the SKILL.md command; the skill's --force and model-initiated confirmation gates are unchanged; the docs say the grant lasts until the user's next message, so it covers a user-typed invocation without --force, while a run that waits for confirmation (model-initiated, including the closeout and work-remains refresh offer, or any --force) goes to the classifier in auto mode; if the probe showed the grant doesn't hold, no allowed-tools rules are added and the docs point teams needing pre-approval to the setup-script route"
   - "The plugin export keeps allowed-tools in the plugin copy of lrh-export-claude (only the portable-bundle target strips it, exporter.py:36-48), shown by a test"
   - "The execution record confirms or revises Decision 2's order (launcher before lrh on PATH), stating the desktop trade-off that the launcher also beats a newer local install, and records the file names and the PyYAML decision (bundle it or rely on the image)"
   - "The packaging test fails when the committed plugin's copied CLI differs from src/lrh, the export stays within claude.ai's 5,000-file and 200 MB limits, and claude plugin validate passes"
-  - "A manual cloud-session check runs /lrh:lrh-export-claude's resolution step with no setup script, shows it reaching the bundled launcher through the SKILL.md path line (not falling through to PATH or stop), and records whether the export commands ran without a permission prompt or classifier check"
+  - "A manual cloud-session check runs /lrh:lrh-export-claude's resolution step with no setup script, shows it reaching the bundled launcher through the SKILL.md path line (not falling through to PATH or stop), and records whether the export commands ran without a permission prompt or classifier check, both for a user-typed invocation and for a model-initiated one run after the user's confirming reply"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -97,9 +97,13 @@ Three documented facts shape the design (audit §1.1–1.2):
   session (`WI-SKILLS-CLAUDE-PLUGIN-EXPORT`).
 - **A skill can pre-approve its own script.** `allowed-tools` with the same
   variable "lets a skill run a bundled script without a permission prompt".
-  A synced skill's grant "goes through the normal permission flow", and
-  auto mode drops only broad allow rules. A repository's exact rule can't
-  name the launcher, because its cloud path contains the account ID.
+  Auto mode drops only broad allow rules. The grant lasts only "during the
+  turn that invokes this skill" and "clears when you send your next
+  message". So it doesn't reach a run that first waits for the user's
+  confirmation. A repository's exact rule can't name the launcher,
+  because its cloud path contains the account ID. A wildcard can't stand
+  in for the account segment, because a `*` "matches any text, including
+  spaces" (`permissions.md`).
 
 The package is small: 3.3 MB and 269 files, against claude.ai's limits of
 200 MB and 5,000 files. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decisions 1–3.
@@ -159,10 +163,16 @@ a cloud session.
    `inspect-export *`.
    - Keep the skill's `--force` and model-initiated confirmation gates
      unchanged.
-   - The rules also match `--force`. A repository ask rule for `--force`
-     still prompts, since rules evaluate deny, then ask, then allow.
-     Without one, the skill's own gate is the only checkpoint; say so in
-     the docs.
+   - Document the grant's scope. It covers a user-typed invocation
+     without `--force`. A run that waits for confirmation (model-initiated,
+     including the closeout and work-remains refresh offer, or any
+     `--force`) runs after the grant has cleared, so in auto mode it goes
+     to the classifier.
+   - Don't make the skill re-invoke itself to regain the grant without
+     a design decision. That's an open question in the proposal, and a
+     re-invocation must never count as its own confirmation.
+   - A repository ask rule for `--force` still prompts, since rules
+     evaluate deny, then ask, then allow.
    - Confirm with a test that the plugin export keeps `allowed-tools`.
      Only the portable-bundle target strips it (`exporter.py:36-48`).
    - If the probe showed the grant doesn't hold, add no rules, and point
@@ -231,9 +241,12 @@ a cloud session.
 
 - Every CLI change now changes the committed plugin tree, which makes the
   diffs noisier. The sync test keeps them honest.
-- The `allowed-tools` grant lasts only for the turn that invokes the skill.
-  A later turn, such as a closeout offer to refresh, runs the commands
-  again through `lrh-export-claude`, so it gets the grant again.
+- The `allowed-tools` grant lasts only until the user's next message. A
+  closeout or work-remains refresh offer invokes `lrh-export-claude` as a
+  model-initiated run, which waits for the user's confirmation. That
+  reply clears the grant, so the export runs without it and, in auto mode,
+  goes to the classifier. Only a user-typed invocation without `--force`
+  is covered.
 - An organization that sets `allowManagedPermissionRulesOnly` makes Claude
   Code ignore `allowed-tools` in project and personal skills, and in synced
   skills (`skills.md`). Check whether it covers plugin skills too. Those
@@ -244,5 +257,10 @@ a cloud session.
   copy's root itself. The tests above guard this.
 - Directory submission, which LRH doesn't use, would hold plugins over 512
   files or with any file over 256 KiB for review. The bundled plugin would
-  be about 253 files, with no file over 256 KiB. Re-check if LRH is ever
+  be about 256 files, with no file over 256 KiB.
+- The copy must keep `src/lrh/skills/__init__.py`, `exporter.py` and
+  `installer.py`. `lrh.cli.main` imports `lrh.agent_skills_status` at top
+  level, and that imports `lrh.skills.installer`, so a copy without them
+  fails with `ModuleNotFoundError`. It may leave out the skill sources
+  under `src/lrh/skills/`, which the plugin already carries. Re-check if LRH is ever
   submitted.

@@ -59,10 +59,12 @@ does not guess.
   - Directory submission, which LRH doesn't use, would add a 512-file and
     256 KiB-per-file review threshold
     (<https://claude.com/docs/plugins/pre-submission-checklist>). A bundled
-    plugin would be about 253 files: the 66 it has today plus about 187
-  from `src/lrh`, leaving out the 82 files under `src/lrh/skills`, which
-  the plugin already carries as skills. No `src/lrh` file exceeds 256
-  KiB.
+    plugin would be about 256 files: the 66 it has today, about 187 from
+  `src/lrh` outside `src/lrh/skills`, and the three Python modules in
+  `src/lrh/skills` (`__init__.py`, `exporter.py`, `installer.py`). The
+  copy needs those three: `lrh.cli.main` imports `lrh.agent_skills_status` at top level, and that imports `lrh.skills.installer`.
+  It can leave out the rest of `src/lrh/skills`, the skill sources the
+  plugin already carries. No `src/lrh` file exceeds 256 KiB.
 - **Bundling is small.** `src/lrh` is 3.3 MB and 269 files. claude.ai's plugin
   limit is 5,000 files and 200 MB (same doc §5). The only runtime dependency is
   `PyYAML` (`pyproject.toml`). `inspect-export` imports it
@@ -73,12 +75,20 @@ does not guess.
 - **No published package.** `pip index versions lrh` finds nothing, and
   `https://pypi.org/pypi/lrh/json` returns 404. `scripts/publish` says
   "Publishing not yet supported".
-- **Setup scripts run before Claude Code launches**, as root, with the default
-  "Trusted" network level. That level's allowlist includes `github.com`,
-  `codeload.github.com`, `pypi.org`, and `files.pythonhosted.org`
+- **Setup scripts run before Claude Code launches**, as root. A new
+  environment starts at the **Limited** network level with **Allow package
+  managers** checked; an environment saved as "Trusted" opens that way too.
+  The default allowlist then includes `github.com`, `codeload.github.com`,
+  `pypi.org`, and `files.pythonhosted.org`
   (<https://code.claude.com/docs/en/cloud-environments.md#setup-scripts>,
-  `#default-allowed-domains`). An install run there never goes through the
-  permission classifier.
+  `#access-levels`, `#default-allowed-domains`, re-read 2026-11-13). An
+  install run there never goes through the permission classifier.
+  - The session's GitHub proxy serves only the repositories attached to
+    the session, and archive fetches for any other repository get a 403
+    (same page, GitHub proxy).
+  - A setup-script install of LRH should therefore use the
+    `pip install "git+https://…"` form, which the taurworks session showed
+    can clone LRH, and not a source-archive URL.
 - **The setup-script route drifts.** Setup results under about five minutes
   are snapshotted and reused until the script changes or about seven days
   pass (`cloud-environments.md#environment-caching`). The plugin syncs from
@@ -114,17 +124,30 @@ does not guess.
   permission rules, "however many repositories the project has"
   (<https://code.claude.com/docs/en/settings.md#settings-in-cloud-sessions>).
 - **A plugin's `settings.json` can't grant permissions, but its skills can.**
-  In a plugin's `settings.json`, "Only `agent` and `subagentStatusLine`
-  take effect" (`plugins-reference.md#settings`). A skill's
-  `allowed-tools` frontmatter is a separate channel.
-  - It grants the listed tools for the turn that invokes the skill.
+  The plugins reference fetched on 2026-11-12 said that in a plugin's
+  `settings.json`, "Only `agent` and `subagentStatusLine` take effect". The
+  pages fetched on 2026-11-13 no longer document plugin settings, and none
+  lets them grant permissions. A skill's `allowed-tools` frontmatter is a
+  separate channel.
+  - It grants the listed tools "during the turn that invokes this skill.
+    The grant clears when you send your next message"; "invoking the skill
+    again re-applies it for that turn" (`skills.md`).
+  - Consequence for `lrh-export-claude`: it waits for confirmation on
+    model-initiated invocations and on every `--force`
+    (`src/lrh/skills/lrh-export-claude/SKILL.md:20-22,291`), and the
+    confirming reply clears the grant. So the grant covers only a
+    user-typed invocation without `--force`.
   - In a plugin skill, `${CLAUDE_PLUGIN_ROOT}` is substituted in its Bash
     rules. "Using the same variable in both places lets a skill run a
     bundled script without a permission prompt"
     (<https://code.claude.com/docs/en/skills.md#available-string-substitutions>).
   - A synced skill's grant "goes through the normal permission flow"
     (same page, "How Claude Code handles the frontmatter of a synced
-    skill").
+    skill"). There, "synced skill" means a skill enabled on the claude.ai
+    account. The page doesn't say whether the rule covers skills inside a
+    synced plugin, so the probe tests it.
+  - A `*` in a Bash rule "matches any text, including spaces"
+    (`permissions.md`). No rule can wildcard a single path segment.
   - Auto mode drops only broad allow rules: blanket `Bash(*)`, wildcarded
     interpreters, package-manager runs, and Agent and Monitor rules
     (`permission-modes.md`).
@@ -405,7 +428,8 @@ Make re-export safe without `--force`.**
 | SessionEnd hook auto-export | 1.5 s default budget, teardown behavior undocumented, and the output would land in the ephemeral container. |
 | Commit exports to a private branch for durability | Violates "never commit exports". |
 | `autoMode.environment` trusted sources | Not read from project settings, and user settings aren't read in cloud sessions. |
-| Permissions in plugin `settings.json` | Not supported (it honors only `agent` and `subagentStatusLine`). The plugin skill's `allowed-tools` is the supported channel, and is chosen for the launcher. |
+| Permissions in plugin `settings.json` | Not documented as possible (2026-11-12 docs: only `agent` and `subagentStatusLine`; 2026-11-13 docs no longer cover plugin settings). The plugin skill's `allowed-tools` is the supported channel, and is chosen for the launcher. |
+| A repository allow rule for the launcher path with a wildcard for the account segment | A `*` matches any text, including `../..`, so it would approve any file with the launcher's name, including one in the working tree. Auto mode may also drop an interpreter rule with a wildcard. |
 | Detect cloud by path heuristics (`/home/user`, no `~/Library`) | Guessing, when a documented variable exists. |
 | Export to the in-container archive, then copy for delivery | The archive copy is thrown away with the container. It adds a file and a command to approve, and protects nothing. |
 | File downloads by hand, or have the skill print pre-filled `mkdir`/`mv`/`chmod` | Folders come out 0755, the file is exposed until the `chmod`, `LRH_SESSION_ARCHIVE_ROOT` is ignored, and nothing checks the file. Pre-filling copies the exporter's path rule into skill text, which has already drifted (`SKILL.md:296`). |
@@ -426,9 +450,8 @@ Make re-export safe without `--force`.**
   SKILL.md command matter for the match?
 - Is `${CLAUDE_PLUGIN_ROOT}` left literal in a `references/` file, as the
   docs imply?
-- Can an allow rule for the launcher's absolute path match with a wildcard
-  only for the account segment? (claude.ai's skills guide warns that a
-  wildcard before the path approves more than intended.)
+- Does the `allowed-tools` grant hold for a skill inside a synced plugin,
+  and is it gone in the turn after a confirming reply?
 - Are `python3 >= 3.11` and PyYAML always present in the default image?
 - Which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID`, and
   `CLAUDE_CODE_REMOTE_SESSION_ID` are set in a cloud session? The taurworks

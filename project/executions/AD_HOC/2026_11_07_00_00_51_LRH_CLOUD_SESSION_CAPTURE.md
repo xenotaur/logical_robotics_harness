@@ -190,6 +190,34 @@ six issues, one blocking. The user chose to fix all six:
 - **Metadata.** The proposal's `updated_on` is now 2026-11-13. The audit's
   253-file estimate now says it excludes `src/lrh/skills`.
 
+Sixth review fixes, 2026-11-13: a fifth `/lrh-confirm-fixes` run found no
+open threads and green CI at `bfa44896`. Its substitute self-review
+(record `2026_11_13_17_56_25_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+nothing blocking, with two should-fix findings and five nits. The user
+chose to fix all seven:
+
+- **Grant scope.** The `allowed-tools` grant clears at the user's next
+  message, so it covers only a user-typed invocation without `--force`.
+  Runs that wait for confirmation, including the closeout refresh offer,
+  go to the classifier. Decisions 1 and 3, audit §1.2 and
+  `WI-PLUGIN-BUNDLED-CLI` now say so, and the false "later turn gets the
+  grant again" note is gone.
+  - Re-invoking the skill after a confirmation is now an open question.
+  - The probe adds a confirm-then-run turn.
+- **Account-segment wildcard.** A `*` matches any text, so a repository
+  rule can't wildcard just the account segment. It is now a rejected
+  alternative, and its probe step and open question are removed.
+- **Bundle contents.** The copy keeps `src/lrh/skills/{__init__,exporter,installer}.py`,
+  which the CLI imports, and the estimate is now about 256 files.
+- **Doc currency.**
+  - The probe's question count is fixed.
+  - The plugin-settings citation and the cloud network level are updated
+    to the 2026-11-13 docs.
+  - The synced-skill grant rule is marked as unconfirmed for plugin
+    skills.
+  - Setup installs are to use the `git+https` form, since the proxy
+    blocks archive fetches of unattached repositories.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

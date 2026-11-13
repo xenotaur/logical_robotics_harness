@@ -4,8 +4,9 @@ description: 'Automate the post-execution closeout workflow for an LRH session. 
   a PR URL, WI ID, WS ID, or auto-detected from in-progress execution records, the
   skill assesses all artifact states, resolves the session transcript, presents a
   full closeout plan at a human gate, executes confirmed actions (landing execution
-  records via lrh prompt update-execution, resolving work items, closing workstreams,
-  adopting proposals), validates, prompts for session reflection, and reports.
+  records via lrh prompt update-execution, or creating one directly as landed when
+  the PR has none, resolving work items, closing workstreams, adopting proposals),
+  validates, prompts for session reflection, and reports.
 
   '
 when_to_use: "Invoke when the user wants to run post-execution closeout for a merged\
@@ -102,7 +103,15 @@ Locate the execution record for this WI:
 ```bash
 find project/executions/<WI-ID>/ -name "*.md" 2>/dev/null
 ```
-If found, read the `pr:` field for the PR URL. If not found, warn and ask.
+If found, read the `pr:` field for the PR URL. If not found, the WI may have
+been implemented without `/lrh-implement` (see "No execution record" in
+Step 2). Search for its merged PR and ask the user to confirm the URL:
+```bash
+gh pr list --state merged --search '"<WI-ID>"' --json number,title,url
+```
+If the user confirms a PR, continue to Step 2 with that URL and carry the WI
+ID forward as the attribution candidate. If there is no PR, warn and leave
+the WI for human resolution.
 
 **If a WS ID was provided:**
 Read the workstream file to find its `work_items:` list, then find execution
@@ -116,7 +125,11 @@ grep -rl '^status: in_progress' project/executions/ --include='*.md'
 For each candidate returned, read its `pr:` field. If exactly one candidate
 has a non-empty `pr:` field, use it. If multiple candidates match, list them
 and ask the user to select one. If none has a `pr:` field, list all candidates
-and ask the user to identify the target.
+and ask the user to identify the target. If the search returns no candidates
+at all, there is nothing to detect from: ask the user for the merged PR URL,
+then continue as for a PR URL input. Name the detected target before
+continuing; if the user says the closeout is for a different PR, take its
+URL instead.
 
 ### Step 2 — Assess state → build closeout plan
 
@@ -135,8 +148,12 @@ gh pr view <pr-url> --json state,mergeCommit \
 **2. Execution record(s):**
 Find all execution records linked to this PR by `pr:` field:
 ```bash
-grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
+grep -rlE "^pr: *[\"']?<pr-url>[\"']? *$" project/executions/ --include='*.md'
 ```
+Some records quote the value (`pr: "https://..."`), and the end anchor keeps
+`/pull/87` from matching `/pull/872`. Never use a bare `^pr: <pr-url>` match:
+it misses quoted records, and a missed record can lead the "No execution
+record" branch below to create a duplicate.
 If no records are found (common when `/lrh-implement` left `pr:` blank), fall
 back to listing all in-progress records:
 ```bash
@@ -146,6 +163,60 @@ Present the fallback candidates to the user and ask which one(s) belong to
 this PR. For each matched record: check `status:` field. See decision matrix
 in `references/closeout-workflow.md` for `in_progress` / `landed` / missing
 actions.
+
+**No execution record.** If the quote-tolerant `pr:` search above found
+nothing, and the fallback search is also empty, or the user
+says none of its candidates belongs to this PR, the PR has no execution
+record at all. This is routine for a fix that went from edit to commit to PR
+to merge without `/lrh-implement`, which is what normally creates the record.
+Plan to create one directly as `landed` at Step 5; do not just warn and stop.
+
+**Inlined by `/lrh-land`:** do not plan a new record, and skip the
+attribution scan and creation fields below. `/lrh-land` Step 7's no-primary
+backfill path creates an `AD_HOC` record before it re-runs these assessment
+steps, and this step's `pr:` search then finds it as an ordinary
+`in_progress` record. Creating a record here as well would give the PR two.
+In `/lrh-land` Step 6's preview pass, show the row as "none — `/lrh-land`
+backfill `AD_HOC` record, created then landed", with the `agent` the backfill
+will record and its `session_transcript` resolved at Step 3. That way the
+values `/lrh-land` Step 7 later writes have been shown at its gate. A WI the
+PR may belong to stays unresolved on this path; note it as a pending offer.
+
+**Direct invocation only:**
+
+- **Work-item attribution.** A PR that skipped `/lrh-implement` can still
+  belong to a real work item, so look before defaulting to `AD_HOC`. Collect
+  the `WI-*` and `WS-*` IDs mentioned in the PR's title, body, head branch,
+  and commit messages, plus any WI ID carried forward from Step 1. Branch
+  names are usually lowercase, so uppercase the branch and split it on `/`
+  before matching:
+  ```bash
+  gh pr view <pr-url> --json title,body,headRefName,commits \
+    --jq '[.title, (.body // ""), (.headRefName | ascii_upcase | gsub("/"; "\n")),
+           (.commits[] | .messageHeadline + "\n" + .messageBody)] | join("\n")' \
+    | grep -oE '\b(WI|WS)-[A-Z0-9-]*[A-Z0-9]\b' | sort -u
+  ```
+  Keep only IDs with a file under `project/work_items/` or
+  `project/workstreams/`. A branch can add a suffix after the ID (e.g.
+  `wi-foo-bar-fix`), so when an ID has no file, drop trailing `-SEGMENT`s
+  until one matches or nothing is left. For a WS hit, offer its `work_items:`
+  as candidates. Default to `AD_HOC` when nothing matches. The user makes the
+  final choice at Step 4, so this is a suggestion, not a decision. If the
+  user picks a WI, the record goes in that WI's bucket and the WI, WS, and
+  proposal assessments below apply to it as usual. If it stays `AD_HOC`,
+  there is no WI to resolve.
+- **Creation fields.** Propose the values the Step 4 gate shows:
+  - `work_item`: the attribution above (`<WI-ID>` or `AD_HOC`).
+  - `slug`: lower-kebab from the PR title or head branch, e.g.
+    `audit-principle-13-wording`.
+  - `agent`: the backend that did the work, not necessarily the one running
+    closeout. Default to the current backend only if this session did the
+    work; otherwise ask.
+  - `instruction_source`: the WI path, or a short description such as
+    `Ad-hoc user request (no /lrh-implement run); see PR #N`.
+
+See `references/closeout-workflow.md`'s "Creating a record when none exists"
+section.
 
 **3. Work item(s):**
 ```bash
@@ -181,6 +252,7 @@ Present the full plan as a table:
 |---|---|---|
 | PR #N | MERGED, commit `<sha>` | record commit |
 | Execution record `<id>` | `in_progress` | update to `landed` |
+| Execution record | none — no record exists for this PR | create new `<WI-ID or AD_HOC>` record directly as `landed` |
 | WI `<WI-ID>` | in `proposed/` | resolve and move |
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
 | WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
@@ -196,6 +268,12 @@ would misattribute provenance on whichever records don't share that backend.
 Repeat the branch-and-resolve procedure below once per matched record, keyed
 off that record's own `agent` field, and keep each record's resolved value
 separate for Step 5.
+
+A record Step 2 plans to **create** (no execution record), or the
+`/lrh-land` backfill record its preview row names, has no file yet;
+resolve its value the same way, keyed off the `agent` proposed in Step 2.
+For a Claude.app agent, use path 1 only if this window did the work;
+otherwise use path 2 (by PR) or path 3.
 
 **First, branch on the execution record's `agent`** — the pointer scheme is
 backend-specific, and running closeout from Claude must not associate the
@@ -313,6 +391,18 @@ Before touching any files, show the user:
   Step 3 resolves a value per record (Step 5 writes each to its own
   record), so showing only one here would let the user confirm without
   ever seeing what gets written to the others.
+- For a record to be **created** because none exists (Step 2's "No
+  execution record"): the user is confirming record creation, not a status
+  change, so show the fields `/lrh-implement` Step 9 would have set:
+  `work_item` (`<WI-ID>` or `AD_HOC`), `slug`, `agent`,
+  `instruction_source`, `session_transcript`, and `status: landed` with the
+  `pr` and `commit` above. Then ask the attribution question directly, even
+  when the default is `AD_HOC`: "No execution record exists for this PR.
+  Does it belong to a work item (candidates: `<IDs from Step 2, or none
+  found>`), or should the record go in `AD_HOC`?" If the user names a WI,
+  set `instruction_source` to its path, re-run Step 2's WI, WS, and
+  proposal assessments for it, ask for its `resolution:` text (below), and
+  show the revised plan before final confirmation.
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
@@ -366,6 +456,48 @@ fields in-place, and prints `updated: <path>` on success.
 
 See `references/closeout-workflow.md` for valid field values and the
 `session_transcript:` `pending` convention.
+
+**New execution record** (if Step 2 found none and the user confirmed
+creating one):
+
+Do **not** use `lrh prompt update-execution` here: it only moves an existing
+`in_progress` record to `landed` and errors when there is no record. Mint a
+prompt ID in the confirmed bucket, check it, then create the record already
+landed in one call:
+
+```bash
+lrh prompt label --work-item <WI-ID or AD_HOC> --slug <slug> --project-root .
+lrh prompt check-execution --prompt-id "<prompt-id>" --project-root .
+lrh prompt record-execution \
+  --prompt-id "<prompt-id>" \
+  --work-item <WI-ID or AD_HOC> \
+  --slug <slug> \
+  --status landed \
+  --pr <pr-url> \
+  --commit <merge-commit-sha> \
+  --agent <agent> \
+  --instruction-source "<instruction-source>" \
+  --session-transcript <this-record's-resolved-value-from-step-3> \
+  --project-root .
+```
+
+For `check-execution`, the expected result is exit 1 with "No execution
+records found for prompt_id." — that is the go-ahead, not an error. Any other
+result (exit 0 with a record listed, or another failure): stop and report
+rather than creating a second record. Step 2's `pr:` search is the main
+duplicate guard; this check covers a prompt-ID collision. `record-execution` prints the new file's path. Replace
+its `TODO` body sections with an after-the-fact account:
+
+- `# Summary`: what the PR changed, in one or two sentences.
+- `# Result`: that the work was done without `/lrh-implement`, so this record
+  was created at closeout; the PR and merge commit; and the attribution
+  decision from Step 4 (the WI chosen, or `AD_HOC` and why).
+- `# Validation`: checks known to have run (PR CI, local runs named in the PR),
+  or "not recorded" when unknown. Do not invent results.
+- `# Follow-up`: deferred work, or "None".
+
+The new record then gets the same session identity capture as any other
+record, below.
 
 **Session identity capture** (only for records where Step 3's Claude.app
 branch — paths 1, 2, or 3 — resolved a confirmed host-uuid-stem; the
@@ -534,6 +666,9 @@ git add -p   # or stage specific files
 git commit -m "chore(closeout): <summary of actions> (PR #N)"
 ```
 
+`git add -p` never stages untracked files. Stage a record created at Step 5
+(and any moved WI, WS, or proposal file) by explicit path.
+
 Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
@@ -575,6 +710,10 @@ Before reporting completion, verify:
 - [ ] Decision matrix applied to all discovered artifacts
 - [ ] Session transcript value resolved (or `pending` confirmed)
 - [ ] User confirmed at Step 4 before any files were touched
+- [ ] If no execution record existed: the user answered the WI/`AD_HOC`
+      attribution question at Step 4, and the record was created with one
+      `lrh prompt record-execution --status landed` call (not
+      `update-execution`; never when inlined by `/lrh-land`)
 - [ ] Each file read before editing; no partial edits
 - [ ] `lrh sessions closeout-sync --project-root .` ran after confirmed
       actions and before validation, or an explicit user-approved dry-run/skip

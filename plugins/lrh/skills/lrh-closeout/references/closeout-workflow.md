@@ -17,8 +17,10 @@ before touching any files.
 | PR | `state: CLOSED` (no merge) | **Abort** — PR was closed without merge; investigate |
 | Execution record | `status: in_progress` | Update to `landed` (Step 5) |
 | Execution record | `status: landed` | Skip — already closed out |
-| Execution record | Missing entirely | Warn user; ask whether to proceed without it |
-| Execution record | `work_item: AD_HOC` | No WI to resolve — closeout scope is execution record update only; do not search for WIs via PR diff or working tree |
+| Execution record | None found by `pr:`, but `in_progress` fallback candidates exist | Ask the user which candidate(s) belong to this PR; treat each confirmed one as `in_progress` above |
+| Execution record | None exists for this PR (both searches empty, or user rejects every fallback candidate) | Create a new record directly as `landed` (Step 5) — see "Creating a record when none exists"; user confirms WI-or-`AD_HOC` attribution and creation fields at Step 4 |
+| Execution record | None exists, and closeout is inlined by `/lrh-land` | Do not create one and skip the attribution scan — `/lrh-land` Step 7's no-primary backfill creates an `AD_HOC` record before re-running closeout's assessment, whose `pr:` search finds it. Step 6's preview row shows that record's `agent` and resolved `session_transcript` |
+| Execution record | `work_item: AD_HOC` (existing record) | No WI to resolve — closeout scope is execution record update only; do not search for WIs via PR diff or working tree |
 | WI | Found in `proposed/` | Resolve: set `status: resolved`, write `resolution:`, `mv` to `resolved/` |
 | WI | Found in `resolved/` | Skip — already resolved |
 | WI | Not found anywhere | Warn user; ask how to proceed |
@@ -46,7 +48,9 @@ session_transcript: claude-app:<host-uuid-stem>   # or: pending / none
 ```
 
 **Valid status transition:** `in_progress → landed` is the only forward
-transition for closeout. Never set `status: proposed` or `status: resolved`
+transition for closeout. (Creating a new record already `landed`, when none
+exists, is not a transition; see "Creating a record when none exists".)
+Never set `status: proposed` or `status: resolved`
 on an execution record — those are work item statuses, not execution record
 statuses.
 
@@ -69,12 +73,84 @@ See the Session Transcript section below.
 ### Locating execution records by PR
 
 ```bash
-grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
+grep -rlE "^pr: *[\"']?<pr-url>[\"']? *$" project/executions/ --include='*.md'
 ```
+
+Match quoted and unquoted values: some records write
+`pr: "https://..."`, which a bare `^pr: <pr-url>` grep misses. The end anchor
+keeps `/pull/87` from matching `/pull/872`. A missed record can make
+closeout wrongly take the "Creating a record when none exists" path and
+duplicate it.
 
 A single PR may have multiple execution records: one primary (from
 `/lrh-implement`) and one or more review-response records (from
 `/lrh-review-response`). Update all of them.
+
+---
+
+## Creating a record when none exists
+
+A PR that went from edit to commit to PR to merge without `/lrh-implement`
+has no execution record, because `/lrh-implement` Step 9 is what creates
+one. Closeout creates it instead, after the fact. (Precedent: the
+2026-11-07 closeout of xenotaur/prosoc PR #139, a one-line wording fix.)
+
+### When it applies
+
+Only when both searches come back empty: the quote-tolerant `pr: <pr-url>`
+search above and the `status: in_progress` fallback (or the user rejects every fallback
+candidate). Not when closeout is inlined by `/lrh-land`: its Step 7
+no-primary backfill path creates the record before re-running closeout's
+assessment, and a second record here would duplicate it.
+
+### Work-item attribution
+
+A bypassed `/lrh-implement` run can still correspond to a real proposed
+WI. Before defaulting to `AD_HOC`, collect `WI-*`/`WS-*` IDs from the PR's
+title, body, head branch, and commit messages (plus a WI ID given as the
+closeout argument), keep those that exist under `project/`, and offer them
+at Step 4. Uppercase the branch name before matching, since branches are
+usually lowercase, and trim trailing branch suffixes until an ID matches a
+file. This scan reads PR metadata only, not the diff. The user decides;
+`AD_HOC` is the default when nothing matches. A chosen WI puts the record
+in `project/executions/<WI-ID>/` and brings the usual WI, WS, and proposal
+rows into the plan.
+
+### Fields shown at Step 4
+
+| Field | Value |
+|---|---|
+| `work_item` | Confirmed `<WI-ID>` or `AD_HOC` |
+| `slug` | Lower-kebab from the PR title or head branch |
+| `status` | `landed` |
+| `pr` / `commit` | PR URL and merge commit SHA |
+| `agent` | Backend that did the work (ask if not this session) |
+| `instruction_source` | WI path, or e.g. `Ad-hoc user request (no /lrh-implement run); see PR #N` |
+| `session_transcript` | Resolved per Step 3 for that `agent` |
+
+### Commands
+
+`lrh prompt update-execution` cannot be used: it only supports
+`in_progress → landed` on an existing record. `record-execution` accepts
+`--status landed` and every field in one call:
+
+```bash
+lrh prompt label --work-item <WI-ID or AD_HOC> --slug <slug> --project-root .
+lrh prompt check-execution --prompt-id "<prompt-id>" --project-root .
+lrh prompt record-execution \
+  --prompt-id "<prompt-id>" --work-item <WI-ID or AD_HOC> --slug <slug> \
+  --status landed --pr <pr-url> --commit <merge-commit-sha> \
+  --agent <agent> --instruction-source "<instruction-source>" \
+  --session-transcript <resolved-value> --project-root .
+```
+
+`check-execution` exiting 1 with "No execution records found for
+prompt_id." is the expected go-ahead; any other result means stop.
+
+Then replace the generated `TODO` body sections with an after-the-fact
+account: what the PR changed, that the record was created at closeout
+because `/lrh-implement` was not run, the attribution decision, and only
+validation that is actually known to have run.
 
 ---
 

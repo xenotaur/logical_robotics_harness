@@ -25,9 +25,11 @@ related_design:
 Make `/lrh-export-claude` work in Claude Code cloud sessions
 (claude.ai/code) without manual setup or repeated permission prompts:
 
-- `lrh` is already present when the skill runs. It ships inside the plugin,
-  with a setup-script install as the fallback.
-- The export commands can be pre-approved by exact allow rules.
+- `lrh` is already present when the skill runs. A copy ships inside the
+  plugin, which skills call by path through `${CLAUDE_PLUGIN_ROOT}`, and a
+  setup-script install is the other route.
+- The setup-script route's `lrh conversation …` commands can be
+  pre-approved by exact allow rules.
 - The CLI reports whether the session is a cloud session.
 - In a cloud session the skill writes the export straight to a location
   the session can deliver from, and offers it for download.
@@ -79,8 +81,12 @@ The export skill's privacy and authority rules don't change:
 ### Duplication search
 - In-repo: No existing implementation found. Nothing in `src/`, the
   proposals, workstreams, work items, or skill directories reads
-  `CLAUDE_CODE_REMOTE` or ships a plugin `bin/`. Related, but not
+  `CLAUDE_CODE_REMOTE` or ships executables in a plugin. Related, but not
   duplicates:
+  - The claude-plugin exporter already refuses a top-level plugin `bin/`
+    (`src/lrh/skills/exporter.py:596-597`, tested at
+    `tests/skills_exporter_test.py:1377`), because claude.ai won't install
+    a plugin that has one. This proposal keeps that rule.
   - The setup-script note in `docs/how-to/use-lrh-with-agent-assistants.md` §5.
   - The checkout-only "Running `lrh`" fallback, copied into
     `src/lrh/skills/lrh-{export-claude,codex-export,antigravity-export}/SKILL.md`.
@@ -122,18 +128,48 @@ Options considered:
 - **The skill clones and bootstraps LRH itself.** This triggers the
   classifier's "Code from External" denial. It also turns an export command
   into a hidden clone.
-- **Bundle the CLI in the plugin.** The plugin exporter writes a launcher
-  under `plugins/lrh/bin/`, plus a copy of `src/lrh` taken from the same
-  commit as the skills. The plugin reference documents `bin/` as "on the
-  Bash tool's PATH while the plugin is enabled". The copy is small: 3.3 MB
-  and 269 files, against claude.ai's limits of 200 MB and 5,000 files.
+- **Bundle the CLI in the plugin's top-level `bin/`.** Rejected. Claude
+  Code puts a plugin's `bin/` on the Bash tool's PATH, but "claude.ai and
+  Cowork don't install a plugin that has this directory"
+  (`plugins-reference`, Executables row). claude.ai's org-sync page says the
+  same, with the error `Plugin contains a top-level bin/ directory`, and
+  the repo's plugin exporter already refuses one. A `bin/` would stop the
+  LRH plugin, skills included, from reaching cloud sessions at all.
+- **Bundle the CLI in another plugin folder, called by path.** Chosen.
+  claude.ai's org-sync page gives this as the alternative: "Keep
+  executables in another directory, such as `scripts/`, and reference them
+  as `${CLAUDE_PLUGIN_ROOT}/scripts/<name>`". Claude Code substitutes
+  `${CLAUDE_PLUGIN_ROOT}` inline in skill content when it loads it; the
+  variable is not in the Bash tool's environment (`plugins-reference`,
+  Environment variables). A 2026-10-26 probe saw it resolve to
+  `/root/.claude/plugins/synced/<account-id>/…` for a synced plugin in a
+  cloud session (`WI-SKILLS-CLAUDE-PLUGIN-EXPORT`). The copy is small: 3.3
+  MB and 269 files, against claude.ai's limits of 200 MB and 5,000 files.
 
-**Chosen: bundle the CLI in the plugin, and keep a setup-script install as
-the documented fallback.** Bundling removes version drift between skills and
-CLI, the install step, and the clone, so the classifier has nothing to deny.
-It is gated on a cloud probe (`WI-CLOUD-SESSION-PROBE`), because a synced
-plugin's `bin/` in cloud sessions is undocumented. The setup-script docs
-will pin a ref and state the snapshot-cache drift.
+**Chosen: bundle the CLI under `plugins/lrh/scripts/`, called by path, and
+keep a setup-script install as the other documented route.**
+
+- **Layout.** A bootstrap at `plugins/lrh/scripts/lrh_cli.py` plus a copy
+  of `src/lrh`, both under `plugins/lrh/scripts/` and taken from the same
+  commit as the skills. `WI-PLUGIN-BUNDLED-CLI` settles the exact file
+  names.
+- **How skills run it.** Skill text runs
+  `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py" conversation …`.
+  Running the file through `python3` means the executable bit doesn't
+  matter: claude.ai documents nothing about file modes surviving upload
+  or sync. The bootstrap puts the copy on `sys.path` itself, because `-I`
+  ignores `PYTHONPATH`.
+- **Why bundle.** It removes the version drift between skills and CLI, the
+  install step, and the clone, so the classifier has no clone to deny.
+- **What it doesn't fix: permissions.** In cloud, the launcher's path is
+  absolute and contains the account ID, so an exact allow rule committed
+  to a repository can't name it (Decision 3). Teams that want the export
+  pre-approved use the setup-script route.
+- **Gating.** It waits on a cloud probe (`WI-CLOUD-SESSION-PROBE`), because
+  path substitution for a synced plugin's skills has been seen once and
+  isn't documented for cloud sessions.
+- **Setup script.** Its docs will pin a ref and state the snapshot-cache
+  drift.
 
 ### Decision 2: What the skill does when it can't find `lrh`
 
@@ -146,17 +182,22 @@ Options considered:
   1. `PYTHONPATH=src python3 -m lrh.cli.main`, only inside an LRH checkout,
      which keeps the skills' existing advice to prefer the checkout's own
      code over a possibly different editable install;
-  2. the plugin's bundled launcher, once it ships;
+  2. the plugin's bundled launcher, once it ships, when
+     `"${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"` exists. In a skill copy
+     installed outside the plugin, the placeholder isn't substituted. The
+     Bash tool then expands the unset variable to an empty string, the file
+     test fails, and the order falls through;
   3. `lrh` on PATH;
   4. otherwise, stop and print the setup-script line and the docs anchor.
 
   The launcher comes before `lrh` on PATH because it ships from the same
   commit as the plugin's skills, while a setup-script install can lag them
   by up to about seven days. Putting PATH first would let that stale
-  install shadow the bundle and undo Decision 1. The cost: in a desktop
-  session with the plugin enabled, the launcher also beats a newer local
-  install. `WI-PLUGIN-BUNDLED-CLI` confirms or revises this order once it
-  settles the launcher's name, and records that trade-off.
+  install shadow the bundle and undo Decision 1. Because the launcher is
+  called by path, not found on PATH, skill text controls this order. The
+  cost: in a desktop session with the plugin enabled, the launcher also
+  beats a newer local install. `WI-PLUGIN-BUNDLED-CLI` confirms or revises
+  the order and records that trade-off.
 
 A one-time bootstrap clone stays possible, but only as its own step that
 the user confirms, named for what it does ("clone LRH into the
@@ -194,10 +235,20 @@ the rules match.**
   `lrh conversation export-claude-session *` and
   `lrh conversation inspect-export *`, plus an `ask` rule for `--force`.
   `/lrh-config-skills`, or a sibling command, may offer to write it, with
-  confirmation. Exact rules match the command word, so if the bundled
-  launcher (Decision 1) isn't named `lrh`, the snippet needs the same rules
-  for the launcher's name. `WI-PLUGIN-BUNDLED-CLI` owns that update.
-- **Docs:** state that multi-repo sessions still prompt.
+  confirmation.
+- **Docs:** state the snippet's limits:
+  - Multi-repo sessions still prompt.
+  - It covers only the `lrh conversation …` form, which is the
+    setup-script route. Inside an LRH checkout, Decision 2 runs
+    `PYTHONPATH=src python3 -m lrh.cli.main …`, which these rules don't
+    match.
+  - It doesn't cover the plugin launcher. `Bash()` rules match the whole
+    command line, the launcher runs by an absolute path that contains the
+    account ID in cloud, and claude.ai's skills guide warns that "a
+    wildcard before the path would approve more than you intend".
+    `WI-CLOUD-SESSION-PROBE` records whether a rule with a wildcard only
+    for the account segment matches. Whether to publish such a rule is an
+    open question.
 
 ### Decision 4: How the skill detects a cloud session
 
@@ -385,13 +436,16 @@ Medium scope, seven work items. No workstream unless the user wants one; see
 Open Questions.
 
 1. **`WI-CLOUD-SESSION-PROBE`** — first. Run a real cloud session and check:
-   - whether a synced plugin's `bin/` is on PATH;
+   - whether `${CLAUDE_PLUGIN_ROOT}` is substituted in a synced plugin's
+     skill text, and whether `python3 -I` runs a script under the plugin's
+     `scripts/`;
    - whether `python3 >= 3.11` and PyYAML are present;
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
    - whether a narrow `lrh conversation …` allow rule actually skips the
      classifier, tested against a command the classifier denies without the
-     rule;
+     rule, and whether a rule for the launcher's absolute path can match
+     with a wildcard only for the account segment;
    - whether teleporting the session writes a complete local transcript
      that `export-claude-session` can read, and under which session ID.
 
@@ -409,11 +463,12 @@ Open Questions.
    checks in closeout and work-remains. The checks read `cloud_session`
    from item 6's CLI output and stay dormant until it exists.
 5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe and item 2. The exporter
-   writes the `bin/` launcher and the copied `src/lrh`, with a packaging
-   test. The launcher runs `python3 -I` and adds the copy to `sys.path`
-   itself, since `-I` ignores `PYTHONPATH`. Settles the launcher's name and
-   whether to copy in PyYAML, and extends item 3's snippet if the name
-   isn't `lrh`.
+   writes the bootstrap and the copied `src/lrh` under
+   `plugins/lrh/scripts/`, never a top-level `bin/`, with a packaging test.
+   Skills run it as `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"`,
+   and the bootstrap adds the copy to `sys.path` itself, since `-I` ignores
+   `PYTHONPATH`. It also settles the file names and whether to copy in
+   PyYAML.
 6. **`WI-EXPORT-CLAUDE-CLOUD-BRANCH`** — after the probe, which settles the
    environment-variable facts. Adds the `cloud_session` and
    `remote_session_id` fields, and the skill's cloud branch: export with
@@ -439,15 +494,20 @@ target the renamed skill paths.
   `plugins-reference`, `permission-modes`, `auto-mode-config`, `settings`,
   and `hooks` at code.claude.com/docs (fetched 2026-11-06; quotes in the
   audit).
+- claude.ai docs relied on for the plugin layout: `plugins/org-sync`,
+  `plugins/platform-support`, `plugins/build` and `skills/how-to` at
+  claude.com/docs, plus `plugins/components` and `plugins/security` at
+  code.claude.com/docs (fetched 2026-11-12; quotes in audit §1.1).
 
 ## Open Questions
 
-- Is a synced plugin's `bin/` on PATH in cloud sessions? (The probe answers
+- Is `${CLAUDE_PLUGIN_ROOT}` substituted in a synced plugin's skill text in
+  cloud sessions, and does the bundled script run there? (The probe answers
   this; Decision 1 depends on it.)
-- What should the bundled launcher be called? A plugin `lrh` would shadow a
-  user's local `lrh` in desktop sessions where the plugin is enabled. A
-  distinct name, such as `lrh-plugin`, needs a lookup rule in the shared
-  reference.
+- Should LRH publish an allow rule for the launcher's path, with a wildcard
+  for the account segment, if the probe shows one matches? It would approve
+  any synced plugin called `lrh` with that file, which claude.ai's skills
+  guide warns against.
 - Should the bundle include PyYAML, or rely on the image? The one taurworks
   observation found it present.
 - Should `remote_session_id` back a `claude-cloud:` `session_transcript:`

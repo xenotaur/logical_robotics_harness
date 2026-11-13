@@ -17,13 +17,49 @@ does not guess.
 
 - **The plugin ships skills only.** `plugins/lrh/` has `.claude-plugin/` and
   `skills/`, and nothing else: no `bin/`, no `hooks/`.
-- **Plugins can ship executables.** The plugin reference says of `bin/`:
-  "Files here are on the Bash tool's PATH while the plugin is enabled"
+- **A plugin `bin/` can't reach claude.ai.** The plugin reference's
+  Executables row says files in `bin/` "are on the Bash tool's `PATH` while
+  the plugin is enabled", and continues: "claude.ai and Cowork don't
+  install a plugin that has this directory"
   (<https://code.claude.com/docs/en/plugins-reference.md#standard-layout>).
-  Whether that also holds for an account-synced plugin in a cloud session is
-  undocumented. The synced plugin itself loading in cloud sessions is already
-  undocumented-but-observed (`docs/how-to/use-lrh-with-agent-assistants.md`
-  §5).
+  - claude.ai's org-sync page says it "rejects a plugin that has one,
+    whether the plugin arrives by marketplace sync or by direct upload",
+    with an error starting `Plugin contains a top-level bin/ directory`
+    (<https://claude.com/docs/plugins/org-sync#keep-executables-out-of-the-top-level-bin-directory>).
+  - The support table lists `bin/` as "Can't be installed" on claude.ai
+    and Cowork, while other unsupported components are only ignored
+    (<https://claude.com/docs/plugins/platform-support>).
+  - The repo already enforces this. `src/lrh/skills/exporter.py:596-597`
+    refuses a top-level `bin/`, `tests/skills_exporter_test.py:1377` tests
+    it, and `docs/reference/cli/skills.md:258` documents it.
+  - No doc gives the reason. The likely one (inference): a synced plugin
+    also loads into members' Claude Code sessions, and a `bin/` would add
+    commands that run by bare name, even when no skill mentions them.
+  - An earlier draft of this audit quoted only the first sentence of the
+    row and called the cloud behavior undocumented. A substitute review on
+    2026-11-13 caught the omission.
+- **The documented alternative is a script called by path.** The org-sync
+  page says: "Keep executables in another directory, such as `scripts/`,
+  and reference them as `${CLAUDE_PLUGIN_ROOT}/scripts/<name>`".
+  - Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` inline in skill,
+    command and agent content. It isn't in the Bash tool's environment
+    (`plugins-reference.md`, Environment variables).
+  - A 2026-10-26 probe saw it resolve to
+    `/root/.claude/plugins/synced/<account-id>/lrh-cloud-probe` for a synced
+    plugin in a cloud session
+    (`project/executions/AD_HOC/2026_10_27_00_12_53_WI_SKILLS_CLAUDE_PLUGIN_EXPORT.md`).
+  - claude.ai's skills guide documents the per-skill variant,
+    `${CLAUDE_SKILL_DIR}/scripts/…`. It adds that `Bash()` rules "match the
+    whole command line", and that "a wildcard before the path would approve
+    more than you intend"
+    (<https://claude.com/docs/skills/how-to#add-scripts>).
+  - The synced plugin loading in cloud sessions at all is still
+    undocumented but observed (`docs/how-to/use-lrh-with-agent-assistants.md`
+    §5).
+  - Directory submission, which LRH doesn't use, would add a 512-file and
+    256 KiB-per-file review threshold
+    (<https://claude.com/docs/plugins/pre-submission-checklist>). A bundled
+    plugin would be about 253 files, and no `src/lrh` file exceeds 256 KiB.
 - **Bundling is small.** `src/lrh` is 3.3 MB and 269 files. claude.ai's plugin
   limit is 5,000 files and 200 MB (same doc §5). The only runtime dependency is
   `PyYAML` (`pyproject.toml`). `inspect-export` imports it
@@ -78,8 +114,8 @@ does not guess.
 - **The "Code from External" denial came from the mid-session clone.** By
   default auto mode trusts "only the working directory and the current repo's
   configured remotes" (`auto-mode-config.md`), and the LRH repo is neither for
-  a taurworks session. Installing in setup, or shipping in the plugin's
-  `bin/`, removes the clone. The second denial was for running the cloned CLI
+  a taurworks session. Installing in setup, or shipping a copy in the
+  plugin, removes the clone. The second denial was for running the cloned CLI
   against `~/.claude` session data. An exact allow rule for the three
   commands would skip the classifier for that.
 - **The skill's command shape defeats narrow allow rules.** Step 4 wraps the
@@ -208,30 +244,43 @@ does not guess.
 
 ## 2. Recommended approach
 
-**Make `lrh` already present (CLI bundled in the plugin, with a setup-script
-fallback). Make the export commands pre-approved by exact rule. Make the
+**Make `lrh` already present (CLI bundled in the plugin's `scripts/` and
+called by path, with a setup-script route as well). Make the setup-script
+route's export commands pre-approved by exact rule. Make the
 skill detect cloud and deliver the export instead of trusting the archive.
 Make re-export safe without `--force`.**
 
-1. **CLI availability: bundle the CLI in the plugin, behind a probe.**
-   - The plugin exporter writes `plugins/lrh/bin/<shim>` plus a vendored copy
-     of `src/lrh` from the same commit as the skills. That gives zero drift,
-     no install step, and no clone, so nothing for the classifier to flag.
-   - First confirm in a real cloud session that a synced plugin's `bin/` is on
-     PATH, and that `python3` and PyYAML are present.
-   - Design decisions to settle:
-     - The shim's name. A plugin `lrh` on PATH would shadow a user's local
-       `lrh` in desktop sessions. A distinct name such as `lrh-plugin` avoids
-       that, but every skill would need a lookup rule.
-     - Whether to vendor PyYAML.
-   - Until the probe passes, or if it fails: document a setup-script install
-     pinned to a ref, with the roughly seven-day cache drift stated.
+1. **CLI availability: bundle the CLI in the plugin's `scripts/`, behind a
+   probe.** (Revised 2026-11-13: an earlier draft used `bin/`, which
+   claude.ai won't install. See §1.1.)
+   - The plugin exporter writes a bootstrap, `plugins/lrh/scripts/lrh_cli.py`,
+     plus a vendored copy of `src/lrh` under `plugins/lrh/scripts/`, from the
+     same commit as the skills. That gives zero drift, no install step, and
+     no clone.
+   - Skills run it by path:
+     `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py" conversation …`.
+     Running it through `python3` avoids depending on the executable bit,
+     whose survival through claude.ai upload or sync isn't documented.
+   - First confirm in a real cloud session three things:
+     - `${CLAUDE_PLUGIN_ROOT}` is substituted in a synced plugin's skill
+       text;
+     - a script under the plugin's `scripts/` runs with `python3 -I`;
+     - `python3` and PyYAML are present.
+   - Still to settle: the exact file names, and whether to vendor PyYAML.
+   - Permissions don't come with it. The launcher's absolute path contains
+     the account ID in cloud, so a repo's exact allow rule can't name it
+     (§2.3).
+   - Document a setup-script install pinned to a ref, with the roughly
+     seven-day cache drift stated. It is the route whose commands can be
+     pre-approved, and the fallback if the probe fails.
 2. **Missing-CLI recovery never discovers or clones on its own.** Replace the
    three copied "Running `lrh`" sections with one shared reference:
    - Inside an LRH checkout, use `PYTHONPATH=src`.
-   - Else use the bundled shim, once that ships. It comes before PATH
-     because a setup-script install can lag the plugin by about seven
-     days, and should not shadow the bundle.
+   - Else use the bundled launcher, once it ships, when
+     `"${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"` exists. Outside the plugin
+     the placeholder isn't substituted, the test fails, and the order falls
+     through. It comes before PATH because a setup-script install can lag
+     the plugin by about seven days, and should not shadow the bundle.
    - Else use `lrh` when it is on PATH.
    - Else stop, and print the exact setup-script line and the docs anchor. A
      one-time bootstrap clone is allowed only as an explicit, separately
@@ -248,8 +297,12 @@ Make re-export safe without `--force`.**
      `--force`.
    - `/lrh-config-skills`, or a sibling command, can offer to write the
      snippet, with confirmation.
-   - Known limits: multi-repo cloud sessions don't read project settings,
-     and plugins can't declare permissions. Say both in the docs.
+   - Known limits, stated in the docs:
+     - Multi-repo cloud sessions don't read project settings.
+     - Plugins can't declare permissions.
+     - The rules cover only the `lrh conversation …` form. They don't match
+       the `PYTHONPATH=src python3 -m lrh.cli.main` checkout form, or the
+       plugin launcher's absolute, account-specific path.
 4. **Cloud detection lives in the CLI, not the skill.**
    `current-claude-session-id --format json` gains two metadata-only fields:
    - `cloud_session` (from `CLAUDE_CODE_REMOTE == "true"`)
@@ -319,12 +372,18 @@ Make re-export safe without `--force`.**
 | File downloads by hand, or have the skill print pre-filled `mkdir`/`mv`/`chmod` | Folders come out 0755, the file is exposed until the `chmod`, `LRH_SESSION_ARCHIVE_ROOT` is ignored, and nothing checks the file. Pre-filling copies the exporter's path rule into skill text, which has already drifted (`SKILL.md:296`). |
 | Pick up downloads in `lrh sessions sync` or its weekly launchd schedule | Exposure for up to a week, and `sync` deliberately assumes no default exports location. A possible later add-on that reuses the import command's code. |
 | A folder watcher that files downloads on arrival | A background process moving files silently, and Mac-only. |
+| Ship the CLI in the plugin's top-level `bin/`, on PATH | claude.ai and Cowork won't install a plugin with a top-level `bin/` (§1.1), so the whole plugin would stop reaching cloud sessions. The repo's exporter already refuses one. |
 | Desktop app session Export of the cloud session | None of the 40 most recent sessions the desktop app listed was a cloud session. |
 | Teleport, then export locally | Would skip the download, but compacted messages aren't copied, there are checkout prerequisites, and local transcript storage is undocumented. Probe it. |
 
 ### Open questions for the probe
 
-- Is a synced plugin's `bin/` on PATH in a cloud session?
+- Is `${CLAUDE_PLUGIN_ROOT}` substituted in a synced plugin's skill text in
+  a cloud session, and does `python3 -I` run a script under the plugin's
+  `scripts/`?
+- Can an allow rule for the launcher's absolute path match with a wildcard
+  only for the account segment? (claude.ai's skills guide warns that a
+  wildcard before the path approves more than intended.)
 - Are `python3 >= 3.11` and PyYAML always present in the default image?
 - Which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID`, and
   `CLAUDE_CODE_REMOTE_SESSION_ID` are set in a cloud session? The taurworks

@@ -38,7 +38,7 @@ acceptance:
   - "The export file is still created 0600 from the first write, with the existing os.open(..., 0o600) behavior unchanged"
   - "lrh-export-claude Step 4 runs plain 'lrh conversation export-claude-session ...' commands with no '( umask 077 ... )' subshell"
   - "Documentation publishes a client-repo .claude/settings.json snippet that allows exactly lrh conversation current-claude-session-id *, lrh conversation export-claude-session * and lrh conversation inspect-export *, plus an ask rule that matches --force, and states that multi-repo cloud sessions don't read project settings and that plugins can't grant permissions"
-  - "The documented snippet states that its rules match the command word lrh, and that a differently named bundled launcher (WI-PLUGIN-BUNDLED-CLI) needs the same rules under its own name; if that launcher has already shipped under another name, the snippet includes those rules"
+  - "The documented snippet states that its rules match only the lrh conversation ... command form (the setup-script route): they don't match the PYTHONPATH=src python3 -m lrh.cli.main form used inside an LRH checkout, or the plugin launcher (WI-PLUGIN-BUNDLED-CLI), which runs by an absolute, account-specific path"
   - "If /lrh-config-skills, or a sibling skill, offers to write the snippet, it shows the exact diff and writes only after explicit confirmation; otherwise the item documents the snippet only"
   - "lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass, and rendered skill copies are regenerated without --force"
 required_evidence:
@@ -109,10 +109,15 @@ follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.
 3. Document the settings snippet in
    `docs/how-to/use-lrh-with-agent-assistants.md` §5 (and, if it fits there,
    `docs/reference/cli/conversation.md`), with its limits stated. Exact
-   Bash rules match the command word, so say that the rules cover `lrh`
-   only. If `WI-PLUGIN-BUNDLED-CLI` has already shipped a launcher under
-   another name, add the same rules for that name. If it hasn't, that item
-   owns adding them.
+   Bash rules match the whole command line, so say that the rules cover
+   the `lrh conversation …` form only. They don't cover:
+   - the `PYTHONPATH=src python3 -m lrh.cli.main` form that Decision 2
+     uses inside an LRH checkout;
+   - the plugin launcher from `WI-PLUGIN-BUNDLED-CLI`. It runs as
+     `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"`, whose path is
+     absolute and contains the account ID in cloud. claude.ai's skills
+     guide warns that a wildcard before such a path approves more than
+     intended.
 4. Optional, decided at implementation time: have `/lrh-config-skills`
    offer to add the snippet, behind a confirm gate that shows the exact
    diff.
@@ -129,8 +134,8 @@ follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.
 - New directories are 0700 under umask 022, as shown by a test, and the file
   stays 0600.
 - Step 4 has no subshell.
-- The snippet and its limits are documented, including which command names
-  it covers.
+- The snippet and its limits are documented, including which command forms
+  it covers and that the plugin launcher isn't one of them.
 - `lrh validate`, `scripts/test`, `scripts/lint` and
   `scripts/format --check --diff` pass.
 

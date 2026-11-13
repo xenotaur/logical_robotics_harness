@@ -31,10 +31,10 @@ forbidden_actions:
   - commit_transcript_export
   - modify_user_settings
 acceptance:
-  - "An execution record states, from commands run in a real claude.ai/code cloud session, whether a synced plugin's bin/ directory is on the Bash tool's PATH"
+  - "An execution record states, from commands run in a real claude.ai/code cloud session, whether ${CLAUDE_PLUGIN_ROOT} in a synced plugin's skill text is substituted with the plugin's path, and whether python3 -I runs a script under the plugin's scripts/ by that path; the probe plugin has no top-level bin/, which claude.ai won't install"
   - "The record states the python3 version and whether PyYAML imports in the default image"
   - "The record states which of CLAUDE_CODE_REMOTE, CLAUDE_CODE_SESSION_ID, CLAUDE_CODE_HOST_SESSION_ID and CLAUDE_CODE_REMOTE_SESSION_ID are set, reporting presence and ID format only, never transcript content"
-  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass"
+  - "The record states, for one lrh conversation command, whether auto mode denied it without an allow rule (the control) and whether it ran without a denial once an exact Bash(lrh conversation ...) allow rule for it was in the session repository's .claude/settings.json; if the control isn't denied, the record says the allow-rule result is inconclusive rather than a pass; it also states whether an allow rule naming the probe script's absolute path, with a wildcard only for the account segment, matched"
   - "The record states whether teleporting the cloud session (claude --teleport) from a clean local checkout writes a local transcript under ~/.claude/projects/, which session id it carries, whether current-claude-session-id run inside the teleported session resolves it, and whether the cloud session had been compacted (and so is documented to lose compacted messages), without reading or printing transcript content"
   - "The audit's open-questions section and the proposal's Open Questions are updated with the answers, and lrh validate reports 0 errors"
 required_evidence:
@@ -54,7 +54,9 @@ Run a real Claude Code cloud session and record five facts that
 `PROP-LRH-CLOUD-SESSION-CAPTURE` relies on but Claude Code's documentation
 doesn't settle:
 
-- whether a synced plugin's `bin/` is on PATH;
+- whether `${CLAUDE_PLUGIN_ROOT}` is substituted in a synced plugin's skill
+  text, and whether a script under the plugin's `scripts/` runs by that
+  path;
 - the Python and PyYAML runtime in the default image;
 - which session-ID environment variables are set;
 - whether an exact allow rule bypasses the auto-mode classifier;
@@ -63,9 +65,12 @@ doesn't settle:
 
 ## Problem / Context
 
-The proposal's Decision 1 (bundle the CLI in the plugin) depends on plugin
-`bin/` working for an account-synced plugin in a cloud session. The plugin
-reference documents `bin/`, but not cloud behavior. Decisions 3 and 4
+The proposal's Decision 1 bundles the CLI under the plugin's `scripts/`,
+and skills call it as `${CLAUDE_PLUGIN_ROOT}/scripts/…`. A top-level `bin/`
+is ruled out because claude.ai won't install a plugin that has one (audit
+§1.1). Claude Code documents substituting `${CLAUDE_PLUGIN_ROOT}` in skill
+content. A 2026-10-26 probe saw it resolve once in a synced cloud plugin,
+but cloud behavior for synced plugins isn't documented. Decisions 3 and 4
 assume behavior that is documented in general but has never been checked in
 a cloud session. `project/audits/2026-11-06-cloud-session-export-audit.md`
 lists these as open questions. A probe is cheap, and it stops two
@@ -74,7 +79,7 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 `WI-SKILLS-CLAUDE-PLUGIN-EXPORT`.
 
 ### Duplication search
-- In-repo: Related: `project/work_items/resolved/WI-SKILLS-CLAUDE-PLUGIN-EXPORT.md`. Its dogfood covered skill loading only, not `bin/`, environment variables, or permissions.
+- In-repo: Related: `project/work_items/resolved/WI-SKILLS-CLAUDE-PLUGIN-EXPORT.md`. Its probe saw `${CLAUDE_PLUGIN_ROOT}` resolve, but didn't run a bundled script, check environment variables, or test permissions.
 - Sibling repos: None identified
 - External libraries: None identified
 - Recommendation: Proceed
@@ -95,11 +100,20 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 ## Required Changes
 
 1. Build a minimal throwaway probe plugin, or extend the existing
-   `lrh-cloud-probe`, with a `bin/lrh-probe` script that prints its own path
-   and exits. Enable it on claude.ai and start a fresh cloud session. Plugins
-   reach a session only when it is created.
-2. In that session, run:
-   - `command -v lrh-probe`;
+   `lrh-cloud-probe`, with no top-level `bin/`:
+   - a `scripts/lrh_probe.py` that prints its own resolved path and exits;
+   - a skill whose text runs
+     `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_probe.py"`.
+
+   Enable it on claude.ai and start a fresh cloud session. Plugins reach a
+   session only when it is created.
+2. In that session, record:
+   - the command line the skill produced, which shows whether
+     `${CLAUDE_PLUGIN_ROOT}` was substituted, plus the script's output and
+     exit status;
+   - `ls -l` of the installed script, to see whether file modes survived
+     sync. This is informational, since skills run the file through
+     `python3`.
    - `python3 --version`;
    - `python3 -I -c "import yaml"`, in isolated mode like the bundled
      launcher, so a PyYAML present only in user site-packages doesn't
@@ -124,6 +138,14 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
       `probe.md`'s size, then delete `probe.md` without opening or
       printing it. A run that exits non-zero, or writes no file, counts as
       inconclusive, not as a pass.
+
+   4. **Launcher path.** In a fresh session whose `.claude/settings.json`
+      allows
+      `Bash(python3 -I /root/.claude/plugins/synced/*/lrh-cloud-probe/scripts/lrh_probe.py *)`,
+      or the equivalent for the path step 2 observed, run the probe skill.
+      Record whether the rule matched (no prompt or classifier check) or
+      not. This shows whether the account segment can be wildcarded; it is
+      not a recommendation to publish such a rule.
 
    If the control isn't denied, record the allow-rule result as
    inconclusive, not as a pass. `current-claude-session-id` alone isn't a
@@ -179,5 +201,6 @@ precedent: the `lrh-cloud-probe` plugin probe recorded in
 - A single session is one observation. Record the date, the account type
   (personal or org), and the environment's network level, so a later
   regression can be compared.
-- If `bin/` isn't on PATH, Decision 1 falls back to the setup-script route,
-  and `WI-PLUGIN-BUNDLED-CLI` should be abandoned or rescoped.
+- If `${CLAUDE_PLUGIN_ROOT}` isn't substituted, or the script doesn't run,
+  Decision 1 falls back to the setup-script route, and
+  `WI-PLUGIN-BUNDLED-CLI` should be abandoned or rescoped.

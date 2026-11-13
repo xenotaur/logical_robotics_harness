@@ -133,6 +133,36 @@ four non-blocking issues, and the user chose to fix all of them:
   `WI-CLAUDE-EXPORT-LOCAL-IMPORT` cross-reference one shared 0700
   directory helper.
 
+Fourth review fix, 2026-11-13: a third `/lrh-confirm-fixes` run found no
+open threads and green CI at `c54374d0`. Its substitute self-review
+(record `2026_11_13_00_21_41_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found a
+blocking flaw: Decision 1 put the launcher in the plugin's top-level `bin/`,
+and claude.ai and Cowork don't install a plugin that has one. The audit
+had quoted only the first sentence of the doc row that says so, and the
+repo's exporter already refuses a `bin/`.
+
+The user asked for an investigation first. No doc gives a reason for the
+rule. claude.ai's org-sync page names `scripts/` called as
+`${CLAUDE_PLUGIN_ROOT}/scripts/<name>` as the alternative, so a later
+rejection of that route looks unlikely. The user chose to revise to it:
+
+- **Decision 1, audit §1.1 and §2.1.** The CLI is bundled under
+  `plugins/lrh/scripts/`, and skills run
+  `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"`. A top-level
+  `bin/` is recorded as rejected, the audit quote is corrected, and the
+  sources are listed.
+- **Decision 2 and `WI-LRH-CLI-RESOLUTION-REFERENCE`.** The launcher slot
+  is the bootstrap path. It falls through when the placeholder isn't
+  substituted.
+- **Decision 3, audit §2.3 and `WI-EXPORT-ALLOWLIST-READY`.** The snippet
+  covers only the `lrh conversation …` form. It covers neither the
+  checkout form nor the launcher's absolute, account-specific path.
+- **`WI-CLOUD-SESSION-PROBE`.** It tests path substitution and a bundled
+  script instead of `bin/` on PATH, plus a wildcard rule for the launcher
+  path.
+- **`WI-PLUGIN-BUNDLED-CLI`.** Rewritten for the `scripts/` route. It
+  keeps the exporter's `bin/` refusal.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

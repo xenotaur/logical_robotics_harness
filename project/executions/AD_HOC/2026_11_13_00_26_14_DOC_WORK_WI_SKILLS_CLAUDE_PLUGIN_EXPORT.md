@@ -2,14 +2,14 @@
 execution_id: 2026_11_13_00_26_14_DOC_WORK_WI_SKILLS_CLAUDE_PLUGIN_EXPORT
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WI_SKILLS_CLAUDE_PLUGIN_EXPORT)[2026-11-13T00:15:44+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/871
-commit:
+commit: 0b29b2b85d68bb86981551a88afd7435601f9290
 created_at: 2026-11-13T00:26:14+00:00
 agent: claude_app
 instruction_source: WI-SKILLS-CLAUDE-PLUGIN-EXPORT
-session_transcript: pending
+session_transcript: claude-app:b45207bd-f56d-4b2d-a182-23126acc88a6
 ---
 
 # Summary

@@ -220,14 +220,14 @@ actions.
 **No execution record.** If the quote-tolerant `pr:` search above found
 nothing, and the narrowed fallback is also empty, or the user says none of
 its candidates (nor of the full list, if they asked for it) belongs to this
-PR, the PR has no execution
-record at all. This is routine for a fix that went from edit to commit to PR
+PR, the PR has no execution record at all. This is routine for a fix that
+went from edit to commit to PR
 to merge without `/lrh-implement`, which is what normally creates the record.
 Plan to create one directly as `landed` at Step 5; do not just warn and stop.
 
 **Inlined by `/lrh-land`:** do not plan a new record, and skip the
-work-item attribution step and creation fields below. `/lrh-land` Step 7's no-primary
-backfill path creates an `AD_HOC` record before it re-runs these assessment
+work-item attribution step and creation fields below. `/lrh-land` Step 7's
+no-primary backfill path creates an `AD_HOC` record before it re-runs these assessment
 steps, and this step's `pr:` search then finds it as an ordinary
 `in_progress` record. Creating a record here as well would give the PR two.
 In `/lrh-land` Step 6's preview pass, show the row as "none — `/lrh-land`
@@ -241,8 +241,8 @@ PR may belong to stays unresolved on this path; note it as a pending offer.
 - **Work-item attribution.** A PR that skipped `/lrh-implement` can still
   belong to a real work item, so look before defaulting to `AD_HOC`. Offer
   the PR attribution IDs collected above; for a WS hit, offer its
-  `work_items:` as candidates. Default to `AD_HOC` when nothing matches. The user makes the
-  final choice at Step 4, so this is a suggestion, not a decision. If the
+  `work_items:` as candidates. Default to `AD_HOC` when nothing matches.
+  The user makes the final choice at Step 4, so this is a suggestion, not a decision. If the
   user picks a WI, the record goes in that WI's bucket and the WI, WS, and
   proposal assessments below apply to it as usual. If it stays `AD_HOC`,
   there is no WI to resolve.
@@ -255,6 +255,22 @@ PR may belong to stays unresolved on this path; note it as a pending offer.
     work; otherwise ask.
   - `instruction_source`: the WI path, or a short description such as
     `Ad-hoc user request (no /lrh-implement run); see PR #N`.
+- **Prior run under this slug.** Run the pre-mint slug check for the
+  proposed `slug` and `work_item` now, so its result is in the plan the
+  Step 4 gate shows rather than discovered after it:
+  ```bash
+  lrh prompt check-execution --slug <slug> --work-item <WI-ID or AD_HOC> --project-root .
+  ```
+  Show the result under the new record's row: "no prior run", or the
+  matched `execution_id` and its status. A `failed`, `reverted`, or
+  `superseded` match (exit `0`) becomes the new record's `rerun_of`; show
+  that value. A `landed`, `in_progress`, or unresolved match (exit `1`) may
+  be this PR's own record that the searches above missed, so show it and
+  ask the user whether it is; if it is, treat it as a matched record
+  instead of creating one, and if it is not, propose a distinct slug and
+  re-run the check. Exit `2` or `3` means the check did not run: report it
+  and do not read it as "no prior run". If the user changes `slug` or
+  `work_item` at Step 4, Step 5 re-runs this check on the confirmed values.
 
 See `references/closeout-workflow.md`'s "Creating a record when none exists"
 section.
@@ -527,14 +543,19 @@ Run the slug check before `lrh prompt label`: `label` mints a fresh
 timestamped ID every call, so the `--prompt-id` check after it can only
 catch an ID collision, never an earlier run under the same slug
 (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). The slug check searches the
-checkout and open PRs. Read its exit code:
+checkout and open PRs. Step 2 already ran it and the plan showed its
+result; this run confirms that result still holds for the confirmed `slug`
+and `work_item`:
 
-- `0` with no match: proceed.
-- `0` with a `failed`, `reverted`, or `superseded` match: summarize it, then
-  proceed and add `--rerun-of <its execution_id>` to `record-execution`.
-- `1` (a `landed`, `in_progress`, or unresolved match): stop and report. The
-  match may be this PR's own record that Step 2 did not find; show it to the
-  user rather than creating a second record.
+- Same result as the plan showed: proceed. For a `failed`, `reverted`, or
+  `superseded` match, add `--rerun-of <its execution_id>` to
+  `record-execution`, as shown at the gate.
+- A different result (the user changed `slug` or `work_item` at Step 4, or
+  a record appeared since Step 2): stop, show the new result and the
+  `rerun_of` value it implies, and re-ask before creating the record. For a
+  `landed`, `in_progress`, or unresolved match (exit `1`), handle it as
+  Step 2's "Prior run under this slug" does: treat it as this PR's record
+  if the user says it is, otherwise pick a distinct slug and re-confirm.
 - `2` (usage error) or `3` (the check itself failed): stop and report. Do not
   read either as "no prior record".
 

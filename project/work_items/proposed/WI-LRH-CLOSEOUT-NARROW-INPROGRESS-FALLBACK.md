@@ -102,7 +102,10 @@ Prior art check:
   slug, `work_item`, and blank-`pr:` creation window; send an empty result
   to the "No execution record" branch with an offer of the full list.
 - Step 5: add the pre-mint slug check before `lrh prompt label` in the
-  new-record path.
+  new-record path. Run it first in Step 2's creation-field assessment, so
+  the plan the Step 4 gate shows includes any prior run and the `rerun_of`
+  it implies; Step 5 re-runs it on the confirmed values and re-asks if the
+  result changed.
 - `references/closeout-workflow.md`: update the decision-matrix rows and the
   "Creating a record when none exists" section and commands to match.
 

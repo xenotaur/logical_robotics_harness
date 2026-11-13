@@ -102,12 +102,14 @@ Only when both searches come back empty: the quote-tolerant `pr: <pr-url>`
 search above and the narrowed `status: in_progress` fallback (or the user
 rejects every candidate it offers, and every record of the full list if they
 asked for it). The fallback offers only records that match the PR: its head
-branch's last segment, uppercased with `-` as `_`, inside the
-`execution_id`; a `work_item` among the PR attribution IDs below; or a blank
-or placeholder `pr:` (`null`, `pending`, `draft`) with `created_at` between
-the PR's earliest commit or opening and its merge. Without that filter the
-user would have to reject every `in_progress` record in the repository,
-often hundreds, to reach this path. Not when closeout is inlined by `/lrh-land`: its Step 7
+branch's last segment, uppercased with each run of other characters as `_`,
+inside the `execution_id`; a `work_item` among the PR attribution IDs below;
+or a blank or placeholder `pr:` (`null`, `pending`, `draft`) with
+`created_at` between the PR's earliest commit or opening and its merge.
+Without that filter the user would have to reject every `in_progress` record
+in the repository, often hundreds, to reach this path.
+
+Not when closeout is inlined by `/lrh-land`: its Step 7
 no-primary backfill path creates the record before re-running closeout's
 assessment, and a second record here would duplicate it.
 
@@ -136,6 +138,7 @@ rows into the plan.
 | `agent` | Backend that did the work (ask if not this session) |
 | `instruction_source` | WI path, or e.g. `Ad-hoc user request (no /lrh-implement run); see PR #N` |
 | `session_transcript` | Resolved per Step 3 for that `agent` |
+| Prior run under the slug | Step 2's pre-mint slug-check result: none, or the matched record; a `failed`/`reverted`/`superseded` match becomes `rerun_of` |
 
 ### Commands
 
@@ -155,10 +158,15 @@ lrh prompt record-execution \
 ```
 
 The slug check runs before `label`, because a freshly minted prompt ID can
-never match an earlier run (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). Exit
-`0` with no match proceeds; `0` with a `failed`/`reverted`/`superseded`
-match proceeds with `--rerun-of <its execution_id>`; exit `1` (a
-`landed`/`in_progress`/unresolved match), `2`, or `3` means stop and report.
+never match an earlier run (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). Step 2
+runs it first so the gate shows its result; Step 5 re-runs it on the
+confirmed slug and work item. Exit `0` with no match proceeds; `0` with a
+`failed`/`reverted`/`superseded` match proceeds with
+`--rerun-of <its execution_id>`. Exit `1` (a `landed`/`in_progress`/
+unresolved match) is either this PR's own record, which the user then
+confirms as a matched record, or an unrelated one, which needs a distinct
+slug. Exit `2` or `3` means stop and report. A Step 5 result that differs
+from what the gate showed means re-ask before creating the record.
 The `--prompt-id` check exiting 1 with "No execution records found for
 prompt_id." is the expected go-ahead; any other result means stop.
 

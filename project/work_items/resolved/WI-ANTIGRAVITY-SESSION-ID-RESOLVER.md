@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented lrh conversation current-antigravity-conversation-id, src/lrh/conversations/antigravity_session.py, src/lrh/skills/lrh-session-id-antigravity/ (installed across .claude, .agents, .gemini, and exported to plugins/lrh/), antigravity-app pointer support in lrh sessions report, unit tests, and documentation (merged in PR #797, commit 2a3b9380b7cadb63cc2f282d94cfe804804ea6b9)."
 blocked_reason: null
 blocked: false
 id: WI-ANTIGRAVITY-SESSION-ID-RESOLVER
 title: "Add an Antigravity current-conversation resolver CLI and the lrh-session-id-antigravity skill"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -7,12 +7,20 @@ description: 'Export the current or specified Google Antigravity session transcr
   and reports metadata-only terminal status.
 
   '
-when_to_use: 'Invoke when the user asks to export, capture, or archive an Antigravity
-  session transcript log. Supports explicit `--transcript-path`, `--conversation-id`,
-  or `--latest` discovery, defaulting to a durable private session archive when `--out`
-  is omitted.
-
-  '
+when_to_use: "Invoke only when the user explicitly asks to export, capture, or archive\
+  \ an Antigravity session transcript log for later private review. Do not invoke\
+  \ proactively or infer the intent from a passing mention of exporting \u2014 by\
+  \ default this skill writes a durable, permanent copy into the user's local session\
+  \ archive (not a self-cleaning temp file), so invocation should always trace to\
+  \ a direct request, not an agent's own judgment call. A user-typed `/lrh-export-antigravity`\
+  \ invocation is itself the explicit request \u2014 it states the resolved transcript\
+  \ and destination and proceeds without a separate confirmation; a model-initiated\
+  \ invocation (offered proactively, or chained from another skill or workflow) still\
+  \ requires an explicit confirmation before writing. `--force` is the one exception:\
+  \ it always waits for confirmation, even for a typed invocation, since it can overwrite\
+  \ an existing export. Supports explicit `--transcript-path`, `--conversation-id`,\
+  \ or `--latest` discovery, defaulting to a durable private session archive when\
+  \ `--out` is omitted.\n"
 ---
 
 # lrh-export-antigravity Skill
@@ -69,12 +77,69 @@ Work through these steps in order:
 
 ### Step 1 — Resolve Transcript Input
 
-Determine the input route:
-1. **Explicit transcript path**: If `--transcript-path PATH` is given (or provided in session metadata/context as `transcriptPath`), verify the file exists on disk.
-2. **Conversation ID**: If `--conversation-id ID` is given, discover the transcript file under `<appDataDir>/brain/<id>/.system_generated/logs/transcript.jsonl` (or `transcript_full.jsonl`).
-3. **Latest session**: If `--latest` is given, discover the newest transcript file under `<appDataDir>/brain/`.
+**This step is read-only.** It never calls `export-antigravity-session` —
+that command writes the durable artifact as soon as it runs, which would
+create the file before Step 2's confirmation gate. Use only local file
+checks here.
 
-### Step 2 — Run Exporter CLI
+`<appDataDir>` is `--app-data-dir` when supplied, else
+`~/.gemini/antigravity`.
+
+Every route must end with one concrete file, `<transcript_file>`. Steps 3
+and 4 both pass that same file, so the file exported is the file verified;
+the exporter's own output does not name the transcript it read.
+
+1. **Explicit transcript path**: If `--transcript-path PATH` is given (or provided in session metadata/context as `transcriptPath`), verify the file exists on disk. That file is `<transcript_file>`.
+2. **Conversation ID**: If `--conversation-id ID` is given, use `<appDataDir>/brain/<id>/.system_generated/logs/transcript.jsonl` if it exists, else `transcript_full.jsonl` in the same directory. If neither exists, stop and report it.
+3. **Latest session**: If `--latest` is given, find the most recently modified file matching `<appDataDir>/brain/*/.system_generated/logs/transcript.jsonl` or `transcript_full.jsonl`. If none exists, stop and report it.
+
+These are the same rules the exporter applies for `--conversation-id` and
+`--latest`; resolving them here only fixes the file before anything is
+written.
+
+A live session's transcript is still being written. **When the transcript
+may belong to a live session (the `--latest` route, or this session's own
+`transcriptPath` from context), say so wherever the transcript is stated
+(Step 2) and in the final report (Step 5): the export is a snapshot up to
+the moment it runs.**
+
+### Step 2 — State or Confirm Before Writing
+
+**Write-protection gate, regardless of invocation route.** `when_to_use`
+narrows the auto-trigger surface, but the actual write-protection is this
+step, because the archive is durable and permanent by default (`--out`
+omitted). Both branches below state the same things: the resolved
+`<transcript_file>` and the destination (the durable archive under
+`<archive_root>/antigravity/exports/YYYY/MM/`, or the explicit `--out`
+path), plus the live-session snapshot note from Step 1 when it applies.
+They differ only in whether they wait for a reply.
+
+**First, check for a dangerous flag — this overrides the invocation-source
+branch below, even for a typed invocation.** The list has one entry:
+`--force`. If the invocation includes `--force`, state the transcript and
+destination, state explicitly that an existing file at that destination
+would be **overwritten**, and wait for explicit confirmation before Step 3.
+This is a check on the flag's presence, not on whether a file actually
+exists there.
+
+**Otherwise, how this invocation arrived decides the branch:**
+
+- **User-typed invocation.** The current turn is the literal slash command
+  naming `/lrh-export-antigravity` (or its deprecated alias
+  `/lrh-antigravity-export`), typed by the user this turn (it arrives
+  as `<command-message>`/`<command-name>` tags, or the equivalent explicit
+  textual invocation the platform surfaces). A typed command is the
+  explicit request. State the transcript and destination as information
+  and proceed to Step 3 without waiting for a reply.
+- **Model-initiated invocation.** Any other route — a proactive offer, or a
+  call chained from another skill or workflow. State the same transcript
+  and destination, then wait for explicit confirmation before Step 3.
+- **Ambiguous.** If the invocation signal cannot be confidently read,
+  treat it as model-initiated and wait for confirmation. Never guess that
+  it was typed: an unintended durable write is exactly what this gate
+  exists to prevent.
+
+### Step 3 — Run Exporter CLI
 
 Execute the exporter CLI subcommand with restrictive file creation umask (`umask 077`):
 
@@ -82,24 +147,31 @@ Execute the exporter CLI subcommand with restrictive file creation umask (`umask
 ( umask 077 && lrh conversation export-antigravity-session \
   --transcript-path <transcript_file> \
   [--out <output_path>] \
+  [--archive-root <archive_root>] \
   [--force] \
   [--source-id <source_id>] \
   [--no-scan-sensitive] )
 ```
 
 If `--out` is omitted, the CLI outputs the durable session archive destination path.
+Pass `--archive-root` through whenever the user supplied it, so the export
+lands under the root Step 2 stated.
+
+Always pass the `<transcript_file>` resolved in Step 1 as
+`--transcript-path`, even for the `--conversation-id` and `--latest`
+routes, so the exporter cannot pick a different file (for example, a
+newer transcript that appeared after Step 2).
 
 **If the destination already exists** (typically a same-session re-export
 without `--force`), the exporter refuses to overwrite it and this step
-fails. To replace it, re-run with `--force`, which **overwrites** the
-existing file at the destination; tell the user that before re-running.
-Alternatively, choose a different `--out`. This skill has no
-confirm-before-write gate today (that question is
-`WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`), and this note adds none.
+fails. To replace it, re-run with `--force`. That takes Step 2's
+dangerous-flag path: state that the existing file at the destination will
+be overwritten, and wait for explicit confirmation. Alternatively, choose a
+different `--out`.
 
-### Step 3 — Verify Export Artifact
+### Step 4 — Verify Export Artifact
 
-Run the LRH export inspector supplying the source transcript file (`--source <transcript_file>`) to verify frontmatter schema validity, source SHA-256 integrity, and summary statistics:
+Run the LRH export inspector supplying the same `<transcript_file>` from Step 1 (`--source <transcript_file>`) to verify frontmatter schema validity, source SHA-256 integrity, and summary statistics:
 
 ```bash
 lrh conversation inspect-export <output_path> --source <transcript_file>
@@ -118,7 +190,7 @@ result. Any nonzero exit is a failed verification, though, including
 `transcript_statistics` mismatch. Report it and keep the files private for
 debugging.
 
-### Step 4 — Terminal Summary
+### Step 5 — Terminal Summary
 
 Report metadata-only terminal status to the user. Do not print raw transcript body text to stdout or stderr.
 
@@ -139,4 +211,7 @@ strings that need a human review before the export is shared anywhere. It
 does not mean the export failed. `unscanned` means no scan was run (for
 example, `--no-scan-sensitive`). `none_detected` is not a guarantee that the
 content is safe to share.
+
+When Step 1's snapshot note applied, repeat it: the export covers the
+transcript only up to the moment it ran.
 

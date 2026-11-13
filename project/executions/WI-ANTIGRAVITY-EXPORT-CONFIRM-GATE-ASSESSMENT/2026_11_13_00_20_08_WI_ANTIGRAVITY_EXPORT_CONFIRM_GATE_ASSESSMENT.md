@@ -2,14 +2,14 @@
 execution_id: 2026_11_13_00_20_08_WI_ANTIGRAVITY_EXPORT_CONFIRM_GATE_ASSESSMENT
 prompt_id: PROMPT(WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT:WI_ANTIGRAVITY_EXPORT_CONFIRM_GATE_ASSESSMENT)[2026-11-13T00:13:34+00:00]
 work_item: WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/870
-commit:
+commit: 24f1a92587e9399fc4fa2b4c171d4d3ac9f3e86e
 created_at: 2026-11-13T00:20:08+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT.md
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

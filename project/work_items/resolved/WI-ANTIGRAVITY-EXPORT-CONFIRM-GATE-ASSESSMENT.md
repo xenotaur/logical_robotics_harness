@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Assessed and implemented in PR #870 (commit 24f1a925): lrh-export-antigravity lacked the confirm-before-write step, the proactive-invocation guard, and the concrete-path rule that lrh-export-claude and lrh-export-codex share; recommended adding them and, the change being simple, added them in the same PR by adapting the Claude exporter''s gate (typed proceeds, model-initiated or ambiguous waits, --force always waits), resolving one transcript file before any write and using it for both export and verification, and passing --archive-root through; no exporter or inspector code changed.'
 blocked_reason: null
 blocked: false
 id: WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
 title: "Assess and, if simple, add a confirm-before-write gate to lrh-export-antigravity"
 type: evaluation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

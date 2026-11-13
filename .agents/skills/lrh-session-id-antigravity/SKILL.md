@@ -55,7 +55,7 @@ unavailable; only a missing or incompatible CLI command is a runtime blocker.
 The relevant CLI guarantees are:
 
 - `current-antigravity-conversation-id` uses the same shared resolver contract as
-  `/lrh-antigravity-export` and the Antigravity export CLIs.
+  `/lrh-export-antigravity` and the Antigravity export CLIs.
 - `--conversation-id` overrides `ANTIGRAVITY_CONVERSATION_ID`.
 - missing, whitespace-only, and malformed UUIDs are rejected clearly with exit code 2.
 - terminal output is metadata-only.
@@ -67,7 +67,7 @@ The relevant CLI guarantees are:
 
 Follow these rules for every run:
 
-1. Do not run `/lrh-antigravity-export` unless the user explicitly asks to export
+1. Do not run `/lrh-export-antigravity` unless the user explicitly asks to export
    or archive the transcript.
 2. Do not inspect undocumented Antigravity app storage internals.
 3. Do not print transcript text or line-preview export artifacts.
@@ -126,4 +126,4 @@ lrh conversation current-antigravity-conversation-id \
 ### Step 3 -- Close out
 
 Tell the user that no transcript was exported. If they later need a private
-archive capture, use `/lrh-antigravity-export` explicitly.
+archive capture, use `/lrh-export-antigravity` explicitly.

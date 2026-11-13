@@ -163,6 +163,33 @@ rejection of that route looks unlikely. The user chose to revise to it:
 - **`WI-PLUGIN-BUNDLED-CLI`.** Rewritten for the `scripts/` route. It
   keeps the exporter's `bin/` refusal.
 
+Fifth review fixes, 2026-11-13: a fourth `/lrh-confirm-fixes` run found no
+open threads and green CI at `c66df640`. Its substitute self-review
+(record `2026_11_13_01_25_04_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+six issues, one blocking. The user chose to fix all six:
+
+- **Launcher path placement (blocking).** Claude Code substitutes
+  `${CLAUDE_PLUGIN_ROOT}` only in SKILL.md content and `allowed-tools`
+  rules, so the launcher path now lives in each consuming SKILL.md body,
+  never only in the shared reference. This changes Decision 2, audit
+  §2.2, `WI-LRH-CLI-RESOLUTION-REFERENCE` and `WI-PLUGIN-BUNDLED-CLI`.
+- **Plugin-skill `allowed-tools`.** Decision 3 now has two channels: the
+  plugin launcher is pre-approved by `lrh-export-claude`'s own
+  `allowed-tools` (pending the probe), and the setup-script route by
+  repository rules. The audit's "plugins can't declare permissions" claim
+  is corrected.
+- **Probe.** It tests the `allowed-tools` grant, quoted and unquoted, with
+  a control, and confirms that a `references/` file stays literal. Its
+  launcher-path repository rule drops the trailing wildcard that couldn't
+  match.
+- **Audit quote.** The "generally skip the classifier" text, which the
+  page no longer has, is replaced with the current decision-order
+  exceptions.
+- **Limits.** Cloud threads in a project are added to Decision 3's limits,
+  the audit and `WI-EXPORT-ALLOWLIST-READY`.
+- **Metadata.** The proposal's `updated_on` is now 2026-11-13. The audit's
+  253-file estimate now says it excludes `src/lrh/skills`.
+
 No code, skill, or documentation behavior changed.
 
 # Validation

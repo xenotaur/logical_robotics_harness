@@ -4,7 +4,7 @@ type: design_proposal
 title: "Transcript capture from Claude Code cloud sessions"
 status: proposed
 created_on: 2026-11-06
-updated_on: 2026-11-11
+updated_on: 2026-11-13
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -28,8 +28,10 @@ Make `/lrh-export-claude` work in Claude Code cloud sessions
 - `lrh` is already present when the skill runs. A copy ships inside the
   plugin, which skills call by path through `${CLAUDE_PLUGIN_ROOT}`, and a
   setup-script install is the other route.
-- The setup-script route's `lrh conversation …` commands can be
-  pre-approved by exact allow rules.
+- The export commands can be pre-approved: the plugin launcher by
+  `lrh-export-claude`'s own `allowed-tools`, pending a probe, and the
+  setup-script route's `lrh conversation …` commands by exact allow rules
+  in the repository.
 - The CLI reports whether the session is a cloud session.
 - In a cloud session the skill writes the export straight to a location
   the session can deliver from, and offers it for download.
@@ -153,18 +155,28 @@ keep a setup-script install as the other documented route.**
   of `src/lrh`, both under `plugins/lrh/scripts/` and taken from the same
   commit as the skills. `WI-PLUGIN-BUNDLED-CLI` settles the exact file
   names.
-- **How skills run it.** Skill text runs
-  `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py" conversation …`.
+- **How skills run it.** SKILL.md text runs
+  `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation …`.
+  The placeholder has to appear in each SKILL.md: Claude Code substitutes it
+  only in "the skill's markdown content, and Bash rules in the
+  `allowed-tools` frontmatter" (`skills.md`, Available string
+  substitutions). Supporting files such as `references/` are read as-is.
+  Whether to quote the substituted path is settled by the probe, since the
+  command line must also match the `allowed-tools` rule below.
   Running the file through `python3` means the executable bit doesn't
   matter: claude.ai documents nothing about file modes surviving upload
   or sync. The bootstrap puts the copy on `sys.path` itself, because `-I`
   ignores `PYTHONPATH`.
 - **Why bundle.** It removes the version drift between skills and CLI, the
   install step, and the clone, so the classifier has no clone to deny.
-- **What it doesn't fix: permissions.** In cloud, the launcher's path is
-  absolute and contains the account ID, so an exact allow rule committed
-  to a repository can't name it (Decision 3). Teams that want the export
-  pre-approved use the setup-script route.
+- **Permissions come from the skill itself.** In cloud, the launcher's
+  path is absolute and contains the account ID, so a repository's exact
+  allow rule can't name it. A plugin skill can instead pre-approve its own
+  launcher with `allowed-tools` rules that use `${CLAUDE_PLUGIN_ROOT}`. The
+  docs say this lets "a skill run a bundled script without a permission
+  prompt" (Decision 3). Whether that holds in cloud auto mode is a probe
+  question. Until it is confirmed, teams that need pre-approved exports use
+  the setup-script route.
 - **Gating.** It waits on a cloud probe (`WI-CLOUD-SESSION-PROBE`), because
   path substitution for a synced plugin's skills has been seen once and
   isn't documented for cloud sessions.
@@ -182,11 +194,16 @@ Options considered:
   1. `PYTHONPATH=src python3 -m lrh.cli.main`, only inside an LRH checkout,
      which keeps the skills' existing advice to prefer the checkout's own
      code over a possibly different editable install;
-  2. the plugin's bundled launcher, once it ships, when
-     `"${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"` exists. In a skill copy
-     installed outside the plugin, the placeholder isn't substituted. The
-     Bash tool then expands the unset variable to an empty string, the file
-     test fails, and the order falls through;
+  2. the plugin's bundled launcher, once it ships, when the launcher path
+     written in the SKILL.md body exists. The shared reference can't hold
+     that path itself: Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` only
+     in SKILL.md content and `allowed-tools` rules, and reads `references/`
+     files as-is. So each consuming SKILL.md carries one line naming
+     `${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py`, and the reference points
+     back to it. In a skill copy installed outside the plugin, the
+     placeholder isn't substituted. The Bash tool then expands the unset
+     variable to an empty string, the file test fails, and the order falls
+     through;
   3. `lrh` on PATH;
   4. otherwise, stop and print the setup-script line and the docs anchor.
 
@@ -211,44 +228,71 @@ Facts this decision rests on (sources in the audit, §1.2):
 - Allow rules skip the classifier.
 - Ask rules always prompt.
 - Cloud sessions read only the repository's `.claude/settings.json`, and
-  only in single-repo sessions.
-- Plugins can't declare permissions.
+  only in single-repo sessions. Cloud threads in a project apply none of
+  its permission rules.
+- A plugin's `settings.json` can't declare permissions, but a skill's
+  `allowed-tools` frontmatter can. It pre-approves the listed tools for the
+  turn that invokes the skill, `${CLAUDE_PLUGIN_ROOT}` is substituted in its
+  Bash rules, and a synced skill's grant "goes through the normal
+  permission flow". Auto mode drops only broad allow rules, such as
+  blanket `Bash(*)` or wildcarded interpreters.
+- Rules are evaluated deny, then ask, then allow, so a repository's ask
+  rule still prompts when a skill grant matches.
 - The classifier never reads `autoMode` configuration from project
   settings.
 
 Options considered:
 
-- **Plugin-declared permissions.** Not supported.
+- **Plugin `settings.json` permissions.** Not supported: only `agent` and
+  `subagentStatusLine` take effect.
+- **The plugin skill's own `allowed-tools`.** Chosen for the plugin
+  launcher, pending the probe. It needs no client-repository settings, so
+  it plausibly also works in multi-repo sessions and project threads. It
+  applies only during the turn that invokes the skill.
 - **`autoMode.environment` trusted sources.** Not read from project
   settings, and user settings don't reach cloud sessions.
 - **Exact allow rules in the client repository's `.claude/settings.json`.**
-  This is chosen.
+  Chosen for the setup-script route.
 
-**Chosen: publish an exact-rule settings snippet, and change the commands so
-the rules match.**
+**Chosen: two channels, one per route.**
 
-- **CLI:** create export and archive directories with mode 0700. Today
-  `claude_export.py:144` uses a plain `mkdir`, and the skill relies on
-  `( umask 077 … )` to protect the directories.
-- **Skill:** drop the subshell and run plain `lrh conversation …` commands.
-- **Snippet:** allow `lrh conversation current-claude-session-id *`,
-  `lrh conversation export-claude-session *` and
-  `lrh conversation inspect-export *`, plus an `ask` rule for `--force`.
-  `/lrh-config-skills`, or a sibling command, may offer to write it, with
-  confirmation.
+- **Plugin launcher route:** `lrh-export-claude` declares `allowed-tools`
+  rules for exactly three commands:
+  `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation`
+  followed by `current-claude-session-id *`, `export-claude-session *`
+  or `inspect-export *`.
+  - These rules also match a command with `--force`. Where a repository's
+    ask rule exists, it still prompts. Elsewhere, the skill's own `--force`
+    confirmation gate is the only checkpoint, and it stays unchanged.
+  - `WI-PLUGIN-BUNDLED-CLI` adds the rules once `WI-CLOUD-SESSION-PROBE`
+    confirms they match and survive cloud auto mode.
+- **Setup-script route:** publish an exact-rule settings snippet, and
+  change the commands so the rules match:
+
+  - **CLI:** create export and archive directories with mode 0700. Today
+    `claude_export.py:144` uses a plain `mkdir`, and the skill relies on
+    `( umask 077 … )` to protect the directories.
+  - **Skill:** drop the subshell and run plain `lrh conversation …`
+    commands.
+  - **Snippet:** allow `lrh conversation current-claude-session-id *`,
+    `lrh conversation export-claude-session *` and
+    `lrh conversation inspect-export *`, plus an `ask` rule for `--force`.
+    `/lrh-config-skills`, or a sibling command, may offer to write it, with
+    confirmation.
 - **Docs:** state the snippet's limits:
-  - Multi-repo sessions still prompt.
+  - Multi-repo sessions, and cloud threads in a project, still prompt.
   - It covers only the `lrh conversation …` form, which is the
     setup-script route. Inside an LRH checkout, Decision 2 runs
     `PYTHONPATH=src python3 -m lrh.cli.main …`, which these rules don't
     match.
   - It doesn't cover the plugin launcher. `Bash()` rules match the whole
-    command line, the launcher runs by an absolute path that contains the
-    account ID in cloud, and claude.ai's skills guide warns that "a
-    wildcard before the path would approve more than you intend".
-    `WI-CLOUD-SESSION-PROBE` records whether a rule with a wildcard only
-    for the account segment matches. Whether to publish such a rule is an
-    open question.
+    command line, and the launcher runs by an absolute path that contains
+    the account ID in cloud. The skill's own `allowed-tools` covers that
+    route instead. claude.ai's skills guide warns that "a wildcard before
+    the path would approve more than you intend". `WI-CLOUD-SESSION-PROBE`
+    records whether a repository rule with a wildcard only for the account
+    segment matches, as a fallback datum. Whether to publish such a rule is
+    an open question.
 
 ### Decision 4: How the skill detects a cloud session
 
@@ -437,8 +481,11 @@ Open Questions.
 
 1. **`WI-CLOUD-SESSION-PROBE`** — first. Run a real cloud session and check:
    - whether `${CLAUDE_PLUGIN_ROOT}` is substituted in a synced plugin's
-     skill text, and whether `python3 -I` runs a script under the plugin's
-     `scripts/`;
+     SKILL.md text, and confirm it isn't in a `references/` file, and
+     whether `python3 -I` runs a script under the plugin's `scripts/`;
+   - whether the skill's `allowed-tools` rule for that script runs it
+     without a prompt or classifier check in cloud auto mode, quoted and
+     unquoted;
    - whether `python3 >= 3.11` and PyYAML are present;
    - which of `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_HOST_SESSION_ID` and
      `CLAUDE_CODE_REMOTE_SESSION_ID` are set;
@@ -465,10 +512,11 @@ Open Questions.
 5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe and item 2. The exporter
    writes the bootstrap and the copied `src/lrh` under
    `plugins/lrh/scripts/`, never a top-level `bin/`, with a packaging test.
-   Skills run it as `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"`,
-   and the bootstrap adds the copy to `sys.path` itself, since `-I` ignores
-   `PYTHONPATH`. It also settles the file names and whether to copy in
-   PyYAML.
+   SKILL.md text runs it as
+   `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py`, and the bootstrap
+   adds the copy to `sys.path` itself, since `-I` ignores `PYTHONPATH`.
+   `lrh-export-claude` gains matching `allowed-tools` rules. It also
+   settles the file names and whether to copy in PyYAML.
 6. **`WI-EXPORT-CLAUDE-CLOUD-BRANCH`** — after the probe, which settles the
    environment-variable facts. Adds the `cloud_session` and
    `remote_session_id` fields, and the skill's cloud branch: export with
@@ -494,6 +542,10 @@ target the renamed skill paths.
   `plugins-reference`, `permission-modes`, `auto-mode-config`, `settings`,
   and `hooks` at code.claude.com/docs (fetched 2026-11-06; quotes in the
   audit).
+- Claude Code docs relied on for skill substitution and grants: `skills`
+  (Available string substitutions, Pre-approve tools for a skill),
+  `permissions` and `settings` at code.claude.com/docs (fetched
+  2026-11-13).
 - claude.ai docs relied on for the plugin layout: `plugins/org-sync`,
   `plugins/platform-support`, `plugins/build` and `skills/how-to` at
   claude.com/docs, plus `plugins/components` and `plugins/security` at
@@ -504,10 +556,13 @@ target the renamed skill paths.
 - Is `${CLAUDE_PLUGIN_ROOT}` substituted in a synced plugin's skill text in
   cloud sessions, and does the bundled script run there? (The probe answers
   this; Decision 1 depends on it.)
-- Should LRH publish an allow rule for the launcher's path, with a wildcard
-  for the account segment, if the probe shows one matches? It would approve
-  any synced plugin called `lrh` with that file, which claude.ai's skills
-  guide warns against.
+- Does the skill's own `allowed-tools` grant for the launcher hold in cloud
+  auto mode? (The probe answers this; Decision 3's plugin route depends on
+  it.)
+- If that grant doesn't hold, should LRH publish a repository allow rule
+  for the launcher's path, with a wildcard for the account segment, if the
+  probe shows one matches? It would approve any synced plugin called `lrh`
+  with that file, which claude.ai's skills guide warns against.
 - Should the bundle include PyYAML, or rely on the image? The one taurworks
   observation found it present.
 - Should `remote_session_id` back a `claude-cloud:` `session_transcript:`

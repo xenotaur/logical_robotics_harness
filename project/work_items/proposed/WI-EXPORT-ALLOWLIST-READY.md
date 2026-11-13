@@ -37,8 +37,8 @@ acceptance:
   - "export-claude-session creates any missing output and archive parent directories with mode 0700, regardless of the process umask, and leaves existing directories' modes unchanged; a unit test covers a permissive umask (022)"
   - "The export file is still created 0600 from the first write, with the existing os.open(..., 0o600) behavior unchanged"
   - "lrh-export-claude Step 4 runs plain 'lrh conversation export-claude-session ...' commands with no '( umask 077 ... )' subshell"
-  - "Documentation publishes a client-repo .claude/settings.json snippet that allows exactly lrh conversation current-claude-session-id *, lrh conversation export-claude-session * and lrh conversation inspect-export *, plus an ask rule that matches --force, and states that multi-repo cloud sessions don't read project settings and that plugins can't grant permissions"
-  - "The documented snippet states that its rules match only the lrh conversation ... command form (the setup-script route): they don't match the PYTHONPATH=src python3 -m lrh.cli.main form used inside an LRH checkout, or the plugin launcher (WI-PLUGIN-BUNDLED-CLI), which runs by an absolute, account-specific path"
+  - "Documentation publishes a client-repo .claude/settings.json snippet that allows exactly lrh conversation current-claude-session-id *, lrh conversation export-claude-session * and lrh conversation inspect-export *, plus an ask rule that matches --force, and states that multi-repo cloud sessions and cloud threads in a project don't apply the repo's permission rules, and that a plugin's settings.json can't grant permissions (the plugin launcher route is pre-approved instead by lrh-export-claude's own allowed-tools, WI-PLUGIN-BUNDLED-CLI)"
+  - "The documented snippet states that its rules match only the lrh conversation ... command form (the setup-script route): they don't match the PYTHONPATH=src python3 -m lrh.cli.main form used inside an LRH checkout, or the plugin launcher (WI-PLUGIN-BUNDLED-CLI), which runs by an absolute, account-specific path and is covered by the skill's own allowed-tools instead"
   - "If /lrh-config-skills, or a sibling skill, offers to write the snippet, it shows the exact diff and writes only after explicit confirmation; otherwise the item documents the snippet only"
   - "lrh validate, scripts/test, scripts/lint and scripts/format --check --diff pass, and rendered skill copies are regenerated without --force"
 required_evidence:
@@ -114,10 +114,16 @@ follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.
    - the `PYTHONPATH=src python3 -m lrh.cli.main` form that Decision 2
      uses inside an LRH checkout;
    - the plugin launcher from `WI-PLUGIN-BUNDLED-CLI`. It runs as
-     `python3 -I "${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py"`, whose path is
+     `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py`, whose path is
      absolute and contains the account ID in cloud. claude.ai's skills
      guide warns that a wildcard before such a path approves more than
-     intended.
+     intended. That route is pre-approved instead by `lrh-export-claude`'s
+     own `allowed-tools`, if the probe confirms it.
+
+   Also state the snippet's other limits. Multi-repo cloud sessions, and
+   cloud threads in a project, apply none of a repo's
+   `.claude/settings.json` permission rules (`settings.md`, Settings in
+   cloud sessions).
 4. Optional, decided at implementation time: have `/lrh-config-skills`
    offer to add the snippet, behind a confirm gate that shows the exact
    diff.

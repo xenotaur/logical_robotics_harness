@@ -73,8 +73,14 @@ See the Session Transcript section below.
 ### Locating execution records by PR
 
 ```bash
-grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
+grep -rlE "^pr: *[\"']?<pr-url>[\"']? *$" project/executions/ --include='*.md'
 ```
+
+Match quoted and unquoted values: some records write
+`pr: "https://..."`, which a bare `^pr: <pr-url>` grep misses. The end anchor
+keeps `/pull/87` from matching `/pull/872`. A missed record can make
+closeout wrongly take the "Creating a record when none exists" path and
+duplicate it.
 
 A single PR may have multiple execution records: one primary (from
 `/lrh-implement`) and one or more review-response records (from
@@ -91,8 +97,8 @@ one. Closeout creates it instead, after the fact. (Precedent: the
 
 ### When it applies
 
-Only when both searches come back empty: `pr: <pr-url>` and the
-`status: in_progress` fallback (or the user rejects every fallback
+Only when both searches come back empty: the quote-tolerant `pr: <pr-url>`
+search above and the `status: in_progress` fallback (or the user rejects every fallback
 candidate). Not when closeout is inlined by `/lrh-land`: its Step 7
 no-primary backfill path creates the record before re-running closeout's
 assessment, and a second record here would duplicate it.

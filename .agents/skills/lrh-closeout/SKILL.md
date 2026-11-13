@@ -142,8 +142,12 @@ gh pr view <pr-url> --json state,mergeCommit \
 **2. Execution record(s):**
 Find all execution records linked to this PR by `pr:` field:
 ```bash
-grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
+grep -rlE "^pr: *[\"']?<pr-url>[\"']? *$" project/executions/ --include='*.md'
 ```
+Some records quote the value (`pr: "https://..."`), and the end anchor keeps
+`/pull/87` from matching `/pull/872`. Never use a bare `^pr: <pr-url>` match:
+it misses quoted records, and a missed record can lead the "No execution
+record" branch below to create a duplicate.
 If no records are found (common when `/lrh-implement` left `pr:` blank), fall
 back to listing all in-progress records:
 ```bash
@@ -154,7 +158,8 @@ this PR. For each matched record: check `status:` field. See decision matrix
 in `references/closeout-workflow.md` for `in_progress` / `landed` / missing
 actions.
 
-**No execution record.** If the fallback search is also empty, or the user
+**No execution record.** If the quote-tolerant `pr:` search above found
+nothing, and the fallback search is also empty, or the user
 says none of its candidates belongs to this PR, the PR has no execution
 record at all. This is routine for a fix that went from edit to commit to PR
 to merge without `/lrh-implement`, which is what normally creates the record.

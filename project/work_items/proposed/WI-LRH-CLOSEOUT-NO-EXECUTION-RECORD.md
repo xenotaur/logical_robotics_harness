@@ -14,7 +14,7 @@ related_focus: []
 related_roadmap: []
 related_workstreams: []
 related_design:
-  - PROP-LRH-CLOSEOUT
+  - project/design/proposals/adopted/lrh-closeout/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:

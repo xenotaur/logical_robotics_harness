@@ -17,9 +17,10 @@ before touching any files.
 | PR | `state: CLOSED` (no merge) | **Abort** — PR was closed without merge; investigate |
 | Execution record | `status: in_progress` | Update to `landed` (Step 5) |
 | Execution record | `status: landed` | Skip — already closed out |
-| Execution record | None found by `pr:`, but `in_progress` fallback candidates exist | Ask the user which candidate(s) belong to this PR; treat each confirmed one as `in_progress` above |
-| Execution record | None exists for this PR (both searches empty, or user rejects every fallback candidate) | Create a new record directly as `landed` (Step 5) — see "Creating a record when none exists"; user confirms WI-or-`AD_HOC` attribution and creation fields at Step 4 |
-| Execution record | None exists, and closeout is inlined by `/lrh-land` | Do not create one and skip the attribution scan — `/lrh-land` Step 7's no-primary backfill creates an `AD_HOC` record before re-running closeout's assessment, whose `pr:` search finds it. Step 6's preview row shows that record's `agent` and resolved `session_transcript` |
+| Execution record | None found by `pr:`, but the narrowed fallback finds `in_progress` candidates (head-branch slug in `execution_id`, `work_item` among the PR attribution IDs, or blank/placeholder `pr:` with `created_at` in the PR's open-to-merge window) | Show each candidate with the test it matched and ask which belong to this PR; treat each confirmed one as `in_progress` above. Say how many other `in_progress` records were left out; list them all only if the user asks |
+| Execution record | None found by `pr:`, and the narrowed fallback finds no candidates | Go straight to the next row without asking about candidates; still offer the full `in_progress` list on request |
+| Execution record | None exists for this PR (`pr:` search and narrowed fallback both empty, or user rejects every candidate, including the full list if they asked for it) | Create a new record directly as `landed` (Step 5) — see "Creating a record when none exists"; user confirms WI-or-`AD_HOC` attribution and creation fields at Step 4 |
+| Execution record | None exists, and closeout is inlined by `/lrh-land` | Do not create one and skip the work-item attribution step — `/lrh-land` Step 7's no-primary backfill creates an `AD_HOC` record before re-running closeout's assessment, whose `pr:` search finds it. `/lrh-land` Step 6's preview row shows that record's `agent` and resolved `session_transcript` |
 | Execution record | `work_item: AD_HOC` (existing record) | No WI to resolve — closeout scope is execution record update only; do not search for WIs via PR diff or working tree |
 | WI | Found in `proposed/` | Resolve: set `status: resolved`, write `resolution:`, `mv` to `resolved/` |
 | WI | Found in `resolved/` | Skip — already resolved |
@@ -98,8 +99,15 @@ one. Closeout creates it instead, after the fact. (Precedent: the
 ### When it applies
 
 Only when both searches come back empty: the quote-tolerant `pr: <pr-url>`
-search above and the `status: in_progress` fallback (or the user rejects every fallback
-candidate). Not when closeout is inlined by `/lrh-land`: its Step 7
+search above and the narrowed `status: in_progress` fallback (or the user
+rejects every candidate it offers, and every record of the full list if they
+asked for it). The fallback offers only records that match the PR: its head
+branch's last segment, uppercased with `-` as `_`, inside the
+`execution_id`; a `work_item` among the PR attribution IDs below; or a blank
+or placeholder `pr:` (`null`, `pending`, `draft`) with `created_at` between
+the PR's earliest commit or opening and its merge. Without that filter the
+user would have to reject every `in_progress` record in the repository,
+often hundreds, to reach this path. Not when closeout is inlined by `/lrh-land`: its Step 7
 no-primary backfill path creates the record before re-running closeout's
 assessment, and a second record here would duplicate it.
 
@@ -111,7 +119,8 @@ title, body, head branch, and commit messages (plus a WI ID given as the
 closeout argument), keep those that exist under `project/`, and offer them
 at Step 4. Uppercase the branch name before matching, since branches are
 usually lowercase, and trim trailing branch suffixes until an ID matches a
-file. This scan reads PR metadata only, not the diff. The user decides;
+file. This scan reads PR metadata only, not the diff. Step 2 runs it before
+the narrowed fallback, which also uses its IDs. The user decides;
 `AD_HOC` is the default when nothing matches. A chosen WI puts the record
 in `project/executions/<WI-ID>/` and brings the usual WI, WS, and proposal
 rows into the plan.
@@ -135,6 +144,7 @@ rows into the plan.
 `--status landed` and every field in one call:
 
 ```bash
+lrh prompt check-execution --slug <slug> --work-item <WI-ID or AD_HOC> --project-root .
 lrh prompt label --work-item <WI-ID or AD_HOC> --slug <slug> --project-root .
 lrh prompt check-execution --prompt-id "<prompt-id>" --project-root .
 lrh prompt record-execution \
@@ -144,7 +154,12 @@ lrh prompt record-execution \
   --session-transcript <resolved-value> --project-root .
 ```
 
-`check-execution` exiting 1 with "No execution records found for
+The slug check runs before `label`, because a freshly minted prompt ID can
+never match an earlier run (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). Exit
+`0` with no match proceeds; `0` with a `failed`/`reverted`/`superseded`
+match proceeds with `--rerun-of <its execution_id>`; exit `1` (a
+`landed`/`in_progress`/unresolved match), `2`, or `3` means stop and report.
+The `--prompt-id` check exiting 1 with "No execution records found for
 prompt_id." is the expected go-ahead; any other result means stop.
 
 Then replace the generated `TODO` body sections with an after-the-fact

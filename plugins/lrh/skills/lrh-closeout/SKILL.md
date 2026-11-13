@@ -157,25 +157,79 @@ Some records quote the value (`pr: "https://..."`), and the end anchor keeps
 `/pull/87` from matching `/pull/872`. Never use a bare `^pr: <pr-url>` match:
 it misses quoted records, and a missed record can lead the "No execution
 record" branch below to create a duplicate.
-If no records are found (common when `/lrh-implement` left `pr:` blank), fall
-back to listing all in-progress records:
+If no records are found (common when `/lrh-implement` left `pr:` blank), do
+not list every `in_progress` record: a repository can hold hundreds, and the
+user would have to reject each one to reach the "No execution record" branch
+below. Build a short candidate list instead.
+
+*PR attribution IDs.* Collect the `WI-*` and `WS-*` IDs mentioned in the
+PR's title, body, head branch, and commit messages, plus any WI ID carried
+forward from Step 1. Branch names are usually lowercase, so uppercase the
+branch and split it on `/` before matching:
 ```bash
-grep -rl '^status: in_progress' project/executions/ --include='*.md'
+gh pr view <pr-url> --json title,body,headRefName,commits \
+  --jq '[.title, (.body // ""), (.headRefName | ascii_upcase | gsub("/"; "\n")),
+         (.commits[] | .messageHeadline + "\n" + .messageBody)] | join("\n")' \
+  | grep -oE '\b(WI|WS)-[A-Z0-9-]*[A-Z0-9]\b' | sort -u
 ```
-Present the fallback candidates to the user and ask which one(s) belong to
-this PR. For each matched record: check `status:` field. See decision matrix
+Keep only IDs with a file under `project/work_items/` or
+`project/workstreams/`. A branch can add a suffix after the ID (e.g.
+`wi-foo-bar-fix`), so when an ID has no file, drop trailing `-SEGMENT`s
+until one matches or nothing is left. For a WS hit, its `work_items:` count
+too. The fallback below and the work-item attribution step further down both
+use this list.
+
+*Narrowed fallback.* Get the head branch's last segment as an execution-ID
+slug, and the PR's open-to-merge window (starting at its earliest commit
+when that predates the PR):
+```bash
+gh pr view <pr-url> --json headRefName,createdAt,mergedAt,commits \
+  --jq '{slug: (.headRefName | split("/") | last | ascii_upcase | gsub("[^A-Z0-9]+"; "_")),
+         start: ([.createdAt] + [.commits[].authoredDate] | min),
+         end: .mergedAt}'
+```
+Then print the fields to match for every `in_progress` record:
+```bash
+grep -rl '^status: in_progress' project/executions/ --include='*.md' | while read -r f; do
+  printf '%s\t' "$f"
+  awk 'NR>1 && /^---$/{exit} /^(execution_id|work_item|pr|created_at):/' "$f" | tr '\n' ' '
+  echo
+done
+```
+A record is a candidate when any of these holds:
+
+- Its `execution_id` contains `_<slug>`. This also catches the PR's side
+  records (`_SELFREVIEW`, `_REVIEW`, `_CONFIRM`), including a diff-mode
+  self-review record created before the PR opened. Skip this test when the
+  slug is short or generic (`FIX`, `MAIN`, an auto-generated worktree name),
+  since it would match unrelated records.
+- Its `work_item` is one of the PR attribution IDs (a WI ID, or a WI listed
+  by a WS hit).
+- Its `pr:` is blank or a placeholder (empty, `null`, `""`, `pending`,
+  `draft`) and its `created_at` falls between `start` and `end`. Compare
+  instants, not strings: `created_at` values carry mixed UTC offsets, and
+  `gh` reports UTC with a `Z` suffix.
+
+If there are candidates, present them with the test each one matched and
+ask which belong to this PR. If there are none, go straight to the "No
+execution record" branch below without asking. Either way, say how many
+other `in_progress` records were left out, and list all of them if the user
+asks; that full list is the old fallback, still available on request.
+
+For each matched record: check `status:` field. See decision matrix
 in `references/closeout-workflow.md` for `in_progress` / `landed` / missing
 actions.
 
 **No execution record.** If the quote-tolerant `pr:` search above found
-nothing, and the fallback search is also empty, or the user
-says none of its candidates belongs to this PR, the PR has no execution
+nothing, and the narrowed fallback is also empty, or the user says none of
+its candidates (nor of the full list, if they asked for it) belongs to this
+PR, the PR has no execution
 record at all. This is routine for a fix that went from edit to commit to PR
 to merge without `/lrh-implement`, which is what normally creates the record.
 Plan to create one directly as `landed` at Step 5; do not just warn and stop.
 
 **Inlined by `/lrh-land`:** do not plan a new record, and skip the
-attribution scan and creation fields below. `/lrh-land` Step 7's no-primary
+work-item attribution step and creation fields below. `/lrh-land` Step 7's no-primary
 backfill path creates an `AD_HOC` record before it re-runs these assessment
 steps, and this step's `pr:` search then finds it as an ordinary
 `in_progress` record. Creating a record here as well would give the PR two.
@@ -188,22 +242,9 @@ PR may belong to stays unresolved on this path; note it as a pending offer.
 **Direct invocation only:**
 
 - **Work-item attribution.** A PR that skipped `/lrh-implement` can still
-  belong to a real work item, so look before defaulting to `AD_HOC`. Collect
-  the `WI-*` and `WS-*` IDs mentioned in the PR's title, body, head branch,
-  and commit messages, plus any WI ID carried forward from Step 1. Branch
-  names are usually lowercase, so uppercase the branch and split it on `/`
-  before matching:
-  ```bash
-  gh pr view <pr-url> --json title,body,headRefName,commits \
-    --jq '[.title, (.body // ""), (.headRefName | ascii_upcase | gsub("/"; "\n")),
-           (.commits[] | .messageHeadline + "\n" + .messageBody)] | join("\n")' \
-    | grep -oE '\b(WI|WS)-[A-Z0-9-]*[A-Z0-9]\b' | sort -u
-  ```
-  Keep only IDs with a file under `project/work_items/` or
-  `project/workstreams/`. A branch can add a suffix after the ID (e.g.
-  `wi-foo-bar-fix`), so when an ID has no file, drop trailing `-SEGMENT`s
-  until one matches or nothing is left. For a WS hit, offer its `work_items:`
-  as candidates. Default to `AD_HOC` when nothing matches. The user makes the
+  belong to a real work item, so look before defaulting to `AD_HOC`. Offer
+  the PR attribution IDs collected above; for a WS hit, offer its
+  `work_items:` as candidates. Default to `AD_HOC` when nothing matches. The user makes the
   final choice at Step 4, so this is a suggestion, not a decision. If the
   user picks a WI, the record goes in that WI's bucket and the WI, WS, and
   proposal assessments below apply to it as usual. If it stays `AD_HOC`,
@@ -464,11 +505,12 @@ See `references/closeout-workflow.md` for valid field values and the
 creating one):
 
 Do **not** use `lrh prompt update-execution` here: it only moves an existing
-`in_progress` record to `landed` and errors when there is no record. Mint a
-prompt ID in the confirmed bucket, check it, then create the record already
-landed in one call:
+`in_progress` record to `landed` and errors when there is no record. Check
+the confirmed slug for a prior record, mint a prompt ID in the confirmed
+bucket, check it, then create the record already landed in one call:
 
 ```bash
+lrh prompt check-execution --slug <slug> --work-item <WI-ID or AD_HOC> --project-root .
 lrh prompt label --work-item <WI-ID or AD_HOC> --slug <slug> --project-root .
 lrh prompt check-execution --prompt-id "<prompt-id>" --project-root .
 lrh prompt record-execution \
@@ -484,11 +526,27 @@ lrh prompt record-execution \
   --project-root .
 ```
 
-For `check-execution`, the expected result is exit 1 with "No execution
+Run the slug check before `lrh prompt label`: `label` mints a fresh
+timestamped ID every call, so the `--prompt-id` check after it can only
+catch an ID collision, never an earlier run under the same slug
+(`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). The slug check searches the
+checkout and open PRs. Read its exit code:
+
+- `0` with no match: proceed.
+- `0` with a `failed`, `reverted`, or `superseded` match: summarize it, then
+  proceed and add `--rerun-of <its execution_id>` to `record-execution`.
+- `1` (a `landed`, `in_progress`, or unresolved match): stop and report. The
+  match may be this PR's own record that Step 2 did not find; show it to the
+  user rather than creating a second record.
+- `2` (usage error) or `3` (the check itself failed): stop and report. Do not
+  read either as "no prior record".
+
+For the `--prompt-id` check, the expected result is exit 1 with "No execution
 records found for prompt_id." — that is the go-ahead, not an error. Any other
 result (exit 0 with a record listed, or another failure): stop and report
 rather than creating a second record. Step 2's `pr:` search is the main
-duplicate guard; this check covers a prompt-ID collision. `record-execution` prints the new file's path. Replace
+duplicate guard; the slug check covers an earlier run under the same slug,
+and the `--prompt-id` check a prompt-ID collision. `record-execution` prints the new file's path. Replace
 its `TODO` body sections with an after-the-fact account:
 
 - `# Summary`: what the PR changed, in one or two sentences.

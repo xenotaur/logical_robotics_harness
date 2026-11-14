@@ -65,7 +65,7 @@ does not guess.
   copy needs those three: `lrh.cli.main` imports `lrh.agent_skills_status` at top level, and that imports `lrh.skills.installer`.
   It can leave out the rest of `src/lrh/skills`, the skill sources the
   plugin already carries. No `src/lrh` file exceeds 256 KiB.
-- **Bundling is small.** `src/lrh` is 3.3 MB and 269 files. claude.ai's plugin
+- **Bundling is small.** `src/lrh` is about 2.7 MiB and 269 tracked files. claude.ai's plugin
   limit is 5,000 files and 200 MB (same doc §5). The only runtime dependency is
   `PyYAML` (`pyproject.toml`), and every CLI command needs it.
   `lrh.cli.main` imports `lrh.agent_skills_status` at top level, and that
@@ -181,8 +181,11 @@ does not guess.
 - **The skill's command shape defeats narrow allow rules.** Step 4 wraps the
   export in `( umask 077 \n lrh conversation export-claude-session ... )`. A
   rule like `Bash(lrh conversation export-claude-session *)` is written for a
-  plain command, and whether a multi-line subshell matches it is not
-  documented. The wrapper exists for directories only: the export file is
+  plain command. `permissions.md` (Compound commands) lists newlines among
+  the command separators and says "Every subcommand must be allowed", and
+  `umask` isn't in the read-only set. So the subshell form isn't covered
+  by that rule, or by a plugin skill's `allowed-tools` rule for the
+  launcher. The wrapper exists for directories only: the export file is
   already opened `0o600` (`src/lrh/conversations/claude_export.py:180`), but
   parent directories come from a plain `out.parent.mkdir(parents=True,
   exist_ok=True)` (`claude_export.py:144`) and follow the umask.
@@ -352,7 +355,9 @@ Make re-export safe without `--force`.**
 3. **Permissions: exact allow rules, an ask rule for `--force`, and no
    subshell.**
    - CLI: create export and archive directories `0700` itself, so the skill
-     can drop the `( umask 077 ... )` wrapper and run plain commands.
+     can drop the `( umask 077 ... )` wrapper and run plain commands. Both
+     routes need this, since neither channel's rules cover the subshell's
+     `umask` subcommand.
    - Publish a settings snippet for client repos' `.claude/settings.json`:
      allow `lrh conversation current-claude-session-id *`,
      `lrh conversation export-claude-session *` and
@@ -361,7 +366,10 @@ Make re-export safe without `--force`.**
    - `/lrh-config-skills`, or a sibling command, can offer to write the
      snippet, with confirmation.
    - For the plugin launcher, `lrh-export-claude` declares matching
-     `allowed-tools` rules instead, pending the probe.
+     `allowed-tools` rules instead, pending the probe. Once the launcher
+     comes first, the repository rules stop matching, so a team that relied
+     on them loses pre-approval for confirmed runs, which run after the
+     skill grant has cleared.
    - Known limits, stated in the docs:
      - Multi-repo cloud sessions and cloud threads in a project don't
        apply the repo's permission rules.

@@ -22,6 +22,7 @@ related_design:
 depends_on:
   - WI-CLOUD-SESSION-PROBE
   - WI-LRH-CLI-RESOLUTION-REFERENCE
+  - WI-EXPORT-ALLOWLIST-READY
 blocked_by: []
 expected_actions:
   - edit_file
@@ -42,8 +43,10 @@ acceptance:
   - "The launcher path ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py appears in each consuming SKILL.md body (the line WI-LRH-CLI-RESOLUTION-REFERENCE adds), never only in a references/ file, because Claude Code substitutes it only in SKILL.md content and allowed-tools rules; skills run the CLI as python3 -I <that path> <subcommand> ..., so nothing depends on the executable bit, and nothing is installed, cloned, or downloaded at run time"
   - "The bootstrap puts the copied package first on sys.path from inside Python, computed from its own resolved location; it never relies on PYTHONPATH, which -I ignores. Tests show it imports the copy, not another lrh, when the working directory contains its own lrh/ package and when PYTHONPATH points at a different lrh"
   - "If the probe confirmed the grant holds in cloud auto mode for a rule ending in a trailing ' *' (probe skill E, the shape shipped here), lrh-export-claude's frontmatter declares allowed-tools rules for exactly python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation followed by current-claude-session-id *, export-claude-session * and inspect-export *, written in the quoting form the probe showed matches the SKILL.md command; the skill's --force and model-initiated confirmation gates are unchanged; the docs say the grant lasts until the user's next message, so it covers a user-typed invocation without --force, while a run that waits for confirmation (model-initiated, including the closeout and work-remains refresh offer, or any --force) goes to the classifier in auto mode; if the probe showed the grant doesn't hold, no allowed-tools rules are added and the docs point teams needing pre-approval to the setup-script route"
+  - "WI-EXPORT-ALLOWLIST-READY has landed, so lrh-export-claude Step 4 runs the export as one plain command with no '( umask 077 ... )' subshell; Claude Code splits compound commands on newlines and requires every subcommand to be allowed (permissions.md, Compound commands), so the subshell form would not match the launcher rule"
   - "The plugin export keeps allowed-tools in the plugin copy of lrh-export-claude (only the portable-bundle target strips it, exporter.py:36-48), shown by a test"
-  - "The execution record confirms or revises Decision 2's order (launcher before lrh on PATH), stating the desktop trade-off that the launcher also beats a newer local install, and records the file names and the PyYAML decision (bundle it or rely on the image)"
+  - "The Codex (.agents) and Antigravity (.gemini) copies of lrh-export-claude don't carry the Claude-only allowed-tools rules: the renderers copy frontmatter unchanged today (lrh-self-review's disallowed-tools appears in all four copies), so the item either strips allowed-tools for those targets, shown by a test, or records why leaving the literal placeholder there is harmless for each client"
+  - "The execution record confirms or revises Decision 2's order (launcher before lrh on PATH), stating both trade-offs: the launcher also beats a newer local install on desktop, and a team with a setup-script lrh and the repository allow rules loses pre-approval for confirmed runs (model-initiated or --force), because those rules match only lrh conversation ... and the skill grant has cleared by then; it records the file names and the PyYAML decision (bundle it or rely on the image)"
   - "The packaging test fails when the committed plugin's copied CLI differs from src/lrh, the export stays within claude.ai's 5,000-file and 200 MB limits, and claude plugin validate passes"
   - "A manual cloud-session check runs /lrh:lrh-export-claude's resolution step with no setup script, shows it reaching the bundled launcher through the SKILL.md path line (not falling through to PATH or stop), and records whether the export commands ran without a permission prompt or classifier check, both for a user-typed invocation and for a model-initiated one run after the user's confirming reply"
 required_evidence:
@@ -105,7 +108,7 @@ Three documented facts shape the design (audit §1.1–1.2):
   in for the account segment, because a `*` "matches any text, including
   spaces" (`permissions.md`).
 
-The package is small: 3.3 MB and 269 files, against claude.ai's limits of
+The package is small: about 2.7 MiB and 269 tracked files, against claude.ai's limits of
 200 MB and 5,000 files. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decisions 1–3.
 This item is gated on `WI-CLOUD-SESSION-PROBE`, because substitution and the
 grant are documented in general but not yet checked for a synced plugin in
@@ -163,6 +166,12 @@ a cloud session.
    `inspect-export *`.
    - Keep the skill's `--force` and model-initiated confirmation gates
      unchanged.
+   - Rely on `WI-EXPORT-ALLOWLIST-READY` having removed the
+     `( umask 077 … )` subshell from Step 4. Claude Code splits compound
+     commands on newlines, and "Every subcommand must be allowed"
+     (`permissions.md`, Compound commands). `umask` isn't in the read-only
+     set, so the subshell form would still prompt or go to the classifier
+     even with the launcher rule.
    - Document the grant's scope. It covers a user-typed invocation
      without `--force`. A run that waits for confirmation (model-initiated,
      including the closeout and work-remains refresh offer, or any
@@ -181,6 +190,12 @@ a cloud session.
      rules (skills A and B) worked, or the grant doesn't hold at all, add
      no rules, and point teams needing pre-approval to the setup-script
      route.
+   - Keep the rules out of the Codex (`.agents`) and Antigravity
+     (`.gemini`) copies. Their renderers copy frontmatter unchanged, as
+     `lrh-self-review`'s `disallowed-tools` shows, so the Claude-only rules
+     and their literal placeholder would land there too. Strip
+     `allowed-tools` for those targets with a test, or record per client
+     why the literal rule is harmless.
 4. Decide and record:
    - the bootstrap and vendor-folder names;
    - whether to bundle PyYAML, informed by the probe's image findings.
@@ -193,8 +208,13 @@ a cloud session.
      step treat a launcher that fails to import as unavailable, and test
      that path;
    - whether Decision 2's order (launcher before `lrh` on PATH) stands,
-     with the desktop cost that the launcher also beats a newer local
-     install.
+     given two costs. On desktop, the launcher also beats a newer local
+     install. And a team with the synced plugin, a setup-script `lrh` and
+     the published repository allow rules loses pre-approval for confirmed
+     runs: those rules match only `lrh conversation …`, the skill picks the
+     launcher instead, and the skill grant has cleared by the time a
+     model-initiated or `--force` run goes ahead. Before the bundle, the
+     repository rule covered those runs.
 5. Extend `tests/skills_exporter_test.py` and
    `tests/packaging_tests/skills_claude_plugin_sync_test.py` so they catch
    drift in the copied CLI and check the size and file limits. Keep the
@@ -218,7 +238,8 @@ a cloud session.
 - Do not weaken the skill's `--force` or model-initiated confirmation
   gates.
 - Do not change the Codex (`.agents`) or Antigravity (`.gemini`) skill
-  targets.
+  targets, except to keep the Claude-only `allowed-tools` rules out of
+  them.
 
 ## Acceptance Criteria
 

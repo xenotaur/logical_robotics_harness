@@ -145,8 +145,8 @@ Options considered:
   variable is not in the Bash tool's environment (`plugins-reference`,
   Environment variables). A 2026-10-26 probe saw it resolve to
   `/root/.claude/plugins/synced/<account-id>/…` for a synced plugin in a
-  cloud session (`WI-SKILLS-CLAUDE-PLUGIN-EXPORT`). The copy is small: 3.3
-  MB and 269 files, against claude.ai's limits of 200 MB and 5,000 files.
+  cloud session (`WI-SKILLS-CLAUDE-PLUGIN-EXPORT`). The copy is small: about
+  2.7 MiB and 269 tracked files, against claude.ai's limits of 200 MB and 5,000 files.
 
 **Chosen: bundle the CLI under `plugins/lrh/scripts/`, called by path, and
 keep a setup-script install as the other documented route.**
@@ -218,9 +218,19 @@ Options considered:
   by up to about seven days. Putting PATH first would let that stale
   install shadow the bundle and undo Decision 1. Because the launcher is
   called by path, not found on PATH, skill text controls this order. The
-  cost: in a desktop session with the plugin enabled, the launcher also
-  beats a newer local install. `WI-PLUGIN-BUNDLED-CLI` confirms or revises
-  the order and records that trade-off.
+  order has two costs:
+  - In a desktop session with the plugin enabled, the launcher also beats
+    a newer local install.
+  - A team with the synced plugin, a setup-script `lrh` and the published
+    repository allow rules loses pre-approval for confirmed runs. Those
+    rules match only `lrh conversation …`, so once the skill picks the
+    launcher they never fire. A model-initiated or `--force` run waits for
+    the user's reply, which clears the skill grant, so in auto mode it
+    goes to the classifier. Before the bundle, the repository rule covered
+    it.
+
+  `WI-PLUGIN-BUNDLED-CLI` confirms or revises the order and records both
+  trade-offs.
 
 A one-time bootstrap clone stays possible, but only as its own step that
 the user confirms, named for what it does ("clone LRH into the
@@ -278,6 +288,15 @@ Options considered:
 
 **Chosen: two channels, one per route.**
 
+- **Both routes: plain commands.** The CLI creates export and archive
+  directories with mode 0700. Today `claude_export.py:144` uses a plain
+  `mkdir`, and the skill relies on `( umask 077 … )` to protect the
+  directories. The skill then drops the subshell and runs one plain
+  command. Claude Code splits compound commands on newlines, and "Every
+  subcommand must be allowed" (`permissions.md`, Compound commands).
+  `umask` isn't in the read-only set, so neither route's rules would
+  cover the subshell form. `WI-EXPORT-ALLOWLIST-READY` makes this change,
+  and `WI-PLUGIN-BUNDLED-CLI` depends on it.
 - **Plugin launcher route:** `lrh-export-claude` declares `allowed-tools`
   rules for exactly three commands:
   `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py conversation`
@@ -298,14 +317,8 @@ Options considered:
     confirms that a rule of this shape matches and survives cloud auto
     mode. The shape is an interpreter, an absolute path and a trailing
     ` *`, and auto mode drops "wildcarded interpreters".
-- **Setup-script route:** publish an exact-rule settings snippet, and
-  change the commands so the rules match:
+- **Setup-script route:** publish an exact-rule settings snippet:
 
-  - **CLI:** create export and archive directories with mode 0700. Today
-    `claude_export.py:144` uses a plain `mkdir`, and the skill relies on
-    `( umask 077 … )` to protect the directories.
-  - **Skill:** drop the subshell and run plain `lrh conversation …`
-    commands.
   - **Snippet:** allow `lrh conversation current-claude-session-id *`,
     `lrh conversation export-claude-session *` and
     `lrh conversation inspect-export *`, plus an `ask` rule for `--force`.
@@ -543,13 +556,15 @@ Open Questions.
    options in the manifest, the `--refresh` mode, and the stale-export
    checks in closeout and work-remains. The checks read `cloud_session`
    from item 6's CLI output and stay dormant until it exists.
-5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe and item 2. The exporter
+5. **`WI-PLUGIN-BUNDLED-CLI`** — after the probe, item 2 and item 3,
+   whose plain commands the launcher rules need to match. The exporter
    writes the bootstrap and the copied `src/lrh` under
    `plugins/lrh/scripts/`, never a top-level `bin/`, with a packaging test.
    SKILL.md text runs it as
    `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/lrh_cli.py`, and the bootstrap
    adds the copy to `sys.path` itself, since `-I` ignores `PYTHONPATH`.
-   `lrh-export-claude` gains matching `allowed-tools` rules. It also
+   `lrh-export-claude` gains matching `allowed-tools` rules, kept out of
+   the Codex and Antigravity copies. It also
    settles the file names and whether to copy in PyYAML.
 6. **`WI-EXPORT-CLAUDE-CLOUD-BRANCH`** — after the probe, which settles the
    environment-variable facts. Adds the `cloud_session` and

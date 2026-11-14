@@ -238,6 +238,31 @@ user chose to fix all three:
 
 No code, skill, or documentation behavior changed.
 
+Eighth review fixes, 2026-11-13: a seventh `/lrh-confirm-fixes` run found
+no open threads and green CI at `20069ab7`. Its substitute self-review
+(record `2026_11_13_21_34_40_LRH_CLOUD_SESSION_CAPTURE_SELFREVIEW`) found
+nothing blocking: three cross-item gaps and one nit. The user chose to fix
+all four:
+
+- **Subshell on both routes.** Claude Code splits compound commands on
+  newlines and requires every subcommand to be allowed, so the launcher's
+  `allowed-tools` rule wouldn't cover today's `( umask 077 … )` Step 4
+  either. Decision 3 now applies the 0700 directories and plain commands
+  to both routes. `WI-PLUGIN-BUNDLED-CLI` depends on
+  `WI-EXPORT-ALLOWLIST-READY`, and the audit's "not documented" wording
+  now cites `permissions.md`.
+- **Second order trade-off.** Once the launcher comes before PATH,
+  repository rules for `lrh conversation …` stop matching, so confirmed
+  runs lose pre-approval for teams that relied on them. Decision 2, the
+  audit and `WI-PLUGIN-BUNDLED-CLI` record it.
+- **Other targets.** The Codex and Antigravity renderers copy frontmatter
+  unchanged, so `WI-PLUGIN-BUNDLED-CLI` now keeps the Claude-only
+  `allowed-tools` rules out of those copies, or records why they're
+  harmless.
+- **Size.** `src/lrh` is about 2.7 MiB of tracked files, not 3.3 MB.
+
+No code, skill, or documentation behavior changed.
+
 # Validation
 
 - `lrh validate`: 0 errors, 0 warnings, after the proposal and again after

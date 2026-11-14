@@ -71,7 +71,11 @@ documents that allow rules skip the classifier, and that cloud sessions read
 the repository's `.claude/settings.json` in single-repo sessions (audit
 §1.2). But the skill wraps the export in a multi-line `( umask 077 … )`
 subshell, which an exact `Bash(lrh conversation export-claude-session *)`
-rule is not documented to match. The wrapper exists only for directory
+rule doesn't cover: Claude Code splits compound commands on newlines, and
+"Every subcommand must be allowed" (`permissions.md`, Compound commands),
+while `umask` isn't in the read-only set. The same holds for the plugin
+launcher's `allowed-tools` rules, so `WI-PLUGIN-BUNDLED-CLI` depends on
+this item. The wrapper exists only for directory
 modes: the file is already opened 0600 (`claude_export.py:180`), but
 `out.parent.mkdir(parents=True, exist_ok=True)` (`claude_export.py:144`)
 follows the umask. `PROP-LRH-CLOUD-SESSION-CAPTURE` Decision 3.

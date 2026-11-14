@@ -54,10 +54,11 @@ are tracked as one coordinated effort rather than as unrelated work items.
 ## Prior Art Check
 
 ### Duplication search
-- In-repo: No existing backlog workstream or work item found
-  (`grep -rli "per-file backlog\|PER-FILE-BACKLOG\|lrh backlog"` over
-  `project/workstreams/`, `project/work_items/`, `src/` returned nothing).
-  Governing design: `PROP-LRH-PER-FILE-BACKLOG`. Closest structural
+- In-repo: No existing backlog workstream or work item found. Tracked-file
+  survey, excluding this workstream's own file:
+  `git grep -i -l -E 'per-file backlog|PER-FILE-BACKLOG|lrh backlog' -- project/workstreams project/work_items src ':!project/workstreams/proposed/WS-PER-FILE-BACKLOG.md'`
+  returned no matches (exit 1) at this branch's head `621de02a`; without the
+  exclusion, the only match is this file. Governing design: `PROP-LRH-PER-FILE-BACKLOG`. Closest structural
   precedent: `WS-LRH-MEMORY-COMMAND` (resolved), which staged
   `PROP-LRH-MEMORY-COMMAND` into write, archive, read, and portability work
   items.
@@ -82,7 +83,8 @@ No work items have been created yet; `work_items:` is populated as each is
 filed. The planned items, in delivery order, are:
 
 1. **Schema, validation, and read-only views** — frontmatter schema; `lrh
-   validate` checks (ID equals filename stem, status vocabulary,
+   validate` checks (lowercase-kebab ID equal to the filename stem and
+   unique across `open/` and `closed/`, `title` present, status vocabulary,
    status/bucket agreement, `noted` date, `promoted_to` when promoted,
    `(kind, subject)` uniqueness among open entries); `lrh backlog list`
    (filters `--status`, `--kind`, `--priority`; text, table, and JSON
@@ -97,7 +99,8 @@ filed. The planned items, in delivery order, are:
 3. **Write side** — `lrh backlog add` (ID and `(kind, subject)` dedupe),
    `close`, and `organize`. Gated: started only when a skill needs to write
    entries automatically (for example, audit-finding collation). Depends on
-   item 1.
+   items 1 and 2, preserving the read-side, then migration, then write-side
+   order stated in Purpose.
 4. **Downstream migration work items** — one filed in each of Taurworks
    (2 entries), LCATS (about 35 entries plus a pointer entry for the
    Gettenberg register), and prosoc (about 43 table rows plus prose

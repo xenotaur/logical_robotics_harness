@@ -221,11 +221,15 @@ body, matching `lrh memory search`) provide the views.
 ### Decision 7: Validation
 
 **Chosen: `lrh validate` checks backlog frontmatter only, and only when
-`project/backlog/` exists.** Checks: `id` present and equal to the filename
-stem; `status` in the enumerated set; `status`/bucket agreement (warning, as
-for proposals); `noted` parses as a date; `promoted_to` set when `status` is
-`promoted`; `(kind, subject)` unique among open entries. Bodies are not
-validated. This makes backlog entries a lightly formal LRH artifact, a change
+`project/backlog/` exists.** Checks: `id` present, lowercase-kebab (the
+Decision 3 slug syntax), and equal to the filename stem; `id` unique across
+both `open/` and `closed/`, so an entry's identity stays unambiguous when it
+moves between buckets; `title` present and non-empty; `status` in the
+enumerated set; `status`/bucket agreement (warning, as for proposals);
+`noted` parses as a date; `promoted_to` set when `status` is `promoted`;
+`(kind, subject)` unique among open entries. These checks apply from the
+first phase, because agents create entry files directly until the write
+side exists (Decision 8). Bodies are not validated. This makes backlog entries a lightly formal LRH artifact, a change
 from today's explicitly informal `backlog.md`.
 
 ### Decision 8: Read side before write side

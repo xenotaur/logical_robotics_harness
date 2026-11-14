@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #860 (commit efd9a334b538666635b860a2d7c74574972f5c72)'
 blocked_reason: null
 blocked: false
 id: WI-CODEX-MANAGED-SANDBOX-NETWORK-INCIDENT
 title: File and track the Codex managed-sandbox GitHub networking incident
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

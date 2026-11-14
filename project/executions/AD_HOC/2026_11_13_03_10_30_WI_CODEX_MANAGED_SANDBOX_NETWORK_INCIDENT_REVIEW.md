@@ -2,10 +2,10 @@
 execution_id: 2026_11_13_03_10_30_WI_CODEX_MANAGED_SANDBOX_NETWORK_INCIDENT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CODEX_MANAGED_SANDBOX_NETWORK_INCIDENT_REVIEW)[2026-11-13T03:05:49+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_11_02_03_38_42_WI_CODEX_MANAGED_SANDBOX_NETWORK_INCIDENT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/860
-commit: 08e4d10b
+commit: efd9a334b538666635b860a2d7c74574972f5c72
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/860
 session_transcript: pending

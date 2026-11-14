@@ -162,10 +162,13 @@ never match an earlier run (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`). Step 2
 runs it first so the gate shows its result; Step 5 re-runs it on the
 confirmed slug and work item. Exit `0` with no match proceeds; `0` with a
 `failed`/`reverted`/`superseded` match proceeds with
-`--rerun-of <its execution_id>`. Exit `1` (a `landed`/`in_progress`/
-unresolved match) is either this PR's own record, which the user then
+`--rerun-of <its execution_id>`. Exit `1` with a `landed` or
+`in_progress` match is either this PR's own record, which the user then
 confirms as a matched record, or an unrelated one, which needs a distinct
-slug. Exit `2` or `3` means stop and report. A Step 5 result that differs
+slug. Exit `1` with a `planned` or unrecognized status, or with unresolved
+recency, is a stop-and-reconcile: the user fixes that record first, since
+`update-execution` cannot land it and a new record around it would hide
+it. Exit `2` or `3` means stop and report. A Step 5 result that differs
 from what the gate showed means re-ask before creating the record.
 The `--prompt-id` check exiting 1 with "No execution records found for
 prompt_id." is the expected go-ahead; any other result means stop.

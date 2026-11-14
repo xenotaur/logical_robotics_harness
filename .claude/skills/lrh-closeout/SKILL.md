@@ -188,9 +188,12 @@ gh pr view <pr-url> --json headRefName,createdAt,mergedAt,commits \
          start: ([.createdAt] + [.commits[].authoredDate] | min),
          end: .mergedAt}'
 ```
-Then print the fields to match for every `in_progress` record:
+Then print the fields to match for every tracked `in_progress` record. Use
+`git grep`, not `grep -r`: a filesystem search also reads untracked scratch
+files (and nested worktree checkouts), which would show up as candidates and
+inflate the left-out count below.
 ```bash
-grep -rl '^status: in_progress' project/executions/ --include='*.md' | while read -r f; do
+git grep -l '^status: in_progress' -- 'project/executions/*.md' | while read -r f; do
   printf '%s\t' "$f"
   awk 'NR>1 && /^---$/{exit} /^(execution_id|work_item|pr|created_at):/' "$f" | tr '\n' ' '
   echo
@@ -224,14 +227,14 @@ actions.
 nothing, and the narrowed fallback is also empty, or the user says none of
 its candidates (nor of the full list, if they asked for it) belongs to this
 PR, the PR has no execution record at all. This is routine for a fix that
-went from edit to commit to PR
-to merge without `/lrh-implement`, which is what normally creates the record.
+went from edit to commit to PR to merge without `/lrh-implement`, which is
+what normally creates the record.
 Plan to create one directly as `landed` at Step 5; do not just warn and stop.
 
 **Inlined by `/lrh-land`:** do not plan a new record, and skip the
 work-item attribution step and creation fields below. `/lrh-land` Step 7's
-no-primary backfill path creates an `AD_HOC` record before it re-runs these assessment
-steps, and this step's `pr:` search then finds it as an ordinary
+no-primary backfill path creates an `AD_HOC` record before it re-runs these
+assessment steps, and this step's `pr:` search then finds it as an ordinary
 `in_progress` record. Creating a record here as well would give the PR two.
 In `/lrh-land` Step 6's preview pass, show the row as "none — `/lrh-land`
 backfill `AD_HOC` record, created then landed", with the `agent` the backfill
@@ -245,8 +248,8 @@ PR may belong to stays unresolved on this path; note it as a pending offer.
   belong to a real work item, so look before defaulting to `AD_HOC`. Offer
   the PR attribution IDs collected above; for a WS hit, offer its
   `work_items:` as candidates. Default to `AD_HOC` when nothing matches.
-  The user makes the final choice at Step 4, so this is a suggestion, not a decision. If the
-  user picks a WI, the record goes in that WI's bucket and the WI, WS, and
+  The user makes the final choice at Step 4, so this is a suggestion, not
+  a decision. If the user picks a WI, the record goes in that WI's bucket and the WI, WS, and
   proposal assessments below apply to it as usual. If it stays `AD_HOC`,
   there is no WI to resolve.
 - **Creation fields.** Propose the values the Step 4 gate shows:
@@ -267,12 +270,21 @@ PR may belong to stays unresolved on this path; note it as a pending offer.
   Show the result under the new record's row: "no prior run", or the
   matched `execution_id` and its status. A `failed`, `reverted`, or
   `superseded` match (exit `0`) becomes the new record's `rerun_of`; show
-  that value. A `landed`, `in_progress`, or unresolved match (exit `1`) may
-  be this PR's own record that the searches above missed, so show it and
-  ask the user whether it is; if it is, treat it as a matched record
-  instead of creating one, and if it is not, propose a distinct slug and
-  re-run the check. Exit `2` or `3` means the check did not run: report it
-  and do not read it as "no prior run". If the user changes `slug` or
+  that value. Exit `1` has two cases, and the printed output tells them
+  apart:
+  - A `landed` or `in_progress` match may be this PR's own record that the
+    searches above missed. Show it and ask the user whether it is. If it
+    is, treat it as a matched record (land it if `in_progress`, skip it if
+    already `landed`) instead of creating one. If it is not, propose a
+    distinct slug and re-run the check.
+  - A `planned` or unrecognized status, or "BLOCKING (unresolved recency)"
+    (a missing or malformed `created_at`): stop and ask the user to
+    reconcile that record first. Do not adopt it as this PR's record, since
+    `lrh prompt update-execution` only moves `in_progress` to `landed`, and
+    do not create a new record around it.
+
+  Exit `2` or `3` means the check did not run: report it and do not read it
+  as "no prior run". If the user changes `slug` or
   `work_item` at Step 4, Step 5 re-runs this check on the confirmed values.
 
 See `references/closeout-workflow.md`'s "Creating a record when none exists"
@@ -555,10 +567,12 @@ and `work_item`:
   `record-execution`, as shown at the gate.
 - A different result (the user changed `slug` or `work_item` at Step 4, or
   a record appeared since Step 2): stop, show the new result and the
-  `rerun_of` value it implies, and re-ask before creating the record. For a
-  `landed`, `in_progress`, or unresolved match (exit `1`), handle it as
-  Step 2's "Prior run under this slug" does: treat it as this PR's record
-  if the user says it is, otherwise pick a distinct slug and re-confirm.
+  `rerun_of` value it implies, and re-ask before creating the record. Handle
+  an exit `1` the way Step 2's "Prior run under this slug" does: a `landed`
+  or `in_progress` match is this PR's record if the user says so, otherwise
+  pick a distinct slug and re-confirm; a `planned`, unrecognized, or
+  unresolved-recency match stops for the user to reconcile it, and is never
+  adopted or built around.
 - `2` (usage error) or `3` (the check itself failed): stop and report. Do not
   read either as "no prior record".
 

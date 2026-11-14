@@ -229,8 +229,9 @@ enumerated set; `status`/bucket agreement (warning, as for proposals);
 `noted` parses as a date; `promoted_to` set when `status` is `promoted`;
 `(kind, subject)` unique among open entries. These checks apply from the
 first phase, because agents create entry files directly until the write
-side exists (Decision 8). Bodies are not validated. This makes backlog entries a lightly formal LRH artifact, a change
-from today's explicitly informal `backlog.md`.
+side exists (Decision 8). Bodies are not validated. This makes backlog
+entries a lightly formal LRH artifact, a change from today's explicitly
+informal `backlog.md`.
 
 ### Decision 8: Read side before write side
 

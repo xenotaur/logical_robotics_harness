@@ -59,9 +59,9 @@ are tracked as one coordinated effort rather than as unrelated work items.
   `git grep -i -l -E 'per-file backlog|PER-FILE-BACKLOG|lrh backlog' -- project/workstreams project/work_items src ':!project/workstreams/proposed/WS-PER-FILE-BACKLOG.md'`
   returned no matches (exit 1) at this branch's head `621de02a`; without the
   exclusion, the only match is this file. Governing design:
-  `PROP-LRH-PER-FILE-BACKLOG`. Closest structural precedent: `WS-LRH-MEMORY-COMMAND` (resolved), which staged
-  `PROP-LRH-MEMORY-COMMAND` into write, archive, read, and portability work
-  items.
+  `PROP-LRH-PER-FILE-BACKLOG`. Closest structural precedent:
+  `WS-LRH-MEMORY-COMMAND` (resolved), which staged `PROP-LRH-MEMORY-COMMAND`
+  into write, archive, read, and portability work items.
 - Sibling repos: prosoc `WI-CARD-AUDIT-BACKLOG-SYNC` (project-local
   table-append helper, in flight; not on prosoc `main` as of 2026-11-11).
 - External libraries: Backlog.md (`MrLesk/Backlog.md`) — assessed in the

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Planning work item for durable manual run state added and merged in PR #849.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-DURABLE-MANUAL-RUN-STATE
 title: Define and implement durable manual run state
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors: []
 assigned_agents: []

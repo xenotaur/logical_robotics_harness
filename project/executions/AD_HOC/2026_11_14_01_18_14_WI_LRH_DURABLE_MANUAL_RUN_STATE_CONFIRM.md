@@ -2,10 +2,10 @@
 execution_id: 2026_11_14_01_18_14_WI_LRH_DURABLE_MANUAL_RUN_STATE_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_DURABLE_MANUAL_RUN_STATE_CONFIRM)[2026-11-14T01:17:52+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_22_06_54_49_WI_LRH_DURABLE_MANUAL_RUN_STATE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/849
-commit:
+commit: ebf6b0544fd40fca73ae03a8c913a11367ae5f69
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/849
 session_transcript: codex-app:01a08f79-6941-7733-b53b-61a415849cc7

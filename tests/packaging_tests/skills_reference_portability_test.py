@@ -28,6 +28,7 @@ AFFECTED_SKILLS = (
     "lrh-export-claude",
     "lrh-session-id-claude",
     "lrh-session-id",
+    "lrh-export",
 )
 
 

@@ -123,6 +123,10 @@ def run_scan(project_root: pathlib.Path, out_dir: pathlib.Path) -> ScanResult:
     findings_path = out_dir / "findings.json"
     replacements_path = out_dir / "replacements.txt"
 
+    # Pre-create the findings file with restricted permissions (0600) to prevent
+    # a race condition where gitleaks creates it world-readable before we chmod it.
+    findings_path.touch(mode=0o600, exist_ok=True)
+
     run_gitleaks(project_root, findings_path)
     _restrict_permissions(findings_path)
     findings = load_findings(findings_path)
@@ -137,6 +141,11 @@ def run_scan(project_root: pathlib.Path, out_dir: pathlib.Path) -> ScanResult:
         return ScanResult(0, 0, findings_path, None)
 
     replacements = draft_replacements(findings)
+
+    # Pre-create the replacements file with restricted permissions (0600)
+    # so the draft replacements are never written to a world-readable file.
+    replacements_path.touch(mode=0o600, exist_ok=True)
+
     with replacements_path.open("w") as f:
         for secret, placeholder in replacements:
             f.write(f"{secret}==>{placeholder}\n")

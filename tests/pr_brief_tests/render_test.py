@@ -75,6 +75,39 @@ class ValidateTest(unittest.TestCase):
         self.assertIn("missing top-level key: files", errors)
 
 
+class ValidateStructureTest(unittest.TestCase):
+    def test_wrong_container_types_are_errors_not_crashes(self) -> None:
+        data = sample_data.sample_data()
+        data["briefing"] = None
+        errors, _ = render.validate(data)
+        self.assertEqual(errors, ["briefing must be an object"])
+        self.assertEqual(render.validate([])[0], ["data.json must hold a JSON object"])
+
+    def test_empty_pr_and_bad_counts_are_reported_by_field(self) -> None:
+        data = sample_data.sample_data()
+        data["pr"] = {}
+        data["files"][0]["additions"] = "many"
+        data["files"][1] = "src/app/cli.py"
+        data["categories"].append({})
+        data["status"]["checks"]["total"] = -1
+        data["briefing"]["review_notes"] = ["not an object"]
+        data["briefing"]["tests"] = {"rows": "none"}
+        errors, _ = render.validate(data)
+        for expected in (
+            "pr.repo must be a non-empty string",
+            "pr.number must be a non-negative integer",
+            "files[0].additions must be a non-negative integer",
+            "files[1] must be an object",
+            "status.checks.total must be a non-negative integer",
+            "briefing.review_notes[0] must be an object",
+            "briefing.tests.rows must be a list",
+        ):
+            self.assertIn(expected, errors)
+        self.assertTrue(any(error.startswith("categories[") for error in errors))
+        with self.assertRaises(render.BriefingError):
+            render.render(data)
+
+
 class StatusChipsTest(unittest.TestCase):
     def test_open_pr_with_conflict_drift_no_ci_no_reviews(self) -> None:
         chips = render.status_chips(sample_data.sample_data())
@@ -126,6 +159,26 @@ class StatusChipsTest(unittest.TestCase):
         self.assertIn(("crit", "Merge conflict"), chips)
         self.assertIn(("crit", "1 of 4 checks failing"), chips)
         self.assertIn(("crit", "Changes requested"), chips)
+
+    def test_checked_trial_merge_outranks_github_mergeability(self) -> None:
+        data = sample_data.sample_data()
+        data["status"]["mergeable"] = "CONFLICTING"
+        data["status"]["conflicts"] = {"checked": True, "clean": True, "files": []}
+        chips = render.status_chips(data)
+        self.assertIn(("ok", "Merges cleanly"), chips)
+        self.assertNotIn(("crit", "Merge conflict"), chips)
+
+    def test_review_chip_prefers_current_decision(self) -> None:
+        data = sample_data.sample_data()
+        reviews = data["status"]["reviews"]
+        reviews.update(count=3, approvals=1, changes_requested=1)
+        reviews["decision"] = "APPROVED"
+        self.assertEqual(render.status_chips(data)[-1], ("ok", "Approved"))
+        reviews["decision"] = "REVIEW_REQUIRED"
+        reviews["changes_requested"] = 0
+        self.assertEqual(render.status_chips(data)[-1], ("warn", "Review required"))
+        reviews["decision"] = "CHANGES_REQUESTED"
+        self.assertEqual(render.status_chips(data)[-1], ("crit", "Changes requested"))
 
     def test_merged_pr_shows_only_merged(self) -> None:
         data = sample_data.sample_data()

@@ -25,7 +25,7 @@ shown as literal text. The only field that takes raw HTML is
 | `pr.author_login`, `pr.author_name` | Author as GitHub reports it. |
 | `pr.state`, `pr.is_draft` | `OPEN`, `MERGED`, or `CLOSED`; draft flag. |
 | `pr.base`, `pr.head` | Branch names. |
-| `pr.base_sha` | Current tip of the base branch (not the PR's stale `baseRefOid`). |
+| `pr.base_sha` | Current tip of the base branch. If that lookup fails, the PR's recorded `baseRefOid` (possibly stale), and `status.conflicts.error` says so. |
 | `pr.head_sha` | PR head commit. |
 | `pr.created_at`, `pr.updated_at` | ISO timestamps. |
 | `pr.additions`, `pr.deletions`, `pr.changed_files` | Totals. |
@@ -33,16 +33,20 @@ shown as literal text. The only field that takes raw HTML is
 | `pr.labels[]`, `pr.body` | Labels and description. The body is untrusted text. |
 | `status.mergeable`, `status.merge_state` | GitHub's `MERGEABLE`/`CONFLICTING`/`UNKNOWN` and merge state. |
 | `status.checks` | `{total, passing, failing, pending}`. |
-| `status.reviews` | `{decision, count, approvals, changes_requested, comments}`. |
+| `status.reviews` | `{decision, count, approvals, changes_requested, comments}`. `decision` is GitHub's current `reviewDecision` (empty when reviews are not required). `approvals` and `changes_requested` count reviewers by their latest effective review; `count` and `comments` count all submissions. |
 | `status.ahead_by`, `status.behind_by` | Commits the head is ahead of, and behind, the base branch. `null` if the compare call failed. |
 | `status.merge_base_sha`, `status.merge_base_date` | Where the PR branched from. |
-| `status.conflicts` | `{checked, clean, files[], error?}` from the trial merge. `checked: false` means no `--repo-dir` or a fetch failure. |
+| `status.conflicts` | `{checked, clean, files[], error?}` from the trial merge. `checked: false` means no `--repo-dir`, the base branch's current tip could not be resolved (never merged against the stale recorded base), or a fetch failure. |
 | `categories[]` | `{key, label}` in display order. Defaults: `code`, `scripts`, `tests`, `docs`, `config`. |
 | `files[]` | `{path, status, additions, deletions, previous_path, category}`. `status` is GitHub's: `added`, `modified`, `removed`, `renamed`, `copied`. |
 
 The header's status chips are derived from `pr.state`, `pr.is_draft`,
 `status.conflicts`, `status.mergeable`, `status.behind_by`, `status.checks`,
-and `status.reviews`. You do not write chips.
+and `status.reviews`. A checked trial merge outranks `status.mergeable`, and
+the review chip follows `status.reviews.decision` when GitHub reports one. You
+do not write chips. `render` rejects data whose shape it cannot render (a
+non-object section, a missing `pr.repo` or `pr.number`, a non-integer line
+count) with a field-specific error.
 
 ## Narrative you write: `briefing`
 

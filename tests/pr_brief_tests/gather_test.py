@@ -56,6 +56,26 @@ class SummariesTest(unittest.TestCase):
         self.assertEqual(summary["comments"], 1)
         self.assertEqual(summary["decision"], "REVIEW_REQUIRED")
 
+    def test_summarize_reviews_uses_each_reviewers_latest_effective_review(
+        self,
+    ) -> None:
+        def review(login: str, state: str, at: str) -> dict:
+            return {"author": {"login": login}, "state": state, "submittedAt": at}
+
+        reviews = [
+            review("ann", "APPROVED", "2026-11-03T00:00:00Z"),
+            review("bob", "CHANGES_REQUESTED", "2026-11-01T00:00:00Z"),
+            review("bob", "APPROVED", "2026-11-02T00:00:00Z"),
+            review("ann", "COMMENTED", "2026-11-04T00:00:00Z"),
+            review("cy", "APPROVED", "2026-11-01T00:00:00Z"),
+            review("cy", "DISMISSED", "2026-11-02T00:00:00Z"),
+        ]
+        summary = gather.summarize_reviews(reviews, "APPROVED")
+        self.assertEqual(summary["count"], 6)
+        self.assertEqual(summary["approvals"], 2)
+        self.assertEqual(summary["changes_requested"], 0)
+        self.assertEqual(summary["comments"], 1)
+
 
 class MergeTreeTest(unittest.TestCase):
     def test_parse_clean_and_conflicted_output(self) -> None:
@@ -176,8 +196,10 @@ _FILE_LINES = "\n".join(
 
 
 class GatherBriefingDataTest(unittest.TestCase):
-    def _fake_gh(self, *, diff_fails: bool = False):
+    def _fake_gh(self, *, diff_fails: bool = False, tip_fails: bool = False):
         def run_gh(argv, cwd=None):
+            if tip_fails and argv[0] == "api" and "/git/ref/heads/" in argv[1]:
+                raise RuntimeError("gh command failed (api): HTTP 404")
             if argv[:2] == ["pr", "diff"]:
                 if diff_fails:
                     raise RuntimeError("gh command failed (api): diff too large")
@@ -276,6 +298,31 @@ class GatherBriefingDataTest(unittest.TestCase):
             data["status"]["conflicts"], {"checked": True, "clean": True, "files": []}
         )
         self.assertEqual(calls[1][-2:], ["d" * 40, "b" * 40])
+
+    def test_unresolved_base_tip_skips_trial_merge_instead_of_using_stale_base(
+        self,
+    ) -> None:
+        run_gh, run_gh_json = self._fake_gh(tip_fails=True)
+        calls = []
+
+        def run_git(argv, cwd):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, "tree\n", "")
+
+        with (
+            mock.patch("lrh.pr_brief.gather.gh_client.run_gh", side_effect=run_gh),
+            mock.patch(
+                "lrh.pr_brief.gather.gh_client.run_gh_json", side_effect=run_gh_json
+            ),
+        ):
+            data, _ = gather.gather_briefing_data(
+                _REF, repo_dir=pathlib.Path("."), run_git=run_git
+            )
+        self.assertEqual(calls, [])
+        conflicts = data["status"]["conflicts"]
+        self.assertFalse(conflicts["checked"])
+        self.assertIsNone(conflicts["clean"])
+        self.assertIn("could not resolve the current tip of main", conflicts["error"])
 
 
 if __name__ == "__main__":

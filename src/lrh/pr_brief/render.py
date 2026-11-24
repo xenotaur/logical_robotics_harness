@@ -70,13 +70,95 @@ def file_slug(path: str, used: set[str]) -> str:
     return slug
 
 
-def validate(data: dict[str, Any]) -> tuple[list[str], list[str]]:
-    """Return `(errors, warnings)` for briefing data."""
+def _is_count(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _check_dict_list(value: Any, name: str, errors: list[str]) -> None:
+    if value is None:
+        return
+    if not isinstance(value, list):
+        errors.append(f"{name} must be a list")
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            errors.append(f"{name}[{index}] must be an object")
+
+
+def _structure_errors(data: Any) -> list[str]:
+    """Return errors for data whose shape the renderer cannot dereference."""
+    if not isinstance(data, dict):
+        return ["data.json must hold a JSON object"]
     errors: list[str] = []
-    warnings: list[str] = []
-    for key in ("pr", "status", "files", "categories", "briefing"):
+    shapes = {
+        "pr": dict,
+        "status": dict,
+        "files": list,
+        "categories": list,
+        "briefing": dict,
+    }
+    for key, kind in shapes.items():
         if key not in data:
             errors.append(f"missing top-level key: {key}")
+        elif not isinstance(data[key], kind):
+            noun = "an object" if kind is dict else "a list"
+            errors.append(f"{key} must be {noun}")
+    if errors:
+        return errors
+    pr = data["pr"]
+    if not isinstance(pr.get("repo"), str) or not pr["repo"].strip():
+        errors.append("pr.repo must be a non-empty string")
+    if not _is_count(pr.get("number")):
+        errors.append("pr.number must be a non-negative integer")
+    for key in ("additions", "deletions", "changed_files"):
+        if pr.get(key) is not None and not _is_count(pr[key]):
+            errors.append(f"pr.{key} must be a non-negative integer")
+    _check_dict_list(pr.get("commits"), "pr.commits", errors)
+    status = data["status"]
+    for key in ("checks", "reviews", "conflicts"):
+        if status.get(key) is not None and not isinstance(status[key], dict):
+            errors.append(f"status.{key} must be an object")
+    checks = status.get("checks")
+    for key in ("total", "failing", "pending"):
+        value = checks.get(key) if isinstance(checks, dict) else None
+        if value is not None and not _is_count(value):
+            errors.append(f"status.checks.{key} must be a non-negative integer")
+    for index, category in enumerate(data["categories"]):
+        if not isinstance(category, dict) or not str(category.get("key", "")).strip():
+            errors.append(f"categories[{index}] must be an object with a key")
+    for index, item in enumerate(data["files"]):
+        if not isinstance(item, dict):
+            errors.append(f"files[{index}] must be an object")
+            continue
+        if not isinstance(item.get("path"), str) or not item["path"]:
+            errors.append(f"files[{index}].path must be a non-empty string")
+        for key in ("additions", "deletions"):
+            if not _is_count(item.get(key)):
+                errors.append(f"files[{index}].{key} must be a non-negative integer")
+        if not isinstance(item.get("previous_path", ""), str):
+            errors.append(f"files[{index}].previous_path must be a string")
+    briefing = data["briefing"]
+    for key in ("figures", "review_notes", "behavior_changes", "at_a_glance"):
+        _check_dict_list(briefing.get(key), f"briefing.{key}", errors)
+    tests = briefing.get("tests")
+    if tests is not None and not isinstance(tests, dict):
+        errors.append("briefing.tests must be an object")
+    elif tests:
+        _check_dict_list(tests.get("rows"), "briefing.tests.rows", errors)
+    notes = briefing.get("files")
+    if notes is not None and not isinstance(notes, dict):
+        errors.append("briefing.files must be an object keyed by path")
+    elif notes:
+        for path, note in notes.items():
+            if note is not None and not isinstance(note, dict):
+                errors.append(f"briefing.files[{path!r}] must be an object")
+    return errors
+
+
+def validate(data: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Return `(errors, warnings)` for briefing data."""
+    warnings: list[str] = []
+    errors = _structure_errors(data)
     if errors:
         return errors, warnings
     category_keys = [str(item.get("key", "")) for item in data["categories"]]
@@ -146,14 +228,17 @@ def status_chips(data: dict[str, Any]) -> list[tuple[str, str]]:
         return [("", "Closed without merging")]
     chips.append(("warn", "Draft") if pr.get("is_draft") else ("", "Open"))
     conflicts = status.get("conflicts") or {}
-    if conflicts.get("checked") and not conflicts.get("clean"):
-        count = len(conflicts.get("files") or [])
-        noun = "file" if count == 1 else "files"
-        chips.append(("crit", f"Merge conflict · {count} {noun}"))
+    if conflicts.get("checked"):
+        # The trial merge ran against the current base tip; it outranks
+        # GitHub's mergeability, which may predate a base or head update.
+        if conflicts.get("clean"):
+            chips.append(("ok", "Merges cleanly"))
+        else:
+            count = len(conflicts.get("files") or [])
+            noun = "file" if count == 1 else "files"
+            chips.append(("crit", f"Merge conflict · {count} {noun}"))
     elif str(status.get("mergeable", "")).upper() == "CONFLICTING":
         chips.append(("crit", "Merge conflict"))
-    elif conflicts.get("checked"):
-        chips.append(("ok", "Merges cleanly"))
     behind = status.get("behind_by")
     if isinstance(behind, int) and behind > 0:
         noun = "commit" if behind == 1 else "commits"
@@ -168,16 +253,29 @@ def status_chips(data: dict[str, Any]) -> list[tuple[str, str]]:
         chips.append(("warn", f"{checks['pending']} of {total} checks pending"))
     else:
         chips.append(("ok", f"All {total} checks pass"))
-    reviews = status.get("reviews") or {}
-    if reviews.get("changes_requested"):
-        chips.append(("crit", "Changes requested"))
-    elif reviews.get("decision") == "APPROVED" or reviews.get("approvals"):
-        chips.append(("ok", "Approved"))
-    elif not reviews.get("count"):
-        chips.append(("warn", "No reviews yet"))
-    else:
-        chips.append(("", f"{reviews['count']} reviews, none approving"))
+    chips.append(_review_chip(status.get("reviews") or {}))
     return chips
+
+
+def _review_chip(reviews: dict[str, Any]) -> tuple[str, str]:
+    """Prefer GitHub's current decision; fall back to effective reviews."""
+    decision = str(reviews.get("decision") or "").upper()
+    if decision == "CHANGES_REQUESTED":
+        return ("crit", "Changes requested")
+    if decision == "APPROVED":
+        return ("ok", "Approved")
+    if decision != "REVIEW_REQUIRED":
+        # No decision: the repository does not require reviews.
+        if reviews.get("changes_requested"):
+            return ("crit", "Changes requested")
+        if reviews.get("approvals"):
+            return ("ok", "Approved")
+    count = reviews.get("count")
+    if not count:
+        return ("warn", "No reviews yet")
+    if decision == "REVIEW_REQUIRED":
+        return ("warn", "Review required")
+    return ("", f"{count} reviews, none approving")
 
 
 def _section_head(eyebrow: str, title: str, intro: str = "") -> str:

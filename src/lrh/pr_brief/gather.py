@@ -131,7 +131,12 @@ def summarize_checks(rollup: list[dict[str, Any]] | None) -> dict[str, int]:
 def summarize_reviews(
     reviews: list[dict[str, Any]] | None, decision: str | None
 ) -> dict[str, Any]:
-    """Count reviews by state and carry the overall review decision."""
+    """Summarize reviews using each reviewer's latest effective review.
+
+    A reviewer's approval or change request stands until that reviewer
+    approves, requests changes, or is dismissed again; later comment-only
+    reviews do not replace it. `count` and `comments` cover all submissions.
+    """
     summary: dict[str, Any] = {
         "decision": decision or "",
         "count": 0,
@@ -139,15 +144,26 @@ def summarize_reviews(
         "changes_requested": 0,
         "comments": 0,
     }
-    for review in reviews or []:
+    effective: dict[str, str] = {}
+    ordered = sorted(
+        enumerate(reviews or []),
+        key=lambda pair: (str(pair[1].get("submittedAt") or ""), pair[0]),
+    )
+    for index, review in ordered:
         summary["count"] += 1
         state = str(review.get("state", "")).upper()
-        if state == "APPROVED":
-            summary["approvals"] += 1
-        elif state == "CHANGES_REQUESTED":
-            summary["changes_requested"] += 1
+        author = (review.get("author") or {}).get("login") or f"#{index}"
+        if state in ("APPROVED", "CHANGES_REQUESTED"):
+            effective[author] = state
+        elif state == "DISMISSED":
+            effective.pop(author, None)
         else:
             summary["comments"] += 1
+    for state in effective.values():
+        if state == "APPROVED":
+            summary["approvals"] += 1
+        else:
+            summary["changes_requested"] += 1
     return summary
 
 
@@ -232,8 +248,11 @@ def _compare(ref: pr_ref.PullRequestRef, base: str, head_sha: str) -> dict[str, 
     return payload if isinstance(payload, dict) else {}
 
 
-def _base_tip(ref: pr_ref.PullRequestRef, base: str, fallback: str) -> str:
-    """Return the base branch's current tip; `baseRefOid` can be months stale."""
+def _base_tip(ref: pr_ref.PullRequestRef, base: str) -> tuple[str, str]:
+    """Return `(sha, error)` for the base branch's current tip.
+
+    `baseRefOid` can be months stale, so it is never used as a substitute.
+    """
     try:
         sha = gh_client.run_gh(
             [
@@ -243,9 +262,12 @@ def _base_tip(ref: pr_ref.PullRequestRef, base: str, fallback: str) -> str:
                 ".object.sha",
             ]
         ).strip()
-    except RuntimeError:
-        return fallback
-    return sha or fallback
+    except RuntimeError as error:
+        detail = str(error).strip().splitlines()[-1:] or ["lookup failed"]
+        return "", f"could not resolve the current tip of {base}: {detail[0]}"
+    if not sha:
+        return "", f"could not resolve the current tip of {base}"
+    return sha, ""
 
 
 def _diff_text(ref: pr_ref.PullRequestRef, files: list[dict[str, Any]]) -> str:
@@ -318,13 +340,18 @@ def gather_briefing_data(
     head_sha = str(view.get("headRefOid", ""))
     base = str(view.get("baseRefName", ""))
     base_sha = str(view.get("baseRefOid", ""))
+    tip_error = "no base branch reported"
     if base:
-        base_sha = _base_tip(ref, base, base_sha)
+        tip_sha, tip_error = _base_tip(ref, base)
+        base_sha = tip_sha or base_sha
     compare = _compare(ref, base, head_sha) if base and head_sha else {}
-    if repo_dir is not None and base_sha and head_sha:
-        conflicts = trial_merge(ref, base_sha, head_sha, repo_dir, run_git=run_git)
-    else:
+    if repo_dir is None or not head_sha:
         conflicts = {"checked": False, "clean": None, "files": []}
+    elif tip_error:
+        # Never trial-merge against the PR's recorded base: it can be stale.
+        conflicts = {"checked": False, "clean": None, "files": [], "error": tip_error}
+    else:
+        conflicts = trial_merge(ref, base_sha, head_sha, repo_dir, run_git=run_git)
     author = view.get("author") or {}
     timestamp = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat(
         timespec="seconds"

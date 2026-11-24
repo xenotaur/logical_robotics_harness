@@ -65,6 +65,7 @@ where = ["src"]
   "templates/project_bootstrap/**/*.md",
 ]
 "lrh.skills" = ["**/*.md"]
+"lrh.pr_brief" = ["templates/*.html"]
 "lrh.conversations" = ["session_links.json"]
 
 

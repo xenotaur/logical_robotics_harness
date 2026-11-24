@@ -17,6 +17,7 @@
 - `/lrh-closeout` — Automate the post-execution closeout workflow: land execution records, resolve work items, close workstreams, and adopt proposals
 - `/lrh-readiness` — Close the ready-work-item apply loop: draft and apply a confirmed patch for a thin work item, then re-validate
 - `/lrh-pr-triage` — Investigate an open PR (bot-authored or otherwise) and produce a grounded go/no-go landing recommendation; report-only, takes no action
+- `/lrh-pr-explain` — Explain a PR to a human as a visual HTML briefing (summary, file treemap, diagrams, file-by-file breakdown, tests, pre-merge notes) built with `lrh pr-brief`; report-only, takes no action on the PR
 - `/lrh-work-remains` — Summarize session accomplishments and report what work remains, grounded in tracked repo state rather than conversational recall
 - `/lrh-config-gates` — Inspect and change chain-defaults gate policy (the 4 human-decidable fields, consent-hash validity, staleness) in one read; field changes and the skip-consent grant each require their own separate confirm
 - `/lrh-config-skills` — Inspect and set project/agent_skills.yaml install policy (sources, targets, scope); install.overwrite is shown read-only; may create the file from scratch since nothing else does

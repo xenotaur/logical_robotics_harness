@@ -16,7 +16,6 @@ related_workstreams:
   - WS-TAURSCRIPTS-MAINTAINABILITY
 related_design:
   - project/design/proposals/proposed/taurscripts-hybrid-layout/00_proposal.md
-  - https://github.com/xenotaur/taurscripts
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -107,9 +106,9 @@ The target repository currently has no existing Taurscripts repository-contract 
 
 ## Validation
 
-- `git -C /Users/centaur/Workspace/Taurscripts/taurscripts diff --check`
-- `git -C /Users/centaur/Workspace/Taurscripts/taurscripts ls-files`
-- `lrh validate`
+- `git -C "$TAURSCRIPTS_REPO" diff --check` (with `TAURSCRIPTS_REPO` set to the local Taurscripts checkout)
+- `git -C "$TAURSCRIPTS_REPO" ls-files` (with `TAURSCRIPTS_REPO` set to the local Taurscripts checkout)
+- `lrh validate` (run from the LRH checkout)
 
 ## Related Workstream and Designs
 

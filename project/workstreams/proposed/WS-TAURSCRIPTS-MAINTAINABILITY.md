@@ -11,7 +11,8 @@ related_roadmap: []
 related_design:
   - "project/design/proposals/proposed/taurscripts-hybrid-layout/00_proposal.md"
   - "https://github.com/xenotaur/taurscripts"
-work_items: []
+work_items:
+  - WI-TAURSCRIPTS-REPOSITORY-CONTRACT
 execution_records: []
 evidence: []
 exit_criteria:

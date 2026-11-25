@@ -2,13 +2,13 @@
 execution_id: 2026_11_20_05_18_30_WI_TAURSCRIPTS_REPOSITORY_CONTRACT
 prompt_id: PROMPT(AD_HOC:WI_TAURSCRIPTS_REPOSITORY_CONTRACT)[2026-11-14T01:39:31+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/876
-commit: 24afd694
+commit: 91594e0b01ccb2c26f0430e64520b1377a266e09
 agent: codex
 instruction_source: project/work_items/proposed/WI-TAURSCRIPTS-REPOSITORY-CONTRACT.md
-session_transcript: pending
+session_transcript: codex-app:01a0c514-823a-7283-98fb-b22e5f057af0
 created_at: 2026-11-20T05:18:30+00:00
 ---
 

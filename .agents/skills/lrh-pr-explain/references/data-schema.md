@@ -25,7 +25,8 @@ shown as literal text. The only field that takes raw HTML is
 | `pr.author_login`, `pr.author_name` | Author as GitHub reports it. |
 | `pr.state`, `pr.is_draft` | `OPEN`, `MERGED`, or `CLOSED`; draft flag. |
 | `pr.base`, `pr.head` | Branch names. |
-| `pr.base_sha` | Current tip of the base branch. If that lookup fails, the PR's recorded `baseRefOid` (possibly stale), and `status.conflicts.error` says so. |
+| `pr.base_sha` | Current tip of the base branch. If that lookup fails, the PR's recorded `baseRefOid` (possibly stale); `status.conflicts.error` then gives the reason, with or without `--repo-dir`. |
+| `pr.base_sha_is_tip` | `true` when `pr.base_sha` is the current tip; `false` when it fell back to the recorded base. The footer then labels it as possibly stale. |
 | `pr.head_sha` | PR head commit. |
 | `pr.created_at`, `pr.updated_at` | ISO timestamps. |
 | `pr.additions`, `pr.deletions`, `pr.changed_files` | Totals. |
@@ -46,7 +47,9 @@ and `status.reviews`. A checked trial merge outranks `status.mergeable`, and
 the review chip follows `status.reviews.decision` when GitHub reports one. You
 do not write chips. `render` rejects data whose shape it cannot render (a
 non-object section, a missing `pr.repo` or `pr.number`, a non-integer line
-count) with a field-specific error.
+count, a narrative field of the wrong type such as a number for `summary` or
+a list for `severity`) with a field-specific error. A `pr.url` that is not
+http(s) draws a warning and no GitHub link.
 
 ## Narrative you write: `briefing`
 

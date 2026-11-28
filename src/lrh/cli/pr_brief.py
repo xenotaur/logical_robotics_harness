@@ -113,7 +113,7 @@ def run_pr_brief_cli(argv: list[str], prog: str) -> int:
         "--repo-dir",
         help=(
             "A local clone of the repository; enables a trial merge that lists "
-            "conflicting files (fetches objects only, changes no refs or files)."
+            "conflicting files (fetches objects only; updates no ref but FETCH_HEAD)."
         ),
     )
     gather_parser.add_argument(

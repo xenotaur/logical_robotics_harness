@@ -246,6 +246,7 @@ class GatherBriefingDataTest(unittest.TestCase):
         self.assertEqual(data["status"]["behind_by"], 4)
         # The base SHA is the branch's current tip, not the PR's stale baseRefOid.
         self.assertEqual(data["pr"]["base_sha"], "d" * 40)
+        self.assertTrue(data["pr"]["base_sha_is_tip"])
         self.assertEqual(
             data["status"]["conflicts"], {"checked": False, "clean": None, "files": []}
         )
@@ -323,6 +324,22 @@ class GatherBriefingDataTest(unittest.TestCase):
         self.assertFalse(conflicts["checked"])
         self.assertIsNone(conflicts["clean"])
         self.assertIn("could not resolve the current tip of main", conflicts["error"])
+
+    def test_unresolved_base_tip_is_flagged_even_without_repo_dir(self) -> None:
+        run_gh, run_gh_json = self._fake_gh(tip_fails=True)
+        with (
+            mock.patch("lrh.pr_brief.gather.gh_client.run_gh", side_effect=run_gh),
+            mock.patch(
+                "lrh.pr_brief.gather.gh_client.run_gh_json", side_effect=run_gh_json
+            ),
+        ):
+            data, _ = gather.gather_briefing_data(_REF)
+        self.assertEqual(data["pr"]["base_sha"], "a" * 40)
+        self.assertFalse(data["pr"]["base_sha_is_tip"])
+        self.assertIn(
+            "could not resolve the current tip of main",
+            data["status"]["conflicts"]["error"],
+        )
 
 
 if __name__ == "__main__":

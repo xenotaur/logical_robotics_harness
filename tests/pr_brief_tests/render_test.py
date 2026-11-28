@@ -107,6 +107,75 @@ class ValidateStructureTest(unittest.TestCase):
         with self.assertRaises(render.BriefingError):
             render.render(data)
 
+    def test_wrong_narrative_types_are_field_errors_not_crashes(self) -> None:
+        cases = {
+            "briefing.summary must be text or a list of paragraphs": lambda d: (
+                d["briefing"].__setitem__("summary", 5)
+            ),
+            "briefing.review_notes[0].body must be text or a list of paragraphs": (
+                lambda d: d["briefing"].__setitem__(
+                    "review_notes", [{"severity": "info", "body": 3}]
+                )
+            ),
+            "review_notes[0].severity must be one of blocker, check, info": (
+                lambda d: d["briefing"].__setitem__(
+                    "review_notes", [{"severity": ["blocker"]}]
+                )
+            ),
+            "review_notes[0].confidence must be one of confirmed, likely, "
+            "unverified": lambda d: d["briefing"].__setitem__(
+                "review_notes", [{"severity": "info", "confidence": ["likely"]}]
+            ),
+            "tests.rows[0].tone must be one of accent, warn, muted": lambda d: (
+                d["briefing"].__setitem__("tests", {"rows": [{"tone": ["warn"]}]})
+            ),
+            "briefing.tests.gaps must be a list": lambda d: d["briefing"].__setitem__(
+                "tests", {"gaps": 3}
+            ),
+            "briefing.files['src/app/cli.py'].points must be a list": lambda d: d[
+                "briefing"
+            ]["files"]["src/app/cli.py"].__setitem__("points", 5),
+            "status.behind_by must be a non-negative integer or null": lambda d: d[
+                "status"
+            ].__setitem__("behind_by", True),
+        }
+        for expected, mutate in cases.items():
+            with self.subTest(expected=expected):
+                data = sample_data.sample_data()
+                mutate(data)
+                errors, _ = render.validate(data)
+                self.assertIn(expected, errors)
+                with self.assertRaises(render.BriefingError):
+                    render.render(data)
+
+
+class SafetyAndCaveatTest(unittest.TestCase):
+    def test_non_http_pr_url_is_warned_and_not_linked(self) -> None:
+        data = sample_data.sample_data()
+        data["pr"]["url"] = "javascript:alert(1)"
+        _, warnings = render.validate(data)
+        self.assertIn(
+            "pr.url is not an http(s) URL; the GitHub link is omitted", warnings
+        )
+        page = render.render(data)
+        self.assertNotIn("javascript:", page)
+        self.assertNotIn("View on GitHub", page)
+
+    def test_boolean_behind_by_never_becomes_a_chip(self) -> None:
+        data = sample_data.sample_data()
+        data["status"]["behind_by"] = True
+        self.assertFalse(any("behind" in text for _, text in render.status_chips(data)))
+
+    def test_footer_marks_a_fallback_base_as_possibly_stale(self) -> None:
+        data = sample_data.sample_data()
+        self.assertNotIn("may be stale", render.render(data))
+        data["pr"]["base_sha_is_tip"] = False
+        self.assertIn(
+            "the PR's recorded main base <code>aaaaaaa</code> (the current tip of "
+            "main could not be resolved, so this may be stale)",
+            render.render(data),
+        )
+
 
 class StatusChipsTest(unittest.TestCase):
     def test_open_pr_with_conflict_drift_no_ci_no_reviews(self) -> None:

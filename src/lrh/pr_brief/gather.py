@@ -345,11 +345,13 @@ def gather_briefing_data(
         tip_sha, tip_error = _base_tip(ref, base)
         base_sha = tip_sha or base_sha
     compare = _compare(ref, base, head_sha) if base and head_sha else {}
-    if repo_dir is None or not head_sha:
-        conflicts = {"checked": False, "clean": None, "files": []}
-    elif tip_error:
+    if tip_error:
         # Never trial-merge against the PR's recorded base: it can be stale.
+        # Record the reason even without --repo-dir, since pr.base_sha is then
+        # that recorded base rather than the current tip.
         conflicts = {"checked": False, "clean": None, "files": [], "error": tip_error}
+    elif repo_dir is None or not head_sha:
+        conflicts = {"checked": False, "clean": None, "files": []}
     else:
         conflicts = trial_merge(ref, base_sha, head_sha, repo_dir, run_git=run_git)
     author = view.get("author") or {}
@@ -371,6 +373,7 @@ def gather_briefing_data(
             "base": base,
             "head": view.get("headRefName", ""),
             "base_sha": base_sha,
+            "base_sha_is_tip": not tip_error,
             "head_sha": head_sha,
             "created_at": view.get("createdAt", ""),
             "updated_at": view.get("updatedAt", ""),

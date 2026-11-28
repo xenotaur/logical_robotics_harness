@@ -119,6 +119,7 @@ def sample_data() -> dict[str, Any]:
             "base": "main",
             "head": "add-providers",
             "base_sha": "a" * 40,
+            "base_sha_is_tip": True,
             "head_sha": "b" * 40,
             "created_at": "2026-11-01T10:00:00Z",
             "updated_at": "2026-11-02T10:00:00Z",

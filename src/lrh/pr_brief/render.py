@@ -74,6 +74,14 @@ def _is_count(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
+def _is_text_or_list(value: Any) -> bool:
+    return value is None or isinstance(value, (str, list))
+
+
+def _is_http_url(value: Any) -> bool:
+    return isinstance(value, str) and value.lower().startswith(("https://", "http://"))
+
+
 def _check_dict_list(value: Any, name: str, errors: list[str]) -> None:
     if value is None:
         return
@@ -118,6 +126,9 @@ def _structure_errors(data: Any) -> list[str]:
     for key in ("checks", "reviews", "conflicts"):
         if status.get(key) is not None and not isinstance(status[key], dict):
             errors.append(f"status.{key} must be an object")
+    for key in ("ahead_by", "behind_by"):
+        if status.get(key) is not None and not _is_count(status[key]):
+            errors.append(f"status.{key} must be a non-negative integer or null")
     checks = status.get("checks")
     for key in ("total", "failing", "pending"):
         value = checks.get(key) if isinstance(checks, dict) else None
@@ -140,11 +151,24 @@ def _structure_errors(data: Any) -> list[str]:
     briefing = data["briefing"]
     for key in ("figures", "review_notes", "behavior_changes", "at_a_glance"):
         _check_dict_list(briefing.get(key), f"briefing.{key}", errors)
+    if not _is_text_or_list(briefing.get("summary")):
+        errors.append("briefing.summary must be text or a list of paragraphs")
+    review_notes = briefing.get("review_notes")
+    for index, note in enumerate(
+        review_notes if isinstance(review_notes, list) else []
+    ):
+        if isinstance(note, dict) and not _is_text_or_list(note.get("body")):
+            errors.append(
+                f"briefing.review_notes[{index}].body must be text or a list of "
+                "paragraphs"
+            )
     tests = briefing.get("tests")
     if tests is not None and not isinstance(tests, dict):
         errors.append("briefing.tests must be an object")
     elif tests:
         _check_dict_list(tests.get("rows"), "briefing.tests.rows", errors)
+        if tests.get("gaps") is not None and not isinstance(tests["gaps"], list):
+            errors.append("briefing.tests.gaps must be a list")
     notes = briefing.get("files")
     if notes is not None and not isinstance(notes, dict):
         errors.append("briefing.files must be an object keyed by path")
@@ -152,6 +176,9 @@ def _structure_errors(data: Any) -> list[str]:
         for path, note in notes.items():
             if note is not None and not isinstance(note, dict):
                 errors.append(f"briefing.files[{path!r}] must be an object")
+            elif note and note.get("points") is not None:
+                if not isinstance(note["points"], list):
+                    errors.append(f"briefing.files[{path!r}].points must be a list")
     return errors
 
 
@@ -170,6 +197,9 @@ def validate(data: dict[str, Any]) -> tuple[list[str], list[str]]:
                 f"file {item.get('path')!r} has unknown category "
                 f"{item.get('category')!r}; known: {', '.join(category_keys)}"
             )
+    url = data["pr"].get("url")
+    if url and not _is_http_url(url):
+        warnings.append("pr.url is not an http(s) URL; the GitHub link is omitted")
     briefing = data["briefing"]
     if not str(briefing.get("headline_summary", "")).strip():
         warnings.append("briefing.headline_summary is empty")
@@ -198,20 +228,23 @@ def validate(data: dict[str, Any]) -> tuple[list[str], list[str]]:
         if not str(figure.get("html", "")).strip():
             errors.append(f"figures[{index}].html is empty")
     for index, note in enumerate(briefing.get("review_notes") or []):
-        if note.get("severity") not in SEVERITIES:
+        severity = note.get("severity")
+        if not isinstance(severity, str) or severity not in SEVERITIES:
             errors.append(
                 f"review_notes[{index}].severity must be one of "
                 f"{', '.join(SEVERITIES)}"
             )
         confidence = note.get("confidence", "")
-        if confidence and confidence not in CONFIDENCES:
+        if confidence and (
+            not isinstance(confidence, str) or confidence not in CONFIDENCES
+        ):
             errors.append(
                 f"review_notes[{index}].confidence must be one of "
                 f"{', '.join(CONFIDENCES)}"
             )
     for index, row in enumerate((briefing.get("tests") or {}).get("rows") or []):
         tone = row.get("tone", "accent")
-        if tone not in TONES:
+        if not isinstance(tone, str) or tone not in TONES:
             errors.append(f"tests.rows[{index}].tone must be one of {', '.join(TONES)}")
     return errors, warnings
 
@@ -240,7 +273,7 @@ def status_chips(data: dict[str, Any]) -> list[tuple[str, str]]:
     elif str(status.get("mergeable", "")).upper() == "CONFLICTING":
         chips.append(("crit", "Merge conflict"))
     behind = status.get("behind_by")
-    if isinstance(behind, int) and behind > 0:
+    if _is_count(behind) and behind > 0:
         noun = "commit" if behind == 1 else "commits"
         chips.append(("warn", f"{behind} {noun} behind {pr.get('base', 'base')}"))
     checks = status.get("checks") or {}
@@ -304,7 +337,7 @@ def _header(data: dict[str, Any]) -> str:
     ]
     if pr.get("created_at"):
         meta.append(f"<span>Opened <b>{inline(str(pr['created_at'])[:10])}</b></span>")
-    if pr.get("url"):
+    if _is_http_url(pr.get("url")):
         meta.append(
             f'<span><a href="{html.escape(str(pr["url"]), quote=True)}">'
             "View on GitHub</a></span>"
@@ -638,10 +671,18 @@ def _footer(data: dict[str, Any]) -> str:
     head = html.escape(str(pr.get("head_sha", ""))[:7])
     base = html.escape(str(pr.get("base_sha", ""))[:7])
     generated = html.escape(str(data.get("generated_at", ""))[:10])
+    base_name = html.escape(str(pr.get("base", "base")))
+    if pr.get("base_sha_is_tip") is False:
+        against = (
+            f"the PR's recorded {base_name} base <code>{base}</code> (the "
+            f"current tip of {base_name} could not be resolved, so this may be "
+            "stale)"
+        )
+    else:
+        against = f"{base_name} <code>{base}</code>"
     lines = [
         f"<span>Generated from head commit <code>{head}</code> against "
-        f"{html.escape(str(pr.get('base', 'base')))} <code>{base}</code> "
-        f"on {generated}.</span>"
+        f"{against} on {generated}.</span>"
     ]
     note = data["briefing"].get("footer_note", "")
     if str(note).strip():

@@ -24,7 +24,7 @@ lrh pr-brief render <data.json> [--out PATH] [--format artifact|standalone] [--c
 |---|---|
 | `target` | A pull request URL, `OWNER/REPO` followed by `number`, or a bare number resolved against the current directory's GitHub repository. |
 | `--out DIR` | Output directory (required). Created if missing. |
-| `--repo-dir DIR` | A git directory (a checkout or a bare repository) used for a trial merge. `gather` fetches the base-branch tip and the PR head by SHA from `https://github.com/OWNER/REPO.git` (objects only, no ref changes beyond `FETCH_HEAD`) and runs `git merge-tree --write-tree`, which writes no working-tree or index state. Without it, conflicts are reported as not checked. If the base branch's current tip cannot be resolved, the trial merge is skipped and reported as not checked rather than run against the PR's possibly stale recorded base. |
+| `--repo-dir DIR` | A git directory (a checkout or a bare repository) used for a trial merge. `gather` fetches the base-branch tip and the PR head by SHA from `https://github.com/OWNER/REPO.git` (objects only, no ref changes beyond `FETCH_HEAD`) and runs `git merge-tree --write-tree`, which writes no working-tree or index state. Without it, conflicts are reported as not checked. If the base branch's current tip cannot be resolved, the trial merge is skipped and reported as not checked rather than run against the PR's possibly stale recorded base; `pr.base_sha_is_tip` is then `false` and the rendered footer marks the base as possibly stale. |
 | `--force` | Overwrite an existing `data.json`. Without it, `gather` refuses, because the file may hold written narrative. |
 
 `gather` reads through the `gh` CLI: `gh pr view`, the pull request files
@@ -44,10 +44,10 @@ given, `2` for an invalid target, an unusable `--repo-dir`, or a `gh` failure.
 | `--format` | `artifact` (default) writes the page body for a claude.ai Artifact publish, with no doctype wrapper. `standalone` wraps it in a complete HTML document to open directly. |
 | `--check` | Validate only; print warnings and errors without writing HTML. |
 
-Validation errors (a section with the wrong JSON type, a missing `pr.repo` or `pr.number`, a non-integer line count, an unknown category, severity, confidence, or tone; a
+Validation errors (a section with the wrong JSON type, a missing `pr.repo` or `pr.number`, a non-integer line count, a narrative field of the wrong type (for example a number for `summary` or a list for `severity`), an unknown category, severity, confidence, or tone; a
 figure id that is malformed, duplicated, or reserved; an empty figure) stop
 the render with exit status `1`. Warnings (an empty headline summary, a file
-without a gist, narrative for a path not in the PR) are printed to stderr and
+without a gist, narrative for a path not in the PR, a `pr.url` that is not http(s), which also drops the GitHub link) are printed to stderr and
 do not stop it. Exit status `2` means `data.json` could not be read.
 
 Text fields are HTML-escaped, then `` `code` `` and `**bold**` are applied.

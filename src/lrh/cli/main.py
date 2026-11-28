@@ -27,6 +27,7 @@ from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
+from lrh.cli import pr_brief as pr_brief_cli
 from lrh.cli import vcs as vcs_cli
 from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
@@ -191,6 +192,12 @@ def main() -> None:
         "github",
         add_help=False,
         help="Query GitHub pull request comments/threads.",
+    )
+
+    subparsers.add_parser(
+        "pr-brief",
+        add_help=False,
+        help="Gather facts for and render a visual pull request briefing.",
     )
 
     subparsers.add_parser(
@@ -1225,6 +1232,14 @@ def main() -> None:
             github_cli.run_github_cli(
                 argv=passthrough_args,
                 prog="lrh github",
+            )
+        )
+
+    if args.command == "pr-brief":
+        raise SystemExit(
+            pr_brief_cli.run_pr_brief_cli(
+                argv=passthrough_args,
+                prog="lrh pr-brief",
             )
         )
 

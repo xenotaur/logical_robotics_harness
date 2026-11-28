@@ -153,7 +153,10 @@ def _structure_errors(data: Any) -> list[str]:
         _check_dict_list(briefing.get(key), f"briefing.{key}", errors)
     if not _is_text_or_list(briefing.get("summary")):
         errors.append("briefing.summary must be text or a list of paragraphs")
-    for index, note in enumerate(briefing.get("review_notes") or []):
+    review_notes = briefing.get("review_notes")
+    for index, note in enumerate(
+        review_notes if isinstance(review_notes, list) else []
+    ):
         if isinstance(note, dict) and not _is_text_or_list(note.get("body")):
             errors.append(
                 f"briefing.review_notes[{index}].body must be text or a list of "

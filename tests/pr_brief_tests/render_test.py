@@ -135,6 +135,9 @@ class ValidateStructureTest(unittest.TestCase):
             "briefing.files['src/app/cli.py'].points must be a list": lambda d: d[
                 "briefing"
             ]["files"]["src/app/cli.py"].__setitem__("points", 5),
+            "briefing.review_notes must be a list": lambda d: d["briefing"].__setitem__(
+                "review_notes", 5
+            ),
             "status.behind_by must be a non-negative integer or null": lambda d: d[
                 "status"
             ].__setitem__("behind_by", True),

@@ -2,10 +2,10 @@
 execution_id: 2026_11_25_17_20_18_LRH_PR_EXPLAIN_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_PR_EXPLAIN_CONFIRM)[2026-11-25T17:20:13+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/878
-commit:
+commit: a0d2dd0864e759799b16656c586e35f4472eb857
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/878
 session_transcript: claude-app:dc7ab054-6d76-4d02-a27c-408367a4cb6b
